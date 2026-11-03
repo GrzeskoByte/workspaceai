@@ -1,1 +1,1 @@
-{"name":"@harness/shared","version":"0.1.0","private":true,"type":"module","dependencies":{"chrono-node":"^2.10.3","cron-parser":"^5.10.2"}}
+{"name":"@harness/shared","version":"0.0.1","private":true,"type":"module","dependencies":{"chrono-node":"^2.10.3","cron-parser":"^5.10.2"}}

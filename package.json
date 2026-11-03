@@ -1,6 +1,6 @@
 {
   "name": "harness",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "description": "Harness — a desktop shell over opencode and Open Design with isolated workspaces, projects, memory and BPMN loops.",
