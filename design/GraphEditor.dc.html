@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BPMN graph editor</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:transparent}
+.hx{--bg0:#0a0a0a;--bg-deep:#050505;--bg1:#141414;--bg2:#1e1e1e;--bg3:#282828;--line:#323232;--line2:#3c3c3c;--line3:#484848;--dim:#606060;--text:#eeeeee;--text2:#d4d4d4;--text3:#b4b4b4;--muted:#9a9a9a;--muted2:#808080;--link-hover:#8ab8ff;
+--accent-p:#fab283;--accent-p-fill:#fab283;--accent-p-text:#fab283;--accent-p-deep:#7a4f35;--accent-o:#9d7cd8;--accent-o-fill:#9d7cd8;--accent-o-text:#9d7cd8;--on-accent:#0a0a0a;--on-accent-o:#0a0a0a;
+--info:#5c9cf5;--info-text:#5c9cf5;--cyan:#56b6c2;--cyan-text:#56b6c2;--success:#7fd88f;--success-text:#7fd88f;--warning:#f5a742;--warning-text:#f5a742;--error:#e06c75;--error-text:#e06c75;
+--font-ui:Inter,system-ui,sans-serif;--font-display:Inter,system-ui,sans-serif;--display-weight:600;--display-track:-0.02em;--font-label:'JetBrains Mono',monospace;color-scheme:dark}
+.hx[data-theme="claude"]{--bg0:#faf9f5;--bg-deep:#f5f0e8;--bg1:#f5f0e8;--bg2:#efe9de;--bg3:#e8e0d2;--line:#e6dfd8;--line2:#d6cdbf;--line3:#b8ae9f;--dim:#8e8b82;--text:#141413;--text2:#3d3d3a;--text3:#3d3d3a;--muted:#6c6a64;--muted2:#8e8b82;--link-hover:#141413;
+--accent-p:#cc785c;--accent-p-fill:#cc785c;--accent-p-text:#a9583e;--accent-p-deep:#f2d8cc;--accent-o:#5db8a6;--accent-o-fill:#5db8a6;--accent-o-text:#2f7d6d;--on-accent:#ffffff;--on-accent-o:#141413;
+--info:#a9583e;--info-text:#a9583e;--cyan:#5db8a6;--cyan-text:#2f7d6d;--success:#5db872;--success-text:#2f7a43;--warning:#d4a017;--warning-text:#8a6400;--error:#c64545;--error-text:#c64545;
+--font-display:Copernicus,'Tiempos Headline','Cormorant Garamond',Georgia,serif;--display-weight:500;--display-track:-0.01em;--font-label:Inter,system-ui,sans-serif;color-scheme:light}
+
+a{color:var(--info-text)}a:hover{color:var(--link-hover)}
+button{font:inherit;cursor:pointer}
+button,a,input,textarea,select{transition:filter .15s ease,transform .15s ease,box-shadow .25s ease,border-color .25s ease,background-color .25s ease,color .25s ease}
+button:hover,a:hover{filter:brightness(1.18)}
+button:active,a:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent-p) 45%, transparent)}50%{box-shadow:0 0 0 8px transparent}}
+@keyframes flow{to{stroke-dashoffset:-24}}
+@keyframes shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+.rise{animation:rise .4s cubic-bezier(.2,.7,.2,1) both}
+.pulse{animation:pulse 1.4s ease-in-out infinite}
+.glow{animation:glow 1.6s ease-out infinite}
+.flow path{stroke-dasharray:6 6;animation:flow .8s linear infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+textarea{font:inherit}
+</style>
+<style>
+.hx{--ws-accent:var(--accent-p);--ws-accent-text:var(--accent-p-text)}
+.hx[data-accent="org"]{--accent-p:var(--accent-o);--accent-p-fill:var(--accent-o-fill);--accent-p-text:var(--accent-o-text);--on-accent:var(--on-accent-o)}
+.hx[data-accent="teal"]{--accent-p:#5db8a6;--accent-p-fill:#5db8a6;--accent-p-text:#2f7d6d;--on-accent:#141413}
+.hx[data-accent="amber"]{--accent-p:#e8a55a;--accent-p-fill:#e8a55a;--accent-p-text:#8a5a12;--on-accent:#141413}
+.hx[data-accent="blue"]{--accent-p:#5c9cf5;--accent-p-fill:#5c9cf5;--accent-p-text:#2f63b8;--on-accent:#141413}
+.hx[data-accent="green"]{--accent-p:#5db872;--accent-p-fill:#5db872;--accent-p-text:#2f7a43;--on-accent:#141413}
+.hx[data-theme="opencode"][data-accent="teal"]{--accent-p-text:#5db8a6}.hx[data-theme="opencode"][data-accent="amber"]{--accent-p-text:#e8a55a}.hx[data-theme="opencode"][data-accent="blue"]{--accent-p-text:#5c9cf5}.hx[data-theme="opencode"][data-accent="green"]{--accent-p-text:#5db872}
+@keyframes spin{to{transform:rotate(360deg)}}.spin{animation:spin .9s linear infinite}
+.btn{height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--text);font-size:13px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;cursor:pointer;white-space:nowrap}
+.btn-p{border:0;background:var(--accent-p-fill);color:var(--on-accent);font-weight:600}
+.btn-d{border-color:var(--error);color:var(--error-text)}
+.btn[disabled],.chip[disabled],.opt[disabled],.navrow[disabled],.sw[disabled]{opacity:.45;cursor:not-allowed;filter:none}
+.chip{height:28px;padding:0 10px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap}
+.chip[aria-pressed="true"]{border-color:var(--accent-p);background:var(--bg2)}
+.card{border:1px solid var(--line);border-radius:12px;background:var(--bg1)}
+.lbl{font-family:var(--font-label);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.muted{color:var(--muted)}.mono{font-family:'JetBrains Mono',monospace}
+.disp{font-family:var(--font-display);font-weight:var(--display-weight);letter-spacing:var(--display-track)}
+.inp{height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg0);color:var(--text);font-family:inherit;font-size:13px;box-sizing:border-box}
+.inp:focus{outline:none;border-color:var(--accent-p);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent-p) 18%,transparent)}
+.sw{width:36px;height:20px;border-radius:999px;border:0;padding:2px;display:flex;background:var(--line2);justify-content:flex-start;flex:0 0 auto;cursor:pointer}
+.sw[aria-checked="true"]{background:var(--accent-p-fill);justify-content:flex-end}
+.sw>span{width:16px;height:16px;border-radius:50%;background:var(--bg0)}
+.opt{padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text);text-align:left;display:flex;flex-direction:column;gap:2px;cursor:pointer;font-size:14px}
+.opt[aria-pressed="true"]{border-color:var(--accent-p);background:var(--bg2);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent-p) 15%,transparent)}
+.navrow{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:7px;border:0;background:transparent;color:var(--text);font-size:13px;text-align:left;cursor:pointer;width:100%;box-sizing:border-box}
+.navrow:hover{background:var(--bg2);filter:none}
+.navrow[aria-current="page"],.navrow[aria-current="true"],.navrow[aria-current="step"]{background:var(--bg2);font-weight:500;box-shadow:inset 2px 0 0 var(--accent-p)}
+.treerow{display:flex;align-items:center;border-radius:7px}
+.treerow:hover{background:var(--bg2)}
+.treerow[aria-current="page"]{background:var(--bg2);box-shadow:inset 2px 0 0 var(--accent-p)}
+.treemain{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:6px;padding:5px 6px;border:0;background:transparent;color:var(--text);font-size:13px;cursor:pointer}
+.treemain:hover{filter:none}
+.treeact{width:22px;height:22px;border:0;border-radius:5px;background:transparent;color:var(--muted);font-size:12px;cursor:pointer;opacity:0;flex:0 0 auto}
+.treerow:hover .treeact,.treeact:focus-visible{opacity:1}
+.treeact:hover{background:var(--bg3);color:var(--text);filter:none}
+.tile{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg1);color:var(--text);text-align:left;cursor:pointer;font-size:13px}
+.tile:hover{border-color:var(--accent-p);filter:none}
+.link{border:0;background:transparent;padding:0;color:var(--info-text);cursor:pointer;font:inherit}
+.menu{position:absolute;z-index:20;padding:6px;border-radius:12px;border:1px solid var(--line);background:var(--bg1);box-shadow:0 12px 30px rgba(0,0,0,.18);display:flex;flex-direction:column;gap:1px;max-height:360px;overflow-y:auto}
+.scrim{position:absolute;inset:0;z-index:25;background:rgba(10,10,10,.35);display:flex;justify-content:center;align-items:flex-start}
+.tab{padding:8px 12px;border:0;background:transparent;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer}
+.tab[aria-selected="true"]{color:var(--text);box-shadow:inset 0 -2px 0 var(--accent-p)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+<style>
+.rrow{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;border:1px solid transparent;cursor:pointer;width:100%;box-sizing:border-box}
+.rrow:hover{background:var(--bg2);filter:none}
+.rrow[aria-current="true"]{background:var(--bg2);border-color:var(--line)}
+.runchip{display:flex;flex-direction:column;align-items:flex-start;padding:4px 6px;border-radius:6px;border:1px solid transparent;font-size:11px;line-height:1.3;color:var(--text);cursor:pointer;text-align:left;width:100%;overflow:hidden;white-space:nowrap;font-family:inherit}
+.histrow{display:grid;grid-template-columns:12px 110px 1fr 60px;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;background:var(--bg1);border:0;color:var(--text);font-size:12px;cursor:pointer;width:100%;font-family:inherit}
+.pal{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg0);color:var(--text);text-align:left;cursor:grab;font-family:inherit}
+.pal:hover{border-color:var(--accent-p);filter:none}
+.palicon{width:26px;height:26px;flex:0 0 auto;box-sizing:border-box;border-color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:12px;background:var(--bg1)}
+.handle{position:absolute;width:18px;height:18px;padding:0;border-radius:50%;border:1.5px solid var(--accent-p);background:var(--bg0);color:var(--accent-p-text);font-size:10px;line-height:1;cursor:pointer;z-index:3}
+div[role="button"]:hover>.handle{opacity:1!important}
+.edgechip{position:absolute;padding:1px 6px;border-radius:6px;border:1px solid transparent;background:var(--bg-deep);color:var(--text2);font-size:10.5px;font-family:'JetBrains Mono',monospace;cursor:pointer;white-space:nowrap;z-index:2}
+.edgechip:hover{border-color:var(--line3);filter:none}
+</style>
+</helmet>
+<div class="hx" data-theme="{{theme}}" style="position: relative; width: {{rootW}}; height: {{rootH}}; display: flex; flex-direction: column; background: var(--bg0); color: var(--text); font-family: var(--font-ui); font-size: 14px; line-height: 1.5; overflow: hidden;">
+  <sc-if value="{{standalone}}" hint-placeholder-val="{{ true }}">
+    <div style="height: 2px; background: var(--accent-p);"></div>
+    <header style="display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--bg2);">
+      <span class="mono" style="font-weight: 600;">harness</span>
+      <span style="flex: 1 1 auto; text-align: center; color: var(--muted); font-size: 13px;">Castform <span style="color: var(--dim);">/</span> Graphs <span style="color: var(--dim);">/</span> <span style="color: var(--text);">{{graphName}}</span></span>
+      <span class="mono muted" style="font-size: 11px;">bpmn-js modeller · bpmn-engine · opencode :4096</span>
+    </header>
+  </sc-if>
+
+  <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--bg2); flex-wrap: wrap;">
+    <input class="inp disp" type="text" value="{{graphName}}" onChange="{{onName}}" aria-label="Process name" style="height: 30px; width: 240px; font-size: 16px; border-color: transparent; background: transparent;">
+    <span class="muted" style="font-size: 12px;">Patterns</span>
+    <sc-for list="{{templates}}" as="t" hint-placeholder-count="4"><button type="button" class="chip" aria-pressed="{{t.on}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for>
+    <span style="flex: 1 1 auto;"></span>
+    <button type="button" class="btn" onClick="{{toggleXml}}" aria-pressed="{{xmlOpenA}}">&lt;/&gt; BPMN XML</button>
+    <button type="button" class="btn" onClick="{{importBpmn}}">Import .bpmn</button>
+    <button type="button" class="btn" onClick="{{schedule}}">Schedule…</button>
+    <button type="button" class="btn" onClick="{{dryRun}}" aria-pressed="{{isDry}}">{{dryLabel}}</button>
+    <button type="button" class="btn btn-p" onClick="{{engineRun}}">▶ {{runLabel}}</button>
+  </div>
+
+  <div style="flex: 1 1 auto; display: flex; min-height: 0;">
+    <aside aria-label="BPMN elements" style="flex: 0 0 236px; display: flex; flex-direction: column; background: var(--bg1); border-right: 1px solid var(--bg2); min-height: 0;">
+      <div style="padding: 10px 10px 6px;">
+        <label style="display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg0);"><span class="muted">⌕</span><span class="sr">Search elements</span><input type="search" value="{{q}}" onChange="{{onQ}}" placeholder="Search elements" style="flex: 1 1 auto; min-width: 0; border: 0; outline: none; background: transparent; color: var(--text); font: inherit; font-size: 13px;"></label>
+      </div>
+      <div style="flex: 1 1 auto; overflow-y: auto; padding: 0 10px 10px; display: flex; flex-direction: column; gap: 10px;">
+        <sc-for list="{{groups}}" as="g" hint-placeholder-count="5">
+          <div style="display: flex; flex-direction: column; gap: 3px;">
+            <span class="lbl" style="padding: 4px 2px;">{{g.name}}</span>
+            <sc-for list="{{g.items}}" as="b" hint-placeholder-count="4">
+              <button type="button" draggable="true" onDragStart="{{b.drag}}" onClick="{{b.add}}" title="{{b.d}}" class="pal">
+                <span class="palicon" style="border-radius: {{b.radius}}; border-width: {{b.bw}}; border-style: {{b.bs}}; transform: {{b.rot}};"><span style="transform: {{b.unrot}};">{{b.icon}}</span></span>
+                <span style="display: flex; flex-direction: column; min-width: 0;"><span style="font-size: 12.5px; font-weight: 500;">{{b.label}}</span><span class="muted" style="font-size: 11px; line-height: 1.3;">{{b.d}}</span></span>
+              </button>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+    </aside>
+
+    <main style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;">
+      <sc-if value="{{connecting}}" hint-placeholder-val="{{ false }}">
+        <div class="rise" style="display: flex; align-items: center; gap: 10px; padding: 6px 12px; background: var(--bg2); border-bottom: 1px solid var(--line); font-size: 12px;"><span class="pulse" style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-p);"></span>Connecting from <b>{{connLabel}}</b> — click the element it flows to.<button type="button" class="btn" onClick="{{cancelConn}}" style="margin-left: auto; height: 24px;">Cancel</button></div>
+      </sc-if>
+      <div style="flex: 1 1 auto; overflow: auto; background: var(--bg-deep); position: relative;">
+        <a href="https://bpmn.io" target="_blank" rel="noopener" title="Powered by bpmn.io" style="position: sticky; float: right; top: 8px; right: 8px; margin: 8px 8px -40px 0; z-index: 5; display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 6px; background: var(--bg1); border: 1px solid var(--line); font-size: 11px; color: var(--text2); text-decoration: none;"><span aria-hidden="true" style="width: 16px; height: 16px; border-radius: 3px; background: #52b415; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 10px;">⚙</span>bpmn.io</a>
+        <div onDragOver="{{dragOver}}" onDrop="{{drop}}" onPointerMove="{{move}}" onPointerUp="{{up}}" onPointerLeave="{{up}}" onClick="{{deselect}}" style="position: relative; width: 1460px; height: 590px; margin: 10px;">
+          <div style="position: absolute; left: 0; top: 0; width: 22px; height: 570px; border: 1px solid var(--line3); border-right: 0; border-radius: 8px 0 0 8px; background: var(--bg1); display: flex; align-items: center; justify-content: center;"><span style="writing-mode: vertical-rl; transform: rotate(180deg); font-size: 11px; font-weight: 600;">{{graphName}}</span></div>
+          <sc-for list="{{lanes}}" as="l" hint-placeholder-count="3">
+            <div style="position: absolute; left: 22px; top: {{l.top}}; width: 1438px; height: 190px; box-sizing: border-box; border: 1px solid var(--line3); border-top-width: {{l.bt}}; background: {{l.bg}}; display: flex;">
+              <div style="width: 22px; border-right: 1px solid var(--line3); display: flex; align-items: center; justify-content: center;"><span style="writing-mode: vertical-rl; transform: rotate(180deg); font-size: 11px; color: var(--text2);">{{l.name}}</span></div>
+            </div>
+          </sc-for>
+          <svg aria-hidden="true" width="1460" height="590" viewBox="0 0 1460 590" style="position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible;">
+            <path d="{{seqD}}" style="fill: none; stroke: var(--text2); stroke-width: 1.4;"></path>
+            <path d="{{seqArrows}}" style="fill: var(--text2); stroke: none;"></path>
+            <path d="{{defaultD}}" style="fill: none; stroke: var(--text2); stroke-width: 1.4;"></path>
+            <path d="{{dataD}}" style="fill: none; stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 2 4;"></path>
+            <path d="{{selEdgeD}}" style="fill: none; stroke: var(--accent-p); stroke-width: 3;"></path>
+            <path class="flow" d="{{activeD}}" style="fill: none; stroke: var(--accent-p); stroke-width: 3;"></path>
+          </svg>
+          <sc-for list="{{nodes}}" as="n" hint-placeholder-count="12">
+            <div class="{{n.cls}}" onPointerDown="{{n.down}}" onClick="{{n.pick}}" role="button" tabindex="0" aria-label="{{n.aria}}" style="position: absolute; left: {{n.left}}; top: {{n.top}}; width: {{n.w}}; height: {{n.h}}; cursor: grab; user-select: none; touch-action: none;">
+              <sc-if value="{{n.isTask}}" hint-placeholder-val="{{ true }}">
+                <div style="position: absolute; inset: 0; box-sizing: border-box; border-radius: 10px; border: {{n.bw}} solid {{n.stroke}}; background: var(--bg1); box-shadow: {{n.ring}}; display: flex; align-items: center; justify-content: center; padding: 14px 10px 10px; text-align: center; font-size: 12px; line-height: 1.25;">
+                  <span style="position: absolute; left: 6px; top: 3px; font-size: 12px; color: {{n.iconColor}};">{{n.icon}}</span>
+                  {{n.label}}
+                  <span class="mono" style="position: absolute; left: 0; right: 0; bottom: 1px; font-size: 11px; color: var(--text2);">{{n.markers}}</span>
+                </div>
+                <sc-if value="{{n.hasBoundary}}" hint-placeholder-val="{{ false }}"><span title="{{n.boundaryTitle}}" style="position: absolute; left: 14px; bottom: -11px; width: 20px; height: 20px; border-radius: 50%; border: 3px double var(--text2); background: var(--bg1); font-size: 10px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;">{{n.boundaryIcon}}</span></sc-if>
+              </sc-if>
+              <sc-if value="{{n.isEvent}}" hint-placeholder-val="{{ false }}">
+                <div style="position: absolute; inset: 0; box-sizing: border-box; border-radius: 50%; border: {{n.bw}} {{n.bs}} {{n.stroke}}; background: var(--bg1); box-shadow: {{n.ring}}; display: flex; align-items: center; justify-content: center; font-size: 13px; color: {{n.iconColor}};">{{n.icon}}</div>
+                <span style="position: absolute; left: 50%; top: 40px; transform: translateX(-50%); width: 120px; text-align: center; font-size: 11px; line-height: 1.2; color: var(--text2); pointer-events: none;">{{n.label}}</span>
+              </sc-if>
+              <sc-if value="{{n.isGw}}" hint-placeholder-val="{{ false }}">
+                <div style="position: absolute; left: 7px; top: 7px; width: 30px; height: 30px; transform: rotate(45deg); box-sizing: border-box; border: {{n.bw}} solid {{n.stroke}}; background: var(--bg1); box-shadow: {{n.ring}};"></div>
+                <span style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: var(--text);">{{n.icon}}</span>
+                <span style="position: absolute; left: 50%; bottom: 48px; transform: translateX(-50%); width: 140px; text-align: center; font-size: 11px; line-height: 1.2; color: var(--text2); pointer-events: none;">{{n.label}}</span>
+              </sc-if>
+              <sc-if value="{{n.isData}}" hint-placeholder-val="{{ false }}">
+                <div style="position: absolute; inset: 0; background: {{n.stroke}}; clip-path: polygon(0 0, 70% 0, 100% 24%, 100% 100%, 0 100%);"></div>
+                <div style="position: absolute; inset: 1.5px; background: var(--bg1); clip-path: polygon(0 0, 69% 0, 100% 25%, 100% 100%, 0 100%);"></div>
+                <span style="position: absolute; left: 50%; top: 42px; transform: translateX(-50%); width: 120px; text-align: center; font-size: 11px; line-height: 1.2; color: var(--text2); pointer-events: none;">{{n.label}}</span>
+              </sc-if>
+              <sc-if value="{{n.isStore}}" hint-placeholder-val="{{ false }}">
+                <div style="position: absolute; inset: 0; box-sizing: border-box; border: 1.5px solid {{n.stroke}}; border-radius: 50% / 18%; background: var(--bg1); box-shadow: inset 0 7px 0 -5px {{n.stroke}};"></div>
+                <span style="position: absolute; left: 50%; top: 42px; transform: translateX(-50%); width: 120px; text-align: center; font-size: 11px; line-height: 1.2; color: var(--text2); pointer-events: none;">{{n.label}}</span>
+              </sc-if>
+              <button type="button" class="handle" aria-label="Connect from {{n.label}}" onClick="{{n.connect}}" style="left: {{n.hx}}; top: {{n.hy}}; opacity: {{n.hop}};">→</button>
+            </div>
+          </sc-for>
+          <sc-for list="{{edgeChips}}" as="e" hint-placeholder-count="4">
+            <button type="button" onClick="{{e.pick}}" class="edgechip" style="left: {{e.x}}; top: {{e.y}}; border-color: {{e.border}};">{{e.label}}</button>
+          </sc-for>
+          <div aria-hidden="true" style="position: absolute; left: {{tokenX}}; top: {{tokenY}}; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: var(--accent-p); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-p) 30%, transparent); opacity: {{tokenOp}}; transition: left .55s cubic-bezier(.4,0,.2,1), top .55s cubic-bezier(.4,0,.2,1), opacity .3s ease; pointer-events: none;"></div>
+        </div>
+      </div>
+      <div style="flex: 0 0 150px; display: flex; border-top: 1px solid var(--bg2); background: var(--bg1); min-height: 0;">
+        <div style="flex: 1 1 auto; padding: 10px 14px; display: flex; flex-direction: column; gap: 3px; font-size: 12px; overflow: hidden;" class="mono">
+          <span style="display: flex; align-items: center; gap: 8px;"><span class="muted" style="flex: 1 1 auto;">{{runHeader}}</span>
+            <sc-if value="{{canPause}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn" onClick="{{pauseRun}}" style="height: 24px; font-size: 11px;">Pause · save state</button></sc-if>
+            <sc-if value="{{canResume}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn" onClick="{{resumeRun}}" style="height: 24px; font-size: 11px;">Resume</button></sc-if>
+            <sc-if value="{{canStop}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-d" onClick="{{stopRun}}" style="height: 24px; font-size: 11px;">Stop</button></sc-if>
+          </span>
+          <sc-if value="{{waiting}}" hint-placeholder-val="{{ false }}"><span class="rise" style="display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 6px; background: var(--bg2);"><span style="color: var(--warning-text);">👤</span><span style="flex: 1 1 auto;">activity.wait · {{waitLabel}}</span><button type="button" class="btn btn-p" onClick="{{signalOk}}" style="height: 24px; font-size: 11px;">Approve · signal()</button><button type="button" class="btn" onClick="{{signalNo}}" style="height: 24px; font-size: 11px;">Reject</button></span></sc-if>
+          <sc-for list="{{log}}" as="l" hint-placeholder-count="4"><span class="rise"><span style="color: {{l.color}};">{{l.mark}}</span> {{l.text}}</span></sc-for>
+        </div>
+        <div style="flex: 0 0 340px; padding: 10px 14px; border-left: 1px solid var(--bg2); display: flex; flex-direction: column; gap: 4px; font-size: 12px; overflow-y: auto;">
+          <span class="lbl">Model check · {{checkSummary}}</span>
+          <sc-for list="{{checks}}" as="k" hint-placeholder-count="5"><button type="button" class="link" onClick="{{k.go}}" style="display: flex; gap: 8px; text-align: left; color: var(--text); font-size: 12px;"><span style="color: {{k.color}}; width: 12px;">{{k.mark}}</span><span>{{k.text}}</span></button></sc-for>
+        </div>
+      </div>
+    </main>
+
+    <aside aria-label="Properties" style="flex: 0 0 300px; padding: 14px; background: var(--bg1); border-left: 1px solid var(--bg2); display: flex; flex-direction: column; gap: 12px; overflow-y: auto; font-size: 13px;">
+      <sc-if value="{{hasSel}}" hint-placeholder-val="{{ false }}">
+        <div class="rise" style="display: flex; flex-direction: column; gap: 12px;">
+          <span class="lbl">{{sel.kind}}</span>
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted);">Name<input class="inp" type="text" value="{{sel.label}}" onChange="{{sel.onLabel}}"></label>
+          <span class="muted" style="font-size: 12px;">{{sel.d}}</span>
+          <div style="display: flex; flex-direction: column; gap: 4px;"><span class="muted" style="font-size: 12px;">Lane</span><div style="display: flex; gap: 6px;"><sc-for list="{{sel.lanes}}" as="l" hint-placeholder-count="3"><button type="button" class="chip" aria-pressed="{{l.on}}" onClick="{{l.pick}}">{{l.name}}</button></sc-for></div></div>
+          <sc-if value="{{sel.isEvent}}" hint-placeholder-val="{{ false }}"><div style="display: flex; flex-direction: column; gap: 4px;"><span class="muted" style="font-size: 12px;">Event definition</span><div style="display: flex; gap: 6px; flex-wrap: wrap;"><sc-for list="{{sel.defs}}" as="d" hint-placeholder-count="4"><button type="button" class="chip" aria-pressed="{{d.on}}" onClick="{{d.pick}}">{{d.label}}</button></sc-for></div></div></sc-if>
+          <sc-if value="{{sel.isAgent}}" hint-placeholder-val="{{ false }}"><div style="display: flex; flex-direction: column; gap: 4px;"><span class="muted" style="font-size: 12px;">Runs on</span><div style="display: flex; gap: 6px; flex-wrap: wrap;"><sc-for list="{{sel.runners}}" as="r" hint-placeholder-count="3"><button type="button" class="chip" aria-pressed="{{r.on}}" onClick="{{r.pick}}">{{r.label}}</button></sc-for></div><span class="muted" style="font-size: 11px;">{{sel.runnerNote}}</span></div></sc-if>
+          <sc-for list="{{sel.fields}}" as="f" hint-placeholder-count="3"><label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted);">{{f.label}}<input class="inp mono" type="text" value="{{f.value}}" onChange="{{f.set}}" style="font-size: 12px;"></label></sc-for>
+          <sc-if value="{{sel.isTask}}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid var(--bg3);">
+              <span class="lbl">Markers</span>
+              <label style="display: flex; justify-content: space-between; align-items: center;">↻ Loop until done<button type="button" class="sw" role="switch" aria-checked="{{sel.loop}}" onClick="{{sel.toggleLoop}}" aria-label="Loop"><span></span></button></label>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;"><span class="muted" style="font-size: 12px; width: 100%;">Repeat for each item</span><sc-for list="{{sel.mi}}" as="m" hint-placeholder-count="3"><button type="button" class="chip" aria-pressed="{{m.on}}" onClick="{{m.pick}}">{{m.label}}</button></sc-for></div>
+              <span class="lbl" style="padding-top: 6px;">Boundary events</span>
+              <label style="display: flex; justify-content: space-between; align-items: center;">⏱ Timeout<button type="button" class="sw" role="switch" aria-checked="{{sel.timeout}}" onClick="{{sel.toggleTimeout}}" aria-label="Timeout"><span></span></button></label>
+              <label style="display: flex; justify-content: space-between; align-items: center;">⚡ Catch errors<button type="button" class="sw" role="switch" aria-checked="{{sel.onError}}" onClick="{{sel.toggleError}}" aria-label="Catch errors"><span></span></button></label>
+            </div>
+          </sc-if>
+          <sc-if value="{{sel.isGw}}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid var(--bg3);">
+              <span class="lbl">Outgoing flows</span>
+              <sc-for list="{{sel.outs}}" as="o" hint-placeholder-count="2">
+                <div style="display: flex; flex-direction: column; gap: 4px; padding: 8px; border-radius: 8px; border: 1px solid var(--line);">
+                  <span style="font-size: 12px;">→ {{o.to}}</span>
+                  <input class="inp mono" type="text" value="{{o.cond}}" onChange="{{o.setCond}}" placeholder="condition, e.g. score >= 8" style="height: 30px; font-size: 12px;" aria-label="Condition">
+                  <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px;">Default flow<button type="button" class="sw" role="switch" aria-checked="{{o.isDefault}}" onClick="{{o.toggleDefault}}" aria-label="Default flow"><span></span></button></label>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <div style="display: flex; gap: 8px;"><button type="button" class="btn" onClick="{{startConn}}" style="flex: 1 1 auto; justify-content: center;">→ Connect</button><button type="button" class="btn" onClick="{{dupSel}}">Duplicate</button><button type="button" class="btn btn-d" onClick="{{delSel}}">Delete</button></div>
+        </div>
+      </sc-if>
+      <sc-if value="{{hasEdge}}" hint-placeholder-val="{{ false }}">
+        <div class="rise" style="display: flex; flex-direction: column; gap: 12px;">
+          <span class="lbl">{{edge.kind}}</span>
+          <span style="font-size: 13px;">{{edge.from}} → {{edge.to}}</span>
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted);">Label / condition<input class="inp mono" type="text" value="{{edge.label}}" onChange="{{edge.onLabel}}" style="font-size: 12px;"></label>
+          <sc-if value="{{edge.fromGw}}" hint-placeholder-val="{{ false }}"><label style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">Default flow<button type="button" class="sw" role="switch" aria-checked="{{edge.isDefault}}" onClick="{{edge.toggleDefault}}" aria-label="Default flow"><span></span></button></label></sc-if>
+          <button type="button" class="btn btn-d" onClick="{{delEdge}}">Delete flow</button>
+        </div>
+      </sc-if>
+      <sc-if value="{{noSel}}" hint-placeholder-val="{{ true }}">
+        <div class="rise" style="display: flex; flex-direction: column; gap: 10px;">
+          <span class="disp" style="font-size: 18px;">How to model</span>
+          <span class="muted" style="font-size: 12px;">Drag an element from the left onto a lane, or click it to add. Drag to move. Click → on an element, then the element it flows to. Click a flow’s label to edit its condition.</span>
+          <span class="lbl" style="padding-top: 6px;">Lanes</span>
+          <span style="font-size: 12px;"><b>You</b> — user tasks: approvals, questions, reviews.</span>
+          <span style="font-size: 12px;"><b>Agent</b> — agent, service and rule tasks run as an opencode session, or on another ACP agent enabled in this workspace.</span>
+          <span style="font-size: 12px;"><b>Harness</b> — triggers, tools, artifacts, memory and notifications.</span>
+          <span class="lbl" style="padding-top: 6px;">Run settings</span>
+          <span style="display: flex; justify-content: space-between; font-size: 12px;">Engine <span class="mono">bpmn-engine</span></span>
+          <span style="display: flex; justify-content: space-between; font-size: 12px;">Save state after every step <span style="color: var(--success-text);">on</span></span>
+          <span style="display: flex; justify-content: space-between; font-size: 12px;">Max steps per run <span class="mono">40</span></span>
+          <button type="button" class="btn" onClick="{{schedule}}" style="justify-content: center;">Schedule as a routine…</button>
+        </div>
+      </sc-if>
+    </aside>
+  </div>
+
+  <sc-if value="{{xmlOpen}}" hint-placeholder-val="{{ false }}">
+    <div class="rise card" style="position: absolute; right: 16px; top: 100px; width: 520px; max-height: 620px; display: flex; flex-direction: column; background: var(--bg1); box-shadow: 0 20px 50px rgba(0,0,0,0.2); z-index: 10;">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--bg2);"><b style="flex: 1 1 auto;">BPMN 2.0 XML</b><button type="button" class="btn" onClick="{{copyXml}}" style="height: 28px;">{{copyLabel}}</button><button type="button" class="btn" onClick="{{toggleXml}}" aria-label="Close" style="height: 28px;">✕</button></div>
+      <pre class="mono" style="margin: 0; padding: 12px 14px; overflow: auto; font-size: 11px; line-height: 1.55; color: var(--text2);">{{xml}}</pre>
+      <span class="muted" style="padding: 8px 14px; font-size: 11px; border-top: 1px solid var(--bg2);">Opens in any BPMN 2.0 tool. Harness-specific settings live under the harness: extension namespace.</span>
+    </div>
+  </sc-if>
+  <sc-if value="{{noteOpen}}" hint-placeholder-val="{{ false }}"><div class="card rise" style="position: absolute; left: 50%; bottom: 170px; transform: translateX(-50%); padding: 10px 16px; font-size: 13px; background: var(--bg1); box-shadow: 0 10px 30px rgba(0,0,0,0.15); z-index: 11;">{{note}}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["claude","opencode"],"default":"claude"},"embedded":{"editor":null},"onNav":{"editor":null},"onToast":{"editor":null},"$preview":{"width":1440,"height":900}}'>
+const LANES = ['You', 'Agent · opencode', 'Harness'];
+const LH = 190;
+const T = {
+  start: ['event', 'start', 'none', 'Start', 'Starts the process (manual run or chat command)'],
+  startTimer: ['event', 'start', 'timer', 'Timer start', 'Schedule — the graph becomes a routine'],
+  startMsg: ['event', 'start', 'message', 'Message start', 'An email or chat message arrives'],
+  startCond: ['event', 'start', 'conditional', 'Conditional start', 'A file changes or a git event happens'],
+  timer: ['event', 'inter', 'timer', 'Timer (wait)', 'Pause for a duration or until a date'],
+  msgCatch: ['event', 'inter', 'message', 'Wait for message', 'Pause until a reply arrives'],
+  msgThrow: ['event', 'inter', 'throw', 'Send message', 'Notify and continue'],
+  end: ['event', 'end', 'none', 'End', 'Finish this path'],
+  endError: ['event', 'end', 'error', 'Error end', 'Finish with a failure the caller can catch'],
+  endTerm: ['event', 'end', 'terminate', 'Terminate', 'Stop every path at once'],
+  user: ['task', 'user', '', 'User task', 'Approval, question or review by you'],
+  agent: ['task', 'agent', '', 'Agent task', 'An opencode agent with tools, until done'],
+  service: ['task', 'service', '', 'Service task', 'One model call, API call or MCP tool'],
+  script: ['task', 'script', '', 'Script task', 'A shell command or code snippet'],
+  rule: ['task', 'rule', '', 'Business rule task', 'Classify, extract or judge against a rubric'],
+  browser: ['task', 'browser', '', 'Browser step', 'Playwright MCP: open a page, click, fill in, read'],
+  send: ['task', 'send', '', 'Send task', 'Notify, email or post a message'],
+  receive: ['task', 'receive', '', 'Receive task', 'Wait for an incoming reply'],
+  call: ['task', 'call', '', 'Call activity', 'Run another saved graph'],
+  sub: ['task', 'sub', '', 'Sub-process', 'Group steps; can loop or repeat per item'],
+  xor: ['gw', 'xor', '', 'Exclusive gateway', 'Exactly one path, chosen by condition'],
+  and: ['gw', 'and', '', 'Parallel gateway', 'All paths at once, or wait for all'],
+  or: ['gw', 'or', '', 'Inclusive gateway', 'Every path whose condition holds'],
+  evgw: ['gw', 'event', '', 'Event-based gateway', 'Whichever event happens first'],
+  dataObj: ['data', '', '', 'Data object', 'An artifact or document passed along'],
+  dataStore: ['store', '', '', 'Data store', 'Memory, project files or a database']
+};
+const GROUPS = [['Events', ['start', 'startTimer', 'startMsg', 'startCond', 'timer', 'msgCatch', 'msgThrow', 'end', 'endError', 'endTerm']], ['Tasks', ['user', 'agent', 'service', 'browser', 'script', 'rule', 'send', 'receive']], ['Sub-processes', ['call', 'sub']], ['Gateways', ['xor', 'and', 'or', 'evgw']], ['Data', ['dataObj', 'dataStore']]];
+const EV_ICON = { none: '', timer: '⏱', message: '✉', conditional: '≡', throw: '✉', error: '⚡', terminate: '●' };
+const TASK_ICON = { user: '👤', agent: '✦', service: '⚙', browser: '🌐', script: '‹›', rule: '▦', send: '✉', receive: '✉', call: '⊞', sub: '⊞' };
+const GW_ICON = { xor: '✕', and: '＋', or: '◯', event: '⬠' };
+const SIZE = { task: [136, 64], event: [36, 36], gw: [44, 44], data: [30, 38], store: [44, 38] };
+const FIELDS = {
+  browser: [['Start URL', 'https://opencode.ai/changelog'], ['Instruction', 'Read this week’s release notes'], ['MCP server', 'playwright · npx @playwright/mcp'], ['Headless', 'yes']],
+  agent: [['Agent', 'build'], ['Model', 'anthropic/claude-opus-5-5'], ['Prompt', 'Draft the brief from $sources'], ['Tools', 'edit, bash, webfetch'], ['Max turns', '20']],
+  service: [['Operation', 'web search'], ['Input', '$topic news this week']], script: [['Command', 'pnpm test'], ['Working folder', '~/code/castform']],
+  rule: [['Rubric', 'accuracy, sources, clarity'], ['Output', 'score 1–10']], user: [['Assignee', 'You'], ['Ask', 'Share the brief?']], send: [['Channel', 'push'], ['Message', 'Brief ready']],
+  receive: [['From', 'Gmail · label:replies']], call: [['Graph', 'Fix until tests pass']], sub: [['Contains', '3 steps']], timer: [['Duration', '1 hour']], startTimer: [['Schedule', 'Mondays 08:30 · Europe/Madrid']],
+  startMsg: [['Source', 'Gmail · inbox']], startCond: [['Condition', 'push to main']], msgCatch: [['Message', 'reply from reviewer']], dataObj: [['Artifact', 'Doc']], dataStore: [['Store', 'project memory (Graphify + facts)']]
+};
+const N = (id, t, x, y, label, extra) => Object.assign({ id, t, x, y, label, props: {} }, extra || {});
+const E = (from, to, label, extra) => Object.assign({ id: from + '-' + to, from, to, label: label || '', kind: 'seq', isDefault: false }, extra || {});
+const TPL = {
+  evalopt: ['Evaluator–optimizer', 'Weekly research brief', [
+    N('s1', 'startTimer', 80, 457, 'Every Monday 08:30'), N('t1', 'service', 150, 443, 'Search the web'), N('t2', 'agent', 330, 253, 'Draft research brief'),
+    N('t3', 'rule', 510, 253, 'Judge against rubric'), N('g1', 'xor', 690, 263, 'Score ≥ 8?'), N('t6', 'user', 640, 63, 'Review draft myself'),
+    N('t4', 'service', 820, 443, 'Create doc artifact'), N('d1', 'dataObj', 990, 495, 'Research brief'), N('ds1', 'dataStore', 556, 495, 'Project memory'),
+    N('t5', 'user', 1000, 63, 'Approve before sharing', { timeout: true }), N('g2', 'xor', 1180, 73, 'Approved?'), N('e1', 'end', 1290, 77, 'Brief shared'), N('e2', 'end', 1110, 140, 'Expired after 24 h')],
+    [E('s1', 't1'), E('t1', 't2'), E('t2', 't3'), E('t3', 'g1'), E('g1', 't4', 'score ≥ 8'), E('g1', 't2', 'score < 8 and tries < 3'), E('g1', 't6', '3 tries used', { isDefault: true }), E('t6', 't4'), E('t4', 't5'), E('t5', 'g2'), E('g2', 'e1', 'yes'), E('g2', 't2', 'no · revise', { isDefault: true }), E('t5', 'e2', '24 h', { boundary: true }), E('t4', 'd1', '', { kind: 'data' }), E('ds1', 't3', '', { kind: 'data' })]],
+  router: ['Router', 'Inbox triage', [
+    N('s1', 'startMsg', 80, 457, 'New email'), N('t1', 'rule', 150, 253, 'Classify request'), N('g1', 'xor', 330, 263, 'Simple?'), N('t2', 'service', 420, 200, 'Quick reply draft'),
+    N('t3', 'agent', 420, 300, 'Research and answer'), N('g2', 'xor', 600, 263, ''), N('t4', 'user', 690, 63, 'Approve reply'), N('t5', 'send', 870, 443, 'Send reply'), N('e1', 'end', 1050, 457, 'Done')],
+    [E('s1', 't1'), E('t1', 'g1'), E('g1', 't2', 'class = simple'), E('g1', 't3', 'otherwise', { isDefault: true }), E('t2', 'g2'), E('t3', 'g2'), E('g2', 't4'), E('t4', 't5'), E('t5', 'e1')]],
+  vote: ['Parallel + vote', 'Second opinion', [
+    N('s1', 'start', 80, 457, 'Run'), N('g1', 'and', 150, 453, ''), N('t1', 'agent', 260, 215, 'Answer A · Opus'), N('t2', 'service', 260, 300, 'Answer B · Sonnet'),
+    N('t3', 'service', 260, 443, 'Answer C · local'), N('g2', 'and', 440, 453, ''), N('t4', 'rule', 530, 253, 'Majority vote'), N('t5', 'send', 720, 443, 'Send me the answer'), N('e1', 'end', 900, 457, 'Done')],
+    [E('s1', 'g1'), E('g1', 't1'), E('g1', 't2'), E('g1', 't3'), E('t1', 'g2'), E('t2', 'g2'), E('t3', 'g2'), E('g2', 't4'), E('t4', 't5'), E('t5', 'e1')]],
+  orch: ['Orchestrator–workers', 'Multi-file refactor', [
+    N('s1', 'start', 80, 457, 'Run'), N('t1', 'agent', 150, 253, 'Plan the changes'), N('t2', 'agent', 340, 253, 'Edit one file', { mi: 'parallel' }), N('t3', 'script', 530, 443, 'pnpm test', { onError: true }),
+    N('g1', 'xor', 710, 453, 'Tests pass?'), N('t4', 'user', 800, 63, 'Review the PR'), N('e1', 'end', 980, 77, 'Merged')],
+    [E('s1', 't1'), E('t1', 't2'), E('t2', 't3'), E('t3', 'g1'), E('g1', 't4', 'all green'), E('g1', 't2', 'failures and tries < 5', { isDefault: true }), E('t4', 'e1')]]
+};
+const RUNNERS = [['opencode', 'opencode', 'An opencode session through opencode serve (default)'], ['acp:claude', 'Claude Code · ACP', 'Runs through the ACP adapter enabled in this workspace'], ['acp:gemini', 'Gemini CLI · ACP', 'Runs through Gemini CLI over ACP (stdio JSON-RPC)']];
+const def = (t) => T[t] || T.service;
+const size = (t) => SIZE[def(t).at(0)];
+class Component extends DCLogic {
+  componentWillUnmount() { clearInterval(this.timer); clearTimeout(this.nt); }
+  g() { const s = this.state || {}; const tp = TPL[s.tpl || 'evalopt']; return { nodes: s.nodes || tp.at(2), edges: s.edges || tp.at(3), name: s.name != null ? s.name : tp.at(1) }; }
+  set(nodes, edges, extra) { this.setState(Object.assign({ nodes, edges }, extra || {})); }
+  note(text) { this.setState({ note: text }); clearTimeout(this.nt); this.nt = setTimeout(() => this.setState({ note: null }), 2400); if (this.props.onToast) this.props.onToast(text); }
+  add(t, x, y) {
+    const { nodes, edges } = this.g(); this.seq = (this.seq || 100) + 1; const id = 'n' + this.seq; const sz = size(t);
+    this.set(nodes.concat([N(id, t, Math.max(50, Math.round(x)), Math.max(6, Math.min(570 - sz[1], Math.round(y))), def(t).at(3))]), edges, { sel: id, selEdge: null });
+  }
+  center(n) { const sz = size(n.t); return [n.x + sz[0] / 2, n.y + sz[1] / 2]; }
+  startRun(mode) {
+    clearInterval(this.timer); const { nodes, edges } = this.g(); this.steps = this.walk();
+    this.okd = {};
+    if (mode === 'engine') this.runId = 'r-' + Math.random().toString(36).slice(2, 6);
+    this.setState({ mode, runIdx: 0, running: true, paused: false, waitFor: null, outcome: null, nodes, edges });
+    this.tick();
+  }
+  tick() {
+    clearInterval(this.timer); this.setState({ running: true });
+    this.timer = setInterval(() => {
+      const st = this.state || {}; const i = st.runIdx || 0; const steps = this.steps || [];
+      if (st.mode === 'engine' && steps[i] && steps[i].user && !this.okd[i]) { clearInterval(this.timer); this.okd[i] = true; this.setState({ waitFor: steps[i].label, running: false }); return; }
+      if (i >= steps.length - 1) { clearInterval(this.timer); this.setState({ running: false, outcome: 'completed' }); if (st.mode === 'engine') this.note('Run completed · ' + steps.length + ' steps · transcript saved to the project'); return; }
+      this.setState({ runIdx: i + 1 });
+    }, 800);
+  }
+  walk() {
+    const { nodes, edges } = this.g();
+    const seqs = edges.filter((e) => e.kind !== 'data' && !e.boundary);
+    let cur = nodes.find((n) => def(n.t).at(1) === 'start') || nodes[0];
+    const visits = {}; const steps = []; let guard = 0;
+    while (cur && guard < 30) {
+      guard++; visits[cur.id] = (visits[cur.id] || 0) + 1; const v = visits[cur.id];
+      const outs = seqs.filter((e) => e.from === cur.id);
+      let e = outs[0]; let text = cur.label || def(cur.t).at(3); let color = 'var(--success-text)'; let mark = '✓';
+      const k = def(cur.t);
+      if (k.at(0) === 'gw' && k.at(1) === 'xor' && outs.length > 1) {
+        const loop = outs.find((o) => /<|no|fail|retry|again|revise/i.test(o.label) && !o.isDefault);
+        const fwd = outs.find((o) => o !== loop && !o.isDefault) || outs[0];
+        e = (loop && v < 3 && cur.label.indexOf('Approved') < 0) ? loop : fwd;
+        text = (cur.label || 'Gateway') + ' → ' + (e.label || 'next'); color = e === loop ? 'var(--accent-p-text)' : 'var(--success-text)'; mark = e === loop ? '↺' : '◆';
+      } else if (k.at(0) === 'gw' && k.at(1) === 'and' && outs.length > 1) { text = 'Parallel split · ' + outs.length + ' tokens'; mark = '⇉'; }
+      else if (k.at(1) === 'rule') text = (cur.label || 'Rule') + ' · score ' + [6, 7, 9].at(Math.min(v, 3) - 1) + '/10';
+      else if (k.at(1) === 'user') { text = (cur.label || 'User task') + ' · approved (dry run)'; color = 'var(--warning-text)'; mark = '👤'; }
+      else if (k.at(1) === 'browser') text = (cur.label || 'Browser step') + ' · playwright · 3 pages';
+      else if (k.at(1) === 'agent' && cur.runner && cur.runner !== 'opencode') text = (cur.label || 'Agent task') + ' · ' + (RUNNERS.find((r) => r.at(0) === cur.runner) || RUNNERS[0]).at(1);
+      else if (k.at(0) === 'event' && k.at(1) === 'end') { text = 'End · ' + (cur.label || 'done'); mark = '■'; }
+      steps.push({ id: cur.id, edge: e || null, text, color, mark, user: k.at(1) === 'user', label: cur.label || k.at(3) });
+      if (!e || k.at(1) === 'end') break;
+      cur = nodes.find((n) => n.id === e.to);
+    }
+    return steps;
+  }
+  renderVals() {
+    const s = this.state || {};
+    const emb = !!this.props.embedded;
+    const { nodes, edges, name } = this.g();
+    const pos = {}; nodes.forEach((n) => { pos[n.id] = n; });
+    const step = s.runIdx != null && this.steps ? this.steps.at(Math.min(s.runIdx, this.steps.length - 1)) : null;
+    // edges
+    let seqD = '', seqArrows = '', defaultD = '', dataD = '', selEdgeD = '', activeD = '';
+    const chips = [];
+    let back = 0;
+    edges.forEach((e) => {
+      const a = pos[e.from], b = pos[e.to]; if (!a || !b) return;
+      const sa = size(a.t), sb = size(b.t);
+      const [acx, acy] = this.center(a); const [bcx, bcy] = this.center(b);
+      let d, lx, ly, ex, ey, dir = 'r';
+      if (e.boundary) { const x1 = a.x + 24, y1 = a.y + sa[1] + 10; d = 'M' + x1 + ' ' + y1 + ' V' + bcy + ' H' + (b.x - 2); lx = x1 + 6; ly = y1 + 4; ex = b.x; ey = bcy; }
+      else if (Math.abs(acx - bcx) < 60 && e.kind !== 'data') { const down = bcy > acy; const y1 = down ? a.y + sa[1] : a.y; const y2 = down ? b.y - 2 : b.y + sb[1] + 2; d = 'M' + acx + ' ' + y1 + ' V' + y2; lx = acx + 8; ly = (y1 + y2) / 2 - 8; ex = acx; ey = down ? b.y : b.y + sb[1]; dir = down ? 'd' : 'u'; }
+      else if (bcx > acx + 40) { const x1 = a.x + sa[0], x2 = b.x; const mx = Math.round((x1 + x2) / 2); d = 'M' + x1 + ' ' + acy + ' H' + mx + ' V' + bcy + ' H' + (x2 - 2); lx = x1 + 6; ly = acy - 18; ex = x2; ey = bcy; }
+      else { back++; const low = Math.max(a.y + sa[1], b.y + sb[1]) + 18 + back * 10; d = 'M' + acx + ' ' + (a.y + sa[1]) + ' V' + low + ' H' + bcx + ' V' + (b.y + sb[1] + 2); lx = (acx + bcx) / 2 - 30; ly = low - 18; ex = bcx; ey = b.y + sb[1]; dir = 'u'; }
+      if (e.kind === 'data') { dataD += 'M' + acx + ' ' + acy + ' L' + bcx + ' ' + bcy + ' '; }
+      else {
+        seqD += d + ' ';
+        if (dir === 'r') seqArrows += 'M' + ex + ' ' + ey + ' l-8 -4.5 v9 z ';
+        else if (dir === 'd') seqArrows += 'M' + ex + ' ' + ey + ' l-4.5 -8 h9 z ';
+        else seqArrows += 'M' + ex + ' ' + ey + ' l-4.5 8 h9 z ';
+        if (e.isDefault) { const x1 = a.x + sa[0]; defaultD += 'M' + (x1 + 6) + ' ' + (acy - 5) + ' l6 10 '; }
+        const lbl = e.label || (def(a.t).at(0) === 'gw' ? '+ condition' : '');
+        if (lbl || s.selEdge === e.id) chips.push({ id: e.id, label: lbl || '·', x: lx + 'px', y: ly + 'px', border: s.selEdge === e.id ? 'var(--accent-p)' : 'transparent', pick: (ev) => { ev.stopPropagation(); this.setState({ selEdge: e.id, sel: null }); } });
+      }
+      if (s.selEdge === e.id) selEdgeD = d;
+      if (step && step.edge === e) activeD = d;
+    });
+    // nodes
+    const connecting = !!s.conn;
+    const nodeVals = nodes.map((n) => {
+      const k = def(n.t); const sz = size(n.t); const isSel = s.sel === n.id; const isAct = step && step.id === n.id;
+      const stroke = isAct || isSel ? 'var(--accent-p)' : 'var(--text2)';
+      let bw = '1.5px', bs = 'solid', icon = '', iconColor = 'var(--text2)';
+      if (k.at(0) === 'event') { bw = k.at(1) === 'end' ? '4px' : (k.at(1) === 'inter' ? '4px' : '1.5px'); bs = k.at(1) === 'inter' ? 'double' : 'solid'; icon = EV_ICON[k.at(2)] || ''; if (k.at(2) === 'throw' || k.at(2) === 'terminate' || k.at(2) === 'error') iconColor = 'var(--text)'; }
+      if (k.at(0) === 'task') { icon = TASK_ICON[k.at(1)] || ''; iconColor = k.at(1) === 'agent' ? 'var(--accent-p-text)' : 'var(--text2)'; bw = k.at(1) === 'call' ? '3px' : '1.5px'; }
+      if (k.at(0) === 'gw') icon = GW_ICON[k.at(1)] || '';
+      const markers = [n.loop ? '↻' : '', n.mi === 'parallel' ? '|||' : (n.mi === 'sequential' ? '≡' : ''), k.at(1) === 'sub' || k.at(1) === 'call' ? '⊞' : ''].filter(Boolean).join(' ');
+      return {
+        aria: k.at(3) + ': ' + (n.label || ''), label: n.label, icon, iconColor, markers, stroke, bw, bs,
+        left: n.x + 'px', top: n.y + 'px', w: sz[0] + 'px', h: sz[1] + 'px',
+        ring: isSel ? '0 0 0 4px color-mix(in srgb, var(--accent-p) 22%, transparent)' : 'none', cls: isAct ? 'glow' : '',
+        isTask: k.at(0) === 'task', isEvent: k.at(0) === 'event', isGw: k.at(0) === 'gw', isData: k.at(0) === 'data', isStore: k.at(0) === 'store',
+        hasBoundary: !!(n.timeout || n.onError), boundaryIcon: n.timeout ? '⏱' : '⚡', boundaryTitle: n.timeout ? 'Timeout boundary event' : 'Error boundary event',
+        hx: (sz[0] + 2) + 'px', hy: (sz[1] / 2 - 9) + 'px', hop: isSel ? 1 : (connecting ? 0 : 0.0001),
+        connect: (ev) => { ev.stopPropagation(); this.setState({ conn: n.id }); },
+        pick: (ev) => {
+          ev.stopPropagation();
+          if (this.moved) return;
+          if (s.conn && s.conn !== n.id) {
+            const from = pos[s.conn]; const isData = ['data', 'store'].includes(def(from.t).at(0)) || ['data', 'store'].includes(k.at(0));
+            if (def(from.t).at(1) === 'end') { this.note('An end event has no outgoing flow'); this.setState({ conn: null }); return; }
+            if (k.at(1) === 'start' && !isData) { this.note('A start event has no incoming flow'); this.setState({ conn: null }); return; }
+            const ne = E(s.conn, n.id, '', isData ? { kind: 'data' } : {}); ne.id = s.conn + '-' + n.id + '-' + ((this.seq = (this.seq || 100) + 1));
+            this.set(nodes, edges.concat([ne]), { conn: null, selEdge: isData ? null : ne.id, sel: null });
+            return;
+          }
+          this.setState({ sel: n.id, selEdge: null, conn: null });
+        },
+        down: (ev) => {
+          if (ev.target.closest && ev.target.closest('button')) return;
+          const canvas = ev.currentTarget.parentElement; const r = canvas.getBoundingClientRect(); const sc = r.width / canvas.offsetWidth || 1;
+          this.moved = false; this.drag = { id: n.id, ox: (ev.clientX - r.left) / sc - n.x, oy: (ev.clientY - r.top) / sc - n.y, canvas, sc };
+        }
+      };
+    });
+    // selection
+    const sel = pos[s.sel];
+    const upd = (id, patch) => this.set(nodes.map((x) => (x.id === id ? Object.assign({}, x, patch) : x)), edges);
+    let selV = { kind: '', label: '', d: '', lanes: [], defs: [], fields: [], runners: [], runnerNote: '', isAgent: false, isTask: false, isGw: false, isEvent: false, outs: [], mi: [], loop: 'false', timeout: 'false', onError: 'false' };
+    if (sel) {
+      const k = def(sel.t);
+      const lane = Math.min(2, Math.floor((sel.y + size(sel.t)[1] / 2) / LH));
+      const evDefs = k.at(1) === 'start' ? [['start', 'None'], ['startTimer', 'Timer'], ['startMsg', 'Message'], ['startCond', 'Conditional']] : (k.at(1) === 'end' ? [['end', 'None'], ['endError', 'Error'], ['endTerm', 'Terminate']] : [['timer', 'Timer'], ['msgCatch', 'Catch message'], ['msgThrow', 'Throw message']]);
+      const rn = RUNNERS.find((r) => r.at(0) === (sel.runner || 'opencode')) || RUNNERS[0];
+      selV = { kind: k.at(3), label: sel.label, d: k.at(4), isTask: k.at(0) === 'task', isGw: k.at(0) === 'gw', isEvent: k.at(0) === 'event', isAgent: k.at(1) === 'agent',
+        runners: RUNNERS.map((r) => ({ label: r.at(1), on: rn === r ? 'true' : 'false', pick: () => upd(sel.id, { runner: r.at(0) }) })), runnerNote: rn.at(2),
+        onLabel: (e) => upd(sel.id, { label: e.target.value }),
+        lanes: LANES.map((l, i) => ({ name: l.split(' ')[0], on: lane === i ? 'true' : 'false', pick: () => upd(sel.id, { y: i * LH + (LH - size(sel.t)[1]) / 2 }) })),
+        defs: evDefs.map((d) => ({ label: d.at(1), on: sel.t === d.at(0) ? 'true' : 'false', pick: () => upd(sel.id, { t: d.at(0) }) })),
+        fields: (FIELDS[sel.t] || []).map((f) => ({ label: f.at(0), value: (sel.props || {})[f.at(0)] != null ? sel.props[f.at(0)] : f.at(1), set: (e) => upd(sel.id, { props: Object.assign({}, sel.props || {}, { [f.at(0)]: e.target.value }) }) })),
+        loop: sel.loop ? 'true' : 'false', toggleLoop: () => upd(sel.id, { loop: !sel.loop }),
+        mi: [['', 'Once'], ['parallel', '||| In parallel'], ['sequential', '≡ One by one']].map((m) => ({ label: m.at(1), on: (sel.mi || '') === m.at(0) ? 'true' : 'false', pick: () => upd(sel.id, { mi: m.at(0) }) })),
+        timeout: sel.timeout ? 'true' : 'false', toggleTimeout: () => upd(sel.id, { timeout: !sel.timeout }),
+        onError: sel.onError ? 'true' : 'false', toggleError: () => upd(sel.id, { onError: !sel.onError }),
+        outs: edges.filter((e) => e.from === sel.id && e.kind !== 'data').map((e) => ({ to: (pos[e.to] || {}).label || '…', cond: e.label, isDefault: e.isDefault ? 'true' : 'false',
+          setCond: (ev) => this.set(nodes, edges.map((x) => (x.id === e.id ? Object.assign({}, x, { label: ev.target.value }) : x))),
+          toggleDefault: () => this.set(nodes, edges.map((x) => (x.from === e.from && x.kind !== 'data' ? Object.assign({}, x, { isDefault: x.id === e.id ? !e.isDefault : false }) : x))) })) };
+    }
+    const se = edges.find((e) => e.id === s.selEdge);
+    const edgeV = se ? { kind: se.kind === 'data' ? 'Data association' : (se.boundary ? 'Boundary flow' : 'Sequence flow'), from: (pos[se.from] || {}).label || '…', to: (pos[se.to] || {}).label || '…', label: se.label, fromGw: pos[se.from] && def(pos[se.from].t).at(0) === 'gw', isDefault: se.isDefault ? 'true' : 'false',
+      onLabel: (ev) => this.set(nodes, edges.map((x) => (x.id === se.id ? Object.assign({}, x, { label: ev.target.value }) : x))),
+      toggleDefault: () => this.set(nodes, edges.map((x) => (x.from === se.from && x.kind !== 'data' ? Object.assign({}, x, { isDefault: x.id === se.id ? !se.isDefault : false }) : x))) } : { kind: '', from: '', to: '', label: '', fromGw: false, isDefault: 'false' };
+    // model check
+    const seqs = edges.filter((e) => e.kind !== 'data');
+    const inc = (id) => seqs.filter((e) => e.to === id).length, out = (id) => seqs.filter((e) => e.from === id).length;
+    const flow = nodes.filter((n) => !['data', 'store'].includes(def(n.t).at(0)));
+    const starts = flow.filter((n) => def(n.t).at(1) === 'start'), ends = flow.filter((n) => def(n.t).at(1) === 'end');
+    const reach = {}; const stack = starts.map((n) => n.id); while (stack.length) { const id = stack.pop(); if (reach[id]) continue; reach[id] = true; seqs.filter((e) => e.from === id).forEach((e) => stack.push(e.to)); }
+    const issues = [];
+    const ok = 'var(--success-text)', warn = 'var(--warning-text)', bad = 'var(--error-text)';
+    if (!starts.length) issues.push([bad, '✕', 'Add a start event', null]);
+    if (!ends.length) issues.push([bad, '✕', 'Add an end event', null]);
+    flow.filter((n) => !reach[n.id] && starts.length).forEach((n) => issues.push([warn, '!', '“' + (n.label || def(n.t).at(3)) + '” can’t be reached from a start', n.id]));
+    flow.filter((n) => def(n.t).at(1) !== 'end' && !out(n.id)).forEach((n) => issues.push([bad, '✕', '“' + (n.label || def(n.t).at(3)) + '” has no outgoing flow', n.id]));
+    flow.filter((n) => def(n.t).at(0) === 'gw' && ['xor', 'or'].includes(def(n.t).at(1)) && out(n.id) > 1).forEach((n) => { const os = seqs.filter((e) => e.from === n.id); if (os.some((e) => !e.label && !e.isDefault)) issues.push([warn, '!', '“' + (n.label || 'Gateway') + '”: every outgoing flow needs a condition or one default', n.id]); });
+    flow.filter((n) => def(n.t).at(0) === 'task' && inc(n.id) > 1).forEach((n) => issues.push([warn, '!', '“' + n.label + '” merges ' + inc(n.id) + ' flows — use a gateway (allowed for loop-backs)', n.id]));
+    const splits = flow.filter((n) => def(n.t).at(1) === 'and' && out(n.id) > 1).length, joins = flow.filter((n) => def(n.t).at(1) === 'and' && inc(n.id) > 1).length;
+    if (splits !== joins) issues.push([warn, '!', 'Parallel split and join don’t match (' + splits + ' / ' + joins + ')', null]);
+    const backEdges = seqs.filter((e) => pos[e.from] && pos[e.to] && pos[e.to].x < pos[e.from].x && !e.boundary);
+    backEdges.forEach((e) => { const g = pos[e.from]; const guarded = def(g.t).at(0) === 'gw' && /tries|<|max|and/i.test(e.label); if (!guarded) issues.push([warn, '!', 'Loop back from “' + (g.label || 'gateway') + '” needs a limit in its condition (e.g. tries < 3)', g.id]); });
+    const checks = issues.map((i) => ({ color: i.at(0), mark: i.at(1), text: i.at(2), go: () => i.at(3) && this.setState({ sel: i.at(3), selEdge: null }) }));
+    if (!issues.length) checks.push({ color: ok, mark: '✓', text: 'Valid BPMN: starts, ends, conditions and loop limits are all in place', go: () => {} });
+    checks.push({ color: ok, mark: '✓', text: flow.length + ' elements · ' + seqs.length + ' flows · 3 lanes', go: () => {} });
+    // xml
+    const xmlTag = (n) => { const k = def(n.t); if (k.at(0) === 'event') return (k.at(1) === 'start' ? 'startEvent' : (k.at(1) === 'end' ? 'endEvent' : (k.at(2) === 'throw' ? 'intermediateThrowEvent' : 'intermediateCatchEvent'))); if (k.at(0) === 'gw') return { xor: 'exclusiveGateway', and: 'parallelGateway', or: 'inclusiveGateway', event: 'eventBasedGateway' }[k.at(1)]; if (k.at(0) === 'task') return { user: 'userTask', agent: 'serviceTask', service: 'serviceTask', browser: 'serviceTask', script: 'scriptTask', rule: 'businessRuleTask', send: 'sendTask', receive: 'receiveTask', call: 'callActivity', sub: 'subProcess' }[k.at(1)]; return k.at(0) === 'data' ? 'dataObjectReference' : 'dataStoreReference'; };
+    const esc = (t) => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"\n  xmlns:harness="https://harness.local/bpmn" targetNamespace="harness" exporter="bpmn-js">\n  <process id="p1" name="' + esc(name) + '" isExecutable="true">\n    <laneSet>\n';
+    LANES.forEach((l, i) => { xml += '      <lane id="lane' + i + '" name="' + esc(l) + '">' + nodes.filter((n) => Math.min(2, Math.floor((n.y + size(n.t)[1] / 2) / LH)) === i).map((n) => '<flowNodeRef>' + n.id + '</flowNodeRef>').join('') + '</lane>\n'; });
+    xml += '    </laneSet>\n';
+    nodes.forEach((n) => { const k = def(n.t); const tag = xmlTag(n); const dflt = seqs.find((e) => e.from === n.id && e.isDefault); let inner = ''; if (k.at(2) === 'timer') inner = '<timerEventDefinition/>'; if (k.at(2) === 'message') inner = '<messageEventDefinition/>'; if (k.at(2) === 'error') inner = '<errorEventDefinition/>'; if (k.at(2) === 'terminate') inner = '<terminateEventDefinition/>'; if (k.at(2) === 'conditional') inner = '<conditionalEventDefinition/>'; if (n.loop) inner += '<standardLoopCharacteristics/>'; if (n.mi) inner += '<multiInstanceLoopCharacteristics isSequential="' + (n.mi === 'sequential') + '"/>'; xml += '    <' + tag + ' id="' + n.id + '" name="' + esc(n.label) + '"' + (k.at(1) === 'agent' ? ' harness:type="agent" harness:runner="' + (n.runner || 'opencode') + '"' : '') + (k.at(1) === 'browser' ? ' harness:type="browser" harness:mcp="playwright"' : '') + (dflt ? ' default="' + dflt.id + '"' : '') + (inner ? '>' + inner + '</' + tag + '>\n' : '/>\n'); if (n.timeout) xml += '    <boundaryEvent id="' + n.id + '_to" attachedToRef="' + n.id + '"><timerEventDefinition/></boundaryEvent>\n'; if (n.onError) xml += '    <boundaryEvent id="' + n.id + '_err" attachedToRef="' + n.id + '"><errorEventDefinition/></boundaryEvent>\n'; });
+    seqs.forEach((e) => { xml += '    <sequenceFlow id="' + e.id + '" sourceRef="' + (e.boundary ? e.from + '_to' : e.from) + '" targetRef="' + e.to + '"' + (e.label && !e.isDefault ? '>\n      <conditionExpression>' + esc(e.label) + '</conditionExpression>\n    </sequenceFlow>\n' : '/>\n'); });
+    xml += '  </process>\n</definitions>';
+    // palette
+    const q = (s.q || '').toLowerCase();
+    const groups = GROUPS.map((g) => ({ name: g.at(0), items: g.at(1).filter((t) => !q || (def(t).at(3) + ' ' + def(t).at(4)).toLowerCase().includes(q)).map((t) => { const k = def(t); return {
+      label: k.at(3), d: k.at(4), icon: k.at(0) === 'event' ? (EV_ICON[k.at(2)] || '') : (k.at(0) === 'task' ? TASK_ICON[k.at(1)] : (k.at(0) === 'gw' ? GW_ICON[k.at(1)] : (k.at(0) === 'data' ? '▯' : '⛁'))),
+      radius: k.at(0) === 'event' ? '50%' : (k.at(0) === 'task' ? '6px' : '2px'), bw: k.at(0) === 'event' && k.at(1) !== 'start' ? '3px' : '1.5px', bs: k.at(1) === 'inter' ? 'double' : 'solid',
+      rot: k.at(0) === 'gw' ? 'rotate(45deg) scale(.8)' : 'none', unrot: k.at(0) === 'gw' ? 'rotate(-45deg)' : 'none',
+      drag: (e) => { try { e.dataTransfer.setData('text/plain', t); e.dataTransfer.effectAllowed = 'copy'; } catch (err) {} },
+      add: () => { const n = nodes.length; this.add(t, 120 + (n % 7) * 170, (n % 3) * LH + 60); } }; }) })).filter((g) => g.items.length);
+    const steps = this.steps || []; const shown = s.runIdx != null ? steps.slice(0, s.runIdx + 1) : [];
+    const tok = step ? pos[step.id] : null; const tc = tok ? this.center(tok) : [0, 0];
+    return {
+      theme: this.props.theme || 'claude', standalone: !emb, rootW: emb ? '100%' : '1440px', rootH: emb ? '100%' : '900px',
+      graphName: name, onName: (e) => this.setState({ name: e.target.value, nodes, edges }),
+      templates: Object.keys(TPL).map((k) => ({ label: TPL[k].at(0), on: (s.tpl || 'evalopt') === k ? 'true' : 'false', pick: () => { clearInterval(this.timer); this.steps = null; this.setState({ tpl: k, nodes: null, edges: null, name: null, sel: null, selEdge: null, conn: null, runIdx: null }); } })),
+      groups, q: s.q || '', onQ: (e) => this.setState({ q: e.target.value }),
+      lanes: LANES.map((l, i) => ({ name: l, top: (i * LH) + 'px', bt: i ? '0' : '1px', bg: i % 2 ? 'color-mix(in srgb, var(--bg1) 50%, transparent)' : 'transparent' })),
+      nodes: nodeVals, seqD, seqArrows, defaultD, dataD, selEdgeD, activeD, edgeChips: chips,
+      tokenX: tc.at(0) + 'px', tokenY: tc.at(1) + 'px', tokenOp: tok ? 1 : 0,
+      connecting, connLabel: s.conn ? (pos[s.conn] || {}).label : '', cancelConn: () => this.setState({ conn: null }),
+      startConn: () => sel && this.setState({ conn: sel.id }),
+      hasSel: !!sel, hasEdge: !!se, noSel: !sel && !se, sel: selV, edge: edgeV,
+      delSel: () => { if (!sel) return; this.set(nodes.filter((n) => n.id !== sel.id), edges.filter((e) => e.from !== sel.id && e.to !== sel.id), { sel: null }); },
+      dupSel: () => sel && this.add(sel.t, sel.x + 30, sel.y + 30),
+      delEdge: () => se && this.set(nodes, edges.filter((e) => e.id !== se.id), { selEdge: null }),
+      dragOver: (e) => e.preventDefault(),
+      drop: (e) => { e.preventDefault(); let t = ''; try { t = e.dataTransfer.getData('text/plain'); } catch (err) {} if (!T[t]) return; const r = e.currentTarget.getBoundingClientRect(); const sc = r.width / e.currentTarget.offsetWidth || 1; const sz = size(t); this.add(t, (e.clientX - r.left) / sc - sz[0] / 2, (e.clientY - r.top) / sc - sz[1] / 2); },
+      move: (e) => { const d = this.drag; if (!d) return; const r = d.canvas.getBoundingClientRect(); const x = Math.max(48, Math.round((e.clientX - r.left) / d.sc - d.ox)), y = Math.max(4, Math.min(566 - size(pos[d.id].t)[1], Math.round((e.clientY - r.top) / d.sc - d.oy))); this.moved = true; this.set(nodes.map((n) => (n.id === d.id ? Object.assign({}, n, { x, y }) : n)), edges); },
+      up: () => { this.drag = null; setTimeout(() => { this.moved = false; }, 0); },
+      deselect: () => { if (!this.moved) this.setState({ sel: null, selEdge: null, conn: null }); },
+      dryRun: () => this.startRun('dry'),
+      engineRun: () => { if (issues.length && issues.some((i) => i.at(1) === '✕')) { this.note('Fix the model check first — bpmn-engine only runs valid processes'); return; } this.startRun('engine'); },
+      isDry: s.mode === 'dry' && s.running ? 'true' : 'false',
+      dryLabel: s.mode === 'dry' && s.running ? 'Dry running…' : 'Dry run',
+      runLabel: s.mode === 'engine' && s.running ? 'Running…' : (s.mode === 'engine' && s.paused ? 'Run again' : 'Run'),
+      runHeader: s.runIdx == null ? 'Dry run walks a token with sample results. Run executes it in bpmn-engine for real; state is saved after every step.' : (s.mode === 'engine' ? 'bpmn-engine · run ' + (this.runId || 'r-1') + ' · step ' + shown.length + ' of ' + steps.length + (s.paused ? ' · paused, state saved (engine.getState)' : (s.waitFor ? ' · waiting' : (s.running ? ' · running' : ' · ' + (s.outcome || 'completed')))) : 'dry run · step ' + shown.length + ' of ' + steps.length + ' · nothing sent'),
+      log: shown.slice(-6).map((x, i, arr) => ({ text: s.mode === 'engine' ? (x.user && i === arr.length - 1 && s.waitFor ? 'activity.wait · ' + x.label : 'activity.end · ' + x.text.replace(' (dry run)', ' (signalled)')) : x.text, color: x.color, mark: x.mark })),
+      canPause: s.mode === 'engine' && !!s.running, canResume: s.mode === 'engine' && !!s.paused, canStop: s.mode === 'engine' && (!!s.running || !!s.paused || !!s.waitFor),
+      pauseRun: () => { clearInterval(this.timer); this.setState({ running: false, paused: true }); this.note('Run paused · state saved with engine.getState()'); },
+      resumeRun: () => { this.setState({ paused: false }); this.note('engine.recover(state) → engine.resume()'); this.tick(); },
+      stopRun: () => { clearInterval(this.timer); this.setState({ running: false, paused: false, waitFor: null, outcome: 'stopped' }); this.note('Run stopped'); },
+      waiting: !!s.waitFor, waitLabel: s.waitFor || '',
+      signalOk: () => { this.setState({ waitFor: null }); this.note('Signalled “approved” to the waiting user task'); this.tick(); },
+      signalNo: () => { clearInterval(this.timer); this.setState({ waitFor: null, running: false, outcome: 'rejected — run ended' }); this.note('Rejected · the run ended at this user task'); },
+      checks, checkSummary: issues.length ? issues.length + ' to fix' : 'valid',
+      xml, xmlOpen: !!s.xml, xmlOpenA: s.xml ? 'true' : 'false', toggleXml: () => this.setState({ xml: !s.xml, copied: false }),
+      copyLabel: s.copied ? 'Copied ✓' : 'Copy', copyXml: () => { try { navigator.clipboard.writeText(xml); } catch (err) {} this.setState({ copied: true }); },
+      importBpmn: () => this.note('Choose a .bpmn file from Camunda, bpmn.io or any BPMN 2.0 tool — lanes and gateways are kept'),
+      schedule: () => { if (this.props.onNav) this.props.onNav('routines'); else this.note('Saved. Open Routines to set when it runs.'); },
+      note: s.note || '', noteOpen: !!s.note
+    };
+  }
+}
+</script>
+</body>
+</html>

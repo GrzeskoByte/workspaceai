@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Add custom provider</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:transparent}
+.hx{--bg0:#0a0a0a;--bg-deep:#050505;--bg1:#141414;--bg2:#1e1e1e;--bg3:#282828;--line:#323232;--line2:#3c3c3c;--line3:#484848;--dim:#606060;--text:#eeeeee;--text2:#d4d4d4;--text3:#b4b4b4;--muted:#9a9a9a;--muted2:#808080;--link-hover:#8ab8ff;
+--accent-p:#fab283;--accent-p-fill:#fab283;--accent-p-text:#fab283;--accent-p-deep:#7a4f35;--accent-o:#9d7cd8;--accent-o-fill:#9d7cd8;--accent-o-text:#9d7cd8;--on-accent:#0a0a0a;--on-accent-o:#0a0a0a;
+--info:#5c9cf5;--info-text:#5c9cf5;--cyan:#56b6c2;--cyan-text:#56b6c2;--success:#7fd88f;--success-text:#7fd88f;--warning:#f5a742;--warning-text:#f5a742;--error:#e06c75;--error-text:#e06c75;
+--font-ui:Inter,system-ui,sans-serif;--font-display:Inter,system-ui,sans-serif;--display-weight:600;--display-track:-0.02em;--font-label:'JetBrains Mono',monospace;color-scheme:dark}
+.hx[data-theme="claude"]{--bg0:#faf9f5;--bg-deep:#f5f0e8;--bg1:#f5f0e8;--bg2:#efe9de;--bg3:#e8e0d2;--line:#e6dfd8;--line2:#d6cdbf;--line3:#b8ae9f;--dim:#8e8b82;--text:#141413;--text2:#3d3d3a;--text3:#3d3d3a;--muted:#6c6a64;--muted2:#8e8b82;--link-hover:#141413;
+--accent-p:#cc785c;--accent-p-fill:#cc785c;--accent-p-text:#a9583e;--accent-p-deep:#f2d8cc;--accent-o:#5db8a6;--accent-o-fill:#5db8a6;--accent-o-text:#2f7d6d;--on-accent:#ffffff;--on-accent-o:#141413;
+--info:#a9583e;--info-text:#a9583e;--cyan:#5db8a6;--cyan-text:#2f7d6d;--success:#5db872;--success-text:#2f7a43;--warning:#d4a017;--warning-text:#8a6400;--error:#c64545;--error-text:#c64545;
+--font-display:Copernicus,'Tiempos Headline','Cormorant Garamond',Georgia,serif;--display-weight:500;--display-track:-0.01em;--font-label:Inter,system-ui,sans-serif;color-scheme:light}
+
+a{color:var(--info-text)}a:hover{color:var(--link-hover)}
+button{font:inherit;cursor:pointer}
+button,a,input,textarea,select{transition:filter .15s ease,transform .15s ease,box-shadow .25s ease,border-color .25s ease,background-color .25s ease,color .25s ease}
+button:hover,a:hover{filter:brightness(1.18)}
+button:active,a:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent-p) 45%, transparent)}50%{box-shadow:0 0 0 8px transparent}}
+@keyframes flow{to{stroke-dashoffset:-24}}
+@keyframes shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+.rise{animation:rise .4s cubic-bezier(.2,.7,.2,1) both}
+.pulse{animation:pulse 1.4s ease-in-out infinite}
+.glow{animation:glow 1.6s ease-out infinite}
+.flow path{stroke-dasharray:6 6;animation:flow .8s linear infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+input,select{font:inherit}
+</style>
+</helmet>
+<div class="hx" data-theme="{{theme}}" style="width: 1120px; height: 820px; box-sizing: border-box; padding: 40px; background: var(--bg-deep); display: flex; align-items: center; justify-content: center; font-family: var(--font-ui); color: var(--text); font-size: 14px; line-height: 1.5;">
+  <div role="dialog" aria-label="Add custom provider" style="width: 1040px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg1); box-shadow: 0 24px 60px rgba(0,0,0,0.6); display: flex; flex-direction: column;">
+
+    <div style="display: flex; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid var(--bg2);">
+      <span style="flex: 1 1 auto; display: flex; flex-direction: column;">
+        <span style="font-size: 18px; font-weight: 600; letter-spacing: -0.01em;">Add custom provider</span>
+        <span style="font-size: 12px; color: var(--muted);">Any OpenAI-compatible or AI SDK endpoint. opencode loads it on the next request — no restart.</span>
+      </span>
+      <span style="display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-o-fill);"></span>BSC AI Factory</span>
+      <a href="Providers.dc.html" aria-label="Close" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: var(--muted);">
+        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l10 10M13 3L3 13"/></svg>
+      </a>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap;">
+      <div style="flex: 1 1 520px; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; box-sizing: border-box; border-right: 1px solid var(--bg2);">
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;">
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500;">
+            Provider ID
+            <input type="text" value="ai-factory" style="height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg0); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px;">
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500;">
+            Display name
+            <input type="text" value="AI Factory inference" style="height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg0); color: var(--text); font-weight: 400;">
+          </label>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <span style="font-size: 13px; font-weight: 500;">API style</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">
+            <button type="button" aria-pressed="true" style="padding: 6px 10px; border-radius: 7px; border: 1px solid var(--accent-o); background: var(--bg2); color: var(--text); font-family: inherit; font-size: inherit;">@ai-sdk/openai-compatible</button>
+            <button type="button" style="padding: 6px 10px; border-radius: 7px; border: 1px solid var(--line); background: transparent; color: var(--text2); font-family: inherit; font-size: inherit;">@ai-sdk/openai</button>
+            <button type="button" style="padding: 6px 10px; border-radius: 7px; border: 1px solid var(--line); background: transparent; color: var(--text2); font-family: inherit; font-size: inherit;">@ai-sdk/anthropic</button>
+            <button type="button" style="padding: 6px 10px; border-radius: 7px; border: 1px solid var(--line); background: transparent; color: var(--text2); font-family: inherit; font-size: inherit;">other npm…</button>
+          </div>
+          <span style="font-size: 12px; color: var(--muted);">Chat Completions endpoint (/v1/chat/completions). Pick @ai-sdk/openai for /v1/responses.</span>
+        </div>
+
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500;">
+          Base URL
+          <input type="text" value="https://[INFERENCE_ENDPOINT]/v1" style="height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg0); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px;">
+        </label>
+
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;">
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 13px; font-weight: 500;">API key from</span>
+            <div style="display: flex; gap: 6px; font-size: 12px;">
+              <span style="padding: 6px 10px; border-radius: 7px; border: 1px solid var(--accent-o); background: var(--bg2);">Env var</span>
+              <span style="padding: 6px 10px; border-radius: 7px; border: 1px solid var(--line);">File</span>
+              <span style="padding: 6px 10px; border-radius: 7px; border: 1px solid var(--line);">Keychain</span>
+            </div>
+          </div>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500;">
+            Variable
+            <input type="text" value="AI_FACTORY_TOKEN" style="height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg0); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px;">
+          </label>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <span style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500;">Models
+            <button type="button" style="margin-left: auto; height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 12px;">Fetch from /models</button>
+          </span>
+          <div style="border: 1px solid var(--bg3); border-radius: 8px; overflow: hidden; font-size: 12px;">
+            <div style="display: grid; grid-template-columns: 1.6fr 1.4fr 0.8fr 0.8fr; gap: 10px; padding: 7px 12px; background: var(--bg0); font-family: var(--font-label); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;">
+              <span>Model ID</span><span>Name</span><span>Context</span><span>Output</span>
+            </div>
+            <sc-for list="{{models}}" as="m" hint-placeholder-count="3">
+              <div style="display: grid; grid-template-columns: 1.6fr 1.4fr 0.8fr 0.8fr; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--bg2);">
+                <span style="font-family: 'JetBrains Mono', monospace;">{{m.id}}</span><span>{{m.name}}</span><span style="font-family: 'JetBrains Mono', monospace; color: var(--text2);">{{m.ctx}}</span><span style="font-family: 'JetBrains Mono', monospace; color: var(--text2);">{{m.out}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 12px;">
+          <span style="color: var(--muted);">Save to</span>
+          <span style="padding: 4px 10px; border-radius: 7px; border: 1px solid var(--accent-o); background: var(--bg2);">Workspace</span>
+          <span style="padding: 4px 10px; border-radius: 7px; border: 1px solid var(--line);">Project CAIM only</span>
+        </div>
+      </div>
+
+      <div style="flex: 1 1 400px; padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box; background: var(--bg0);">
+        <span style="display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted);">
+          <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>
+          ~/.harness/ws/bsc-ai-factory/opencode.json
+        </span>
+        <div style="flex: 1 1 auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.7; color: var(--text2); white-space: pre; overflow-x: auto; border: 1px solid var(--bg2); border-radius: 8px; padding: 14px; background: var(--bg0);">{
+  <span style="color: var(--accent-o-text);">"provider"</span>: {
+    <span style="color: var(--accent-o-text);">"ai-factory"</span>: {
+      <span style="color: var(--accent-p-text);">"npm"</span>: <span style="color: var(--success-text);">"@ai-sdk/openai-compatible"</span>,
+      <span style="color: var(--accent-p-text);">"name"</span>: <span style="color: var(--success-text);">"AI Factory inference"</span>,
+      <span style="color: var(--accent-p-text);">"options"</span>: {
+        <span style="color: var(--accent-p-text);">"baseURL"</span>: <span style="color: var(--success-text);">"https://[INFERENCE_ENDPOINT]/v1"</span>,
+        <span style="color: var(--accent-p-text);">"apiKey"</span>: <span style="color: var(--success-text);">"{env:AI_FACTORY_TOKEN}"</span>
+      },
+      <span style="color: var(--accent-p-text);">"models"</span>: {
+        <span style="color: var(--cyan-text);">"llama-4-maverick"</span>: {
+          <span style="color: var(--accent-p-text);">"name"</span>: <span style="color: var(--success-text);">"Llama 4 Maverick"</span>,
+          <span style="color: var(--accent-p-text);">"limit"</span>: { <span style="color: var(--accent-p-text);">"context"</span>: <span style="color: var(--warning-text);">131072</span>, <span style="color: var(--accent-p-text);">"output"</span>: <span style="color: var(--warning-text);">8192</span> }
+        },
+        <span style="color: var(--cyan-text);">"qwen3-coder"</span>: { … },
+        <span style="color: var(--cyan-text);">"mistral-large"</span>: { … }
+      }
+    }
+  }
+}</div>
+        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--bg3); font-size: 12px;">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--success);"></span>
+          <span style="flex: 1 1 auto;">Test passed · 3 models · first token 410 ms</span>
+          <span style="font-family: 'JetBrains Mono', monospace; color: var(--muted);">opencode :4097</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--bg2);">
+      <span style="flex: 1 1 auto; font-size: 12px; color: var(--muted);">The key itself never goes in the file — only the reference to where it lives.</span>
+      <button type="button" style="height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 13px;">Test connection</button>
+      <a href="Providers.dc.html" style="height: 36px; padding: 0 16px; border-radius: 8px; background: var(--accent-o-fill); color: var(--on-accent-o); text-decoration: none; display: inline-flex; align-items: center; font-size: 13px; font-weight: 600;">Save provider</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["claude","opencode"],"default":"claude"},"$preview":{"width":1120,"height":820}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: (this.state && this.state.theme) || this.props.theme || 'claude',
+      models: [
+        { id: 'llama-4-maverick', name: 'Llama 4 Maverick', ctx: '131072', out: '8192' },
+        { id: 'qwen3-coder', name: 'Qwen3 Coder', ctx: '262144', out: '16384' },
+        { id: 'mistral-large', name: 'Mistral Large', ctx: '131072', out: '8192' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

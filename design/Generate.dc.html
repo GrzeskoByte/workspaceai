@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Generating artifact</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:transparent}
+.hx{--bg0:#0a0a0a;--bg-deep:#050505;--bg1:#141414;--bg2:#1e1e1e;--bg3:#282828;--line:#323232;--line2:#3c3c3c;--line3:#484848;--dim:#606060;--text:#eeeeee;--text2:#d4d4d4;--text3:#b4b4b4;--muted:#9a9a9a;--muted2:#808080;--link-hover:#8ab8ff;
+--accent-p:#fab283;--accent-p-fill:#fab283;--accent-p-text:#fab283;--accent-p-deep:#7a4f35;--accent-o:#9d7cd8;--accent-o-fill:#9d7cd8;--accent-o-text:#9d7cd8;--on-accent:#0a0a0a;--on-accent-o:#0a0a0a;
+--info:#5c9cf5;--info-text:#5c9cf5;--cyan:#56b6c2;--cyan-text:#56b6c2;--success:#7fd88f;--success-text:#7fd88f;--warning:#f5a742;--warning-text:#f5a742;--error:#e06c75;--error-text:#e06c75;
+--font-ui:Inter,system-ui,sans-serif;--font-display:Inter,system-ui,sans-serif;--display-weight:600;--display-track:-0.02em;--font-label:'JetBrains Mono',monospace;color-scheme:dark}
+.hx[data-theme="claude"]{--bg0:#faf9f5;--bg-deep:#f5f0e8;--bg1:#f5f0e8;--bg2:#efe9de;--bg3:#e8e0d2;--line:#e6dfd8;--line2:#d6cdbf;--line3:#b8ae9f;--dim:#8e8b82;--text:#141413;--text2:#3d3d3a;--text3:#3d3d3a;--muted:#6c6a64;--muted2:#8e8b82;--link-hover:#141413;
+--accent-p:#cc785c;--accent-p-fill:#cc785c;--accent-p-text:#a9583e;--accent-p-deep:#f2d8cc;--accent-o:#5db8a6;--accent-o-fill:#5db8a6;--accent-o-text:#2f7d6d;--on-accent:#ffffff;--on-accent-o:#141413;
+--info:#a9583e;--info-text:#a9583e;--cyan:#5db8a6;--cyan-text:#2f7d6d;--success:#5db872;--success-text:#2f7a43;--warning:#d4a017;--warning-text:#8a6400;--error:#c64545;--error-text:#c64545;
+--font-display:Copernicus,'Tiempos Headline','Cormorant Garamond',Georgia,serif;--display-weight:500;--display-track:-0.01em;--font-label:Inter,system-ui,sans-serif;color-scheme:light}
+
+a{color:var(--info-text)}a:hover{color:var(--link-hover)}
+button{font:inherit;cursor:pointer}
+button,a,input,textarea,select{transition:filter .15s ease,transform .15s ease,box-shadow .25s ease,border-color .25s ease,background-color .25s ease,color .25s ease}
+button:hover,a:hover{filter:brightness(1.18)}
+button:active,a:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent-p) 45%, transparent)}50%{box-shadow:0 0 0 8px transparent}}
+@keyframes flow{to{stroke-dashoffset:-24}}
+@keyframes shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+.rise{animation:rise .4s cubic-bezier(.2,.7,.2,1) both}
+.pulse{animation:pulse 1.4s ease-in-out infinite}
+.glow{animation:glow 1.6s ease-out infinite}
+.flow path{stroke-dasharray:6 6;animation:flow .8s linear infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+textarea{font:inherit}
+</style>
+<style>
+.hx{--ws-accent:var(--accent-p);--ws-accent-text:var(--accent-p-text)}
+.hx[data-accent="org"]{--accent-p:var(--accent-o);--accent-p-fill:var(--accent-o-fill);--accent-p-text:var(--accent-o-text);--on-accent:var(--on-accent-o)}
+.hx[data-accent="teal"]{--accent-p:#5db8a6;--accent-p-fill:#5db8a6;--accent-p-text:#2f7d6d;--on-accent:#141413}
+.hx[data-accent="amber"]{--accent-p:#e8a55a;--accent-p-fill:#e8a55a;--accent-p-text:#8a5a12;--on-accent:#141413}
+.hx[data-accent="blue"]{--accent-p:#5c9cf5;--accent-p-fill:#5c9cf5;--accent-p-text:#2f63b8;--on-accent:#141413}
+.hx[data-accent="green"]{--accent-p:#5db872;--accent-p-fill:#5db872;--accent-p-text:#2f7a43;--on-accent:#141413}
+.hx[data-theme="opencode"][data-accent="teal"]{--accent-p-text:#5db8a6}.hx[data-theme="opencode"][data-accent="amber"]{--accent-p-text:#e8a55a}.hx[data-theme="opencode"][data-accent="blue"]{--accent-p-text:#5c9cf5}.hx[data-theme="opencode"][data-accent="green"]{--accent-p-text:#5db872}
+@keyframes spin{to{transform:rotate(360deg)}}.spin{animation:spin .9s linear infinite}
+.btn{height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--text);font-size:13px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;cursor:pointer;white-space:nowrap}
+.btn-p{border:0;background:var(--accent-p-fill);color:var(--on-accent);font-weight:600}
+.btn-d{border-color:var(--error);color:var(--error-text)}
+.btn[disabled],.chip[disabled],.opt[disabled],.navrow[disabled],.sw[disabled]{opacity:.45;cursor:not-allowed;filter:none}
+.chip{height:28px;padding:0 10px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap}
+.chip[aria-pressed="true"]{border-color:var(--accent-p);background:var(--bg2)}
+.card{border:1px solid var(--line);border-radius:12px;background:var(--bg1)}
+.lbl{font-family:var(--font-label);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.muted{color:var(--muted)}.mono{font-family:'JetBrains Mono',monospace}
+.disp{font-family:var(--font-display);font-weight:var(--display-weight);letter-spacing:var(--display-track)}
+.inp{height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg0);color:var(--text);font-family:inherit;font-size:13px;box-sizing:border-box}
+.inp:focus{outline:none;border-color:var(--accent-p);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent-p) 18%,transparent)}
+.sw{width:36px;height:20px;border-radius:999px;border:0;padding:2px;display:flex;background:var(--line2);justify-content:flex-start;flex:0 0 auto;cursor:pointer}
+.sw[aria-checked="true"]{background:var(--accent-p-fill);justify-content:flex-end}
+.sw>span{width:16px;height:16px;border-radius:50%;background:var(--bg0)}
+.opt{padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text);text-align:left;display:flex;flex-direction:column;gap:2px;cursor:pointer;font-size:14px}
+.opt[aria-pressed="true"]{border-color:var(--accent-p);background:var(--bg2);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent-p) 15%,transparent)}
+.navrow{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:7px;border:0;background:transparent;color:var(--text);font-size:13px;text-align:left;cursor:pointer;width:100%;box-sizing:border-box}
+.navrow:hover{background:var(--bg2);filter:none}
+.navrow[aria-current="page"],.navrow[aria-current="true"],.navrow[aria-current="step"]{background:var(--bg2);font-weight:500;box-shadow:inset 2px 0 0 var(--accent-p)}
+.treerow{display:flex;align-items:center;border-radius:7px}
+.treerow:hover{background:var(--bg2)}
+.treerow[aria-current="page"]{background:var(--bg2);box-shadow:inset 2px 0 0 var(--accent-p)}
+.treemain{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:6px;padding:5px 6px;border:0;background:transparent;color:var(--text);font-size:13px;cursor:pointer}
+.treemain:hover{filter:none}
+.treeact{width:22px;height:22px;border:0;border-radius:5px;background:transparent;color:var(--muted);font-size:12px;cursor:pointer;opacity:0;flex:0 0 auto}
+.treerow:hover .treeact,.treeact:focus-visible{opacity:1}
+.treeact:hover{background:var(--bg3);color:var(--text);filter:none}
+.tile{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg1);color:var(--text);text-align:left;cursor:pointer;font-size:13px}
+.tile:hover{border-color:var(--accent-p);filter:none}
+.link{border:0;background:transparent;padding:0;color:var(--info-text);cursor:pointer;font:inherit}
+.menu{position:absolute;z-index:20;padding:6px;border-radius:12px;border:1px solid var(--line);background:var(--bg1);box-shadow:0 12px 30px rgba(0,0,0,.18);display:flex;flex-direction:column;gap:1px;max-height:360px;overflow-y:auto}
+.scrim{position:absolute;inset:0;z-index:25;background:rgba(10,10,10,.35);display:flex;justify-content:center;align-items:flex-start}
+.tab{padding:8px 12px;border:0;background:transparent;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer}
+.tab[aria-selected="true"]{color:var(--text);box-shadow:inset 0 -2px 0 var(--accent-p)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+<style>
+.rrow{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;border:1px solid transparent;cursor:pointer;width:100%;box-sizing:border-box}
+.rrow:hover{background:var(--bg2);filter:none}
+.rrow[aria-current="true"]{background:var(--bg2);border-color:var(--line)}
+.runchip{display:flex;flex-direction:column;align-items:flex-start;padding:4px 6px;border-radius:6px;border:1px solid transparent;font-size:11px;line-height:1.3;color:var(--text);cursor:pointer;text-align:left;width:100%;overflow:hidden;white-space:nowrap;font-family:inherit}
+.histrow{display:grid;grid-template-columns:12px 110px 1fr 60px;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;background:var(--bg1);border:0;color:var(--text);font-size:12px;cursor:pointer;width:100%;font-family:inherit}
+.pal{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg0);color:var(--text);text-align:left;cursor:grab;font-family:inherit}
+.pal:hover{border-color:var(--accent-p);filter:none}
+.palicon{width:26px;height:26px;flex:0 0 auto;box-sizing:border-box;border-color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:12px;background:var(--bg1)}
+.handle{position:absolute;width:18px;height:18px;padding:0;border-radius:50%;border:1.5px solid var(--accent-p);background:var(--bg0);color:var(--accent-p-text);font-size:10px;line-height:1;cursor:pointer;z-index:3}
+div[role="button"]:hover>.handle{opacity:1!important}
+.edgechip{position:absolute;padding:1px 6px;border-radius:6px;border:1px solid transparent;background:var(--bg-deep);color:var(--text2);font-size:10.5px;font-family:'JetBrains Mono',monospace;cursor:pointer;white-space:nowrap;z-index:2}
+.edgechip:hover{border-color:var(--line3);filter:none}
+</style>
+</helmet>
+<div class="hx" data-theme="{{theme}}" style="position: relative; width: 100%; min-height: {{rootMinH}}; display: flex; flex-direction: column; background: var(--bg0); color: var(--text); font-family: var(--font-ui); font-size: 14px; line-height: 1.5;">
+  <div style="height: 2px; background: var(--bg2); position: relative;">
+    <div style="position: absolute; left: 0; top: 0; height: 2px; width: {{progress}}; background: var(--accent-p-fill); transition: width .6s ease;"></div>
+  </div>
+  <sc-if value="{{standalone}}" hint-placeholder-val="{{ true }}">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--bg2);">
+    <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">harness</span>
+    <span style="display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-p-fill);"></span>Personal</span>
+    <span style="flex: 1 1 200px; text-align: center; color: var(--muted); font-size: 13px;">Castform <span style="color: var(--dim);">/</span> <span style="color: var(--text);">Beta landing page</span> <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--bg3); color: var(--accent-p-text);">PROTOTYPE</span></span>
+    <span style="display: inline-flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{statusColor}};">
+      <span class="{{statusDotClass}}" style="width: 7px; height: 7px; border-radius: 50%; background: {{statusColor}};"></span>
+      {{status}}
+    </span>
+  </header>
+  </sc-if>
+
+  <div style="flex: 1 1 auto; display: flex; flex-wrap: wrap; align-items: stretch;">
+    <sc-if value="{{standalone}}" hint-placeholder-val="{{ true }}">
+    <nav aria-label="Workspaces" style="flex: 0 0 64px; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 14px 0; border-right: 1px solid var(--bg2);">
+      <a href="Main.dc.html" aria-label="Personal workspace" style="width: 40px; height: 40px; border-radius: 10px; background: var(--bg2); color: var(--accent-p-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 0 0 2px var(--accent-p);">P</a>
+      <a href="Main.dc.html" aria-label="BSC AI Factory workspace" style="width: 40px; height: 40px; border-radius: 10px; background: var(--bg2); color: var(--accent-o-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 13px; display: flex; align-items: center; justify-content: center; text-decoration: none;">AF</a>
+    </nav>
+    </sc-if>
+
+    <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; background: var(--bg-deep);">
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--bg2); background: var(--bg0);">
+        <div role="group" aria-label="Device" style="display: inline-flex; padding: 2px; border-radius: 8px; border: 1px solid var(--bg3);">
+          <button type="button" aria-pressed="{{deskPressed}}" onClick="{{setDesk}}" style="height: 26px; padding: 0 10px; border-radius: 6px; border: 0; background: {{deskBg}}; color: var(--text); font-size: 12px;">Desktop</button>
+          <button type="button" aria-pressed="{{mobPressed}}" onClick="{{setMob}}" style="height: 26px; padding: 0 10px; border-radius: 6px; border: 0; background: {{mobBg}}; color: var(--text); font-size: 12px;">Mobile</button>
+        </div>
+        <span style="display: inline-flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); padding: 3px 8px; border: 1px solid var(--bg3); border-radius: 6px;">
+          <svg style="color: var(--success);" aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>
+          sandboxed iframe · no network
+        </span>
+        <span style="flex: 1 1 auto;"></span>
+        <button type="button" aria-pressed="{{commentsPressed}}" onClick="{{toggleComments}}" style="height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid {{commentsBorder}}; background: transparent; color: var(--text); font-size: 12px;">Comments · 2</button>
+        <button type="button" onClick="{{replay}}" style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 12px;">
+          <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+          Replay
+        </button>
+      </div>
+
+      <div style="flex: 1 1 auto; padding: 20px; display: flex; justify-content: center; overflow: auto;">
+        <div style="position: relative; width: 100%; max-width: {{frameW}}; transition: max-width .5s cubic-bezier(.2,.7,.2,1); border-radius: 12px; border: 1px solid var(--bg3); background: var(--bg0); overflow: hidden; align-self: flex-start;">
+          <div style="display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--bg2); background: var(--bg1);">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--line);"></span>
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--line);"></span>
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--line);"></span>
+            <span style="margin-left: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted);">preview · index.html</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: {{gap}}; padding: {{pad}}; transition: padding .4s ease, gap .4s ease;">
+            <sc-if value="{{show1}}" hint-placeholder-val="{{ true }}">
+              <div class="rise" style="display: flex; align-items: center; gap: 16px; font-size: 13px;">
+                <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 15px; color: {{accent}}; transition: color .4s ease;">castform</span>
+                <span style="flex: 1 1 auto;"></span>
+                <span style="color: var(--muted);">How it works</span>
+                <span style="color: var(--muted);">FAQ</span>
+              </div>
+            </sc-if>
+            <sc-if value="{{skel1}}" hint-placeholder-val="{{ false }}">
+              <div class="skel" style="height: 20px; border-radius: 6px;"></div>
+            </sc-if>
+
+            <sc-if value="{{show2}}" hint-placeholder-val="{{ true }}">
+              <div class="rise" style="display: flex; flex-direction: {{heroDir}}; flex-wrap: wrap; align-items: {{heroAlign}}; text-align: {{heroText}}; gap: 24px;">
+                <div style="flex: 1 1 280px; display: flex; flex-direction: column; gap: 14px; align-items: {{heroAlign}};">
+                  <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {{accent}}; letter-spacing: 0.08em;">PRIVATE BETA</span>
+                  <span style="font-size: 38px; font-family: var(--font-display); font-weight: var(--display-weight); letter-spacing: -0.03em; line-height: 1.08;">See the mold<br>before you pour it.</span>
+                  <span style="font-size: 15px; color: var(--text3); max-width: 420px;">Load an STL, pick a mold style, and spot thin walls before you waste silicone.</span>
+                  <span style="display: inline-flex; gap: 10px; flex-wrap: wrap;">
+                    <span class="glow" style="display: inline-flex; align-items: center; height: 40px; padding: 0 18px; border-radius: 8px; background: {{accent}}; color: var(--on-accent); font-weight: 600; font-size: 14px; transition: background-color .4s ease;">Join the beta</span>
+                    <span style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--line); font-size: 14px;">Watch demo</span>
+                  </span>
+                </div>
+                <sc-if value="{{show3}}" hint-placeholder-val="{{ true }}">
+                  <div class="rise" style="flex: 1 1 260px; min-height: 180px; border-radius: 12px; border: 1px dashed {{accent}}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--muted); font-size: 13px; transition: border-color .4s ease;">
+                    <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>
+                    Drop an STL to try it
+                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px;">[RENDER: wall-thickness preview]</span>
+                  </div>
+                </sc-if>
+                <sc-if value="{{skel3}}" hint-placeholder-val="{{ false }}">
+                  <div class="skel" style="flex: 1 1 260px; min-height: 180px; border-radius: 12px;"></div>
+                </sc-if>
+              </div>
+            </sc-if>
+            <sc-if value="{{skel2}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; gap: 24px;">
+                <div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 10px;">
+                  <div class="skel" style="height: 36px; width: 80%; border-radius: 6px;"></div>
+                  <div class="skel" style="height: 36px; width: 60%; border-radius: 6px;"></div>
+                  <div class="skel" style="height: 14px; width: 70%; border-radius: 6px;"></div>
+                </div>
+                <div class="skel" style="flex: 0 0 40%; height: 180px; border-radius: 12px;"></div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{show4}}" hint-placeholder-val="{{ true }}">
+              <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;">
+                <sc-for list="{{features}}" as="f" hint-placeholder-count="3">
+                  <div class="rise" style="animation-delay: {{f.delay}}; padding: 14px; border-radius: 10px; border: 1px solid var(--bg2); background: var(--bg1); display: flex; flex-direction: column; gap: 6px;">
+                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{accent}};">{{f.n}}</span>
+                    <span style="font-weight: 600; font-size: 14px;">{{f.title}}</span>
+                    <span style="font-size: 12px; color: var(--muted);">{{f.body}}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{skel4}}" hint-placeholder-val="{{ false }}">
+              <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;">
+                <div class="skel" style="height: 92px; border-radius: 10px;"></div>
+                <div class="skel" style="height: 92px; border-radius: 10px;"></div>
+                <div class="skel" style="height: 92px; border-radius: 10px;"></div>
+              </div>
+            </sc-if>
+          </div>
+
+          <sc-if value="{{showPins}}" hint-placeholder-val="{{ true }}">
+            <span class="glow" style="position: absolute; left: 62%; top: 120px; width: 24px; height: 24px; border-radius: 50%; background: var(--info); color: var(--on-accent); font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center;">1</span>
+            <span class="rise" style="position: absolute; left: calc(62% + 30px); top: 116px; max-width: 200px; padding: 6px 10px; border-radius: 8px; background: var(--bg2); border: 1px solid var(--line); font-size: 12px;">Make the headline one line on desktop?</span>
+            <span class="glow" style="position: absolute; left: 22%; top: 300px; width: 24px; height: 24px; border-radius: 50%; background: var(--info); color: var(--on-accent); font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center;">2</span>
+          </sc-if>
+        </div>
+      </div>
+    </main>
+
+    <aside aria-label="Artifact tools" style="flex: 1 1 340px; max-width: 380px; min-width: 300px; background: var(--bg1); border-left: 1px solid var(--bg2); display: flex; flex-direction: column;">
+      <div role="tablist" style="display: flex; gap: 2px; padding: 8px 10px 0; border-bottom: 1px solid var(--bg2);">
+        <sc-for list="{{tabs}}" as="t" hint-placeholder-count="4">
+          <button type="button" role="tab" aria-selected="{{t.sel}}" onClick="{{t.pick}}" style="flex: 1 1 auto; height: 34px; border: 0; background: transparent; color: {{t.color}}; font-size: 13px; font-weight: 500; box-shadow: inset 0 -2px 0 {{t.line}};">{{t.label}}</button>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{tabPlan}}" hint-placeholder-val="{{ true }}">
+        <div class="rise" style="padding: 16px; display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 12px; color: var(--muted); padding-bottom: 8px;">Live plan from opencode session ses_c41d</span>
+          <sc-for list="{{plan}}" as="p" hint-placeholder-count="7">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 7px; background: {{p.bg}}; transition: background-color .3s ease;">
+              <span class="{{p.cls}}" style="width: 16px; height: 16px; border-radius: 50%; border: 2px solid {{p.ring}}; background: {{p.fill}}; color: var(--on-accent); font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-sizing: border-box; flex: 0 0 auto;">{{p.mark}}</span>
+              <span style="flex: 1 1 auto; font-size: 13px; color: {{p.text}};">{{p.label}}</span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted);">{{p.meta}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{tabCrit}}" hint-placeholder-val="{{ false }}">
+        <div class="rise" style="padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+          <span style="display: flex; align-items: baseline; gap: 8px;">
+            <span style="font-size: 28px; font-family: var(--font-display); font-weight: var(--display-weight); letter-spacing: -0.02em;">{{total}}</span>
+            <span style="color: var(--muted); font-size: 13px;">/ 50 self-critique</span>
+          </span>
+          <sc-for list="{{crit}}" as="c" hint-placeholder-count="5">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="display: flex; justify-content: space-between; font-size: 13px;"><span>{{c.label}}</span><span style="font-family: 'JetBrains Mono', monospace; color: {{c.color}};">{{c.score}}/10</span></span>
+              <div style="height: 6px; border-radius: 999px; background: var(--bg3); overflow: hidden;">
+                <div style="height: 6px; width: {{c.w}}; border-radius: 999px; background: {{c.color}}; transition: width .8s cubic-bezier(.2,.7,.2,1), background-color .4s ease;"></div>
+              </div>
+              <span style="font-size: 12px; color: var(--muted);">{{c.note}}</span>
+            </div>
+          </sc-for>
+          <button type="button" onClick="{{applyFixes}}" style="height: 34px; border-radius: 8px; border: 0; background: {{fixBg}}; color: var(--on-accent); font-weight: 600; font-size: 13px;">{{fixLabel}}</button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{tabTweaks}}" hint-placeholder-val="{{ false }}">
+        <div class="rise" style="padding: 16px; display: flex; flex-direction: column; gap: 18px; font-size: 13px;">
+          <span style="font-size: 12px; color: var(--muted);">Tweaks re-render the preview without a reload.</span>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="font-weight: 500;">Accent</span>
+            <div style="display: flex; gap: 10px;">
+              <sc-for list="{{swatches}}" as="w" hint-placeholder-count="4">
+                <button type="button" aria-label="{{w.name}}" aria-pressed="{{w.sel}}" onClick="{{w.pick}}" style="width: 30px; height: 30px; border-radius: 50%; border: 0; background: {{w.hex}}; box-shadow: {{w.ring}};"></button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="font-weight: 500;">Density</span>
+            <div style="display: inline-flex; padding: 2px; border-radius: 8px; border: 1px solid var(--bg3); align-self: flex-start;">
+              <button type="button" onClick="{{setCozy}}" style="height: 28px; padding: 0 12px; border-radius: 6px; border: 0; background: {{cozyBg}}; color: var(--text); font-size: 12px;">Cozy</button>
+              <button type="button" onClick="{{setCompact}}" style="height: 28px; padding: 0 12px; border-radius: 6px; border: 0; background: {{compactBg}}; color: var(--text); font-size: 12px;">Compact</button>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="font-weight: 500;">Hero layout</span>
+            <div style="display: inline-flex; padding: 2px; border-radius: 8px; border: 1px solid var(--bg3); align-self: flex-start;">
+              <button type="button" onClick="{{setSplit}}" style="height: 28px; padding: 0 12px; border-radius: 6px; border: 0; background: {{splitBg}}; color: var(--text); font-size: 12px;">Split</button>
+              <button type="button" onClick="{{setCentered}}" style="height: 28px; padding: 0 12px; border-radius: 6px; border: 0; background: {{centeredBg}}; color: var(--text); font-size: 12px;">Centered</button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{tabShip}}" hint-placeholder-val="{{ false }}">
+        <div class="rise" style="padding: 16px; display: flex; flex-direction: column; gap: 10px; font-size: 13px;">
+          <span style="font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);">Export</span>
+          <sc-for list="{{exports}}" as="e" hint-placeholder-count="4"><button type="button" onClick="{{e.go}}" style="display: flex; justify-content: space-between; padding: 9px 10px; border-radius: 7px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 13px; cursor: pointer;">{{e.label}} <span style="font-family: 'JetBrains Mono', monospace; color: {{e.color}}; font-size: 12px;">{{e.ext}}</span></button></sc-for>
+          <span style="font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding-top: 10px;">Handoff</span>
+          <button type="button" onClick="{{saveLib}}" style="text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--accent-p); background: var(--bg2); color: var(--text); cursor: pointer;"><span style="font-weight: 600; font-size: 13px;">{{saveLabel}}</span><span style="font-size: 12px; color: var(--muted);">Keeps it in the project’s artifact library, versioned</span></button>
+          <button type="button" onClick="{{handoff}}" style="text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--text); cursor: pointer;"><span style="font-weight: 600; font-size: 13px;">Continue as code</span><span style="font-size: 12px; color: var(--muted);">Opens a chat in {{projName}} with the files, run by opencode</span></button>
+          <button type="button" onClick="{{saveMem}}" style="text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--text); cursor: pointer;">
+            <span style="font-weight: 600; font-size: 13px;">{{memLabel}}</span>
+            <span style="font-size: 12px; color: var(--muted);">Direction, accent and copy tone, for next time</span>
+          </button>
+        </div>
+      </sc-if>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"embedded":{"editor":null},"onSave":{"editor":null},"onHandoff":{"editor":null},"project":{"editor":null},"theme":{"editor":"enum","options":["claude","opencode"],"default":"claude"},"stepMs":{"editor":"int","min":300,"max":3000,"step":100,"default":900,"unit":"ms"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  componentDidMount() { this.start(); }
+  componentWillUnmount() { clearInterval(this.timer); }
+  start() {
+    clearInterval(this.timer);
+    this.setState({ step: 0 });
+    this.timer = setInterval(() => {
+      const st = (this.state && this.state.step) || 0;
+      if (st >= 7) { clearInterval(this.timer); return; }
+      this.setState({ step: st + 1 });
+    }, this.props.stepMs || 900);
+  }
+  renderVals() {
+    const s = this.state || {};
+    const step = s.step || 0;
+    const done = step >= 7;
+    const accent = s.accent || 'var(--accent-p)';
+    const tab = s.tab || 'plan';
+    const device = s.device || 'desktop';
+    const compact = s.density === 'compact';
+    const centered = s.hero === 'centered';
+    const fixed = !!s.fixed;
+    const comments = s.comments !== false;
+    const on = 'var(--bg3)';
+    const planLabels = [
+      ['Read brief + DESIGN.md', '0.4s'], ['Lay out sections', '1.1s'], ['Hero + call to action', '2.0s'],
+      ['STL upload demo', '1.6s'], ['Features + FAQ', '1.8s'], ['Lint: a11y, contrast, links', '0.3s'], ['Critique pass', '0.9s']
+    ];
+    const plan = planLabels.map((p, i) => {
+      const st = i < step ? 'done' : (i === step ? 'now' : 'todo');
+      return {
+        label: p[0], meta: st === 'done' ? p[1] : (st === 'now' ? 'running' : ''),
+        mark: st === 'done' ? '✓' : '', cls: st === 'now' ? 'pulse' : '',
+        ring: st === 'done' ? 'var(--success)' : (st === 'now' ? 'var(--accent-p)' : 'var(--line3)'),
+        fill: st === 'done' ? 'var(--success)' : 'transparent',
+        text: st === 'todo' ? 'var(--muted)' : 'var(--text)',
+        bg: st === 'now' ? 'var(--bg2)' : 'transparent'
+      };
+    });
+    const critBase = [
+      ['Hierarchy', 8, 8, 'One clear headline, one primary action.'],
+      ['Typography', 9, 9, 'Two families, consistent scale.'],
+      ['Colour & contrast', 7, 9, fixed ? 'Fixed: muted text raised to 4.8:1.' : 'Muted body text is 4.2:1 — below AA.'],
+      ['Spacing & rhythm', 8, 8, 'Even 8px rhythm; hero could breathe more.'],
+      ['Copy', 6, 8, fixed ? 'Fixed: pricing line now says "Free during beta".' : 'Pricing is still a placeholder.']
+    ];
+    const crit = critBase.map((c) => {
+      const score = fixed ? c[2] : c[1];
+      return { label: c[0], score: String(score), w: (step >= 7 ? score * 10 : 0) + '%', note: c[3],
+        color: score >= 8 ? 'var(--success)' : (score === 7 ? 'var(--warning)' : 'var(--error)') };
+    });
+    const total = critBase.reduce((a, c) => a + (fixed ? c[2] : c[1]), 0);
+    const tabDefs = [['plan', 'Plan'], ['crit', 'Critique'], ['tweaks', 'Tweaks'], ['ship', 'Export']];
+    const sw = [['Peach', 'var(--accent-p)'], ['Blue', 'var(--info)'], ['Green', 'var(--success)'], ['Purple', 'var(--accent-o)']];
+    return { theme: (this.state && this.state.theme) || this.props.theme || 'claude',
+      progress: Math.round(step / 7 * 100) + '%',
+      status: done ? 'ready · lint 0 errors' : 'generating · step ' + (step + 1) + ' of 7',
+      statusColor: done ? 'var(--success)' : 'var(--accent-p)',
+      statusDotClass: done ? '' : 'pulse',
+      accent,
+      pad: compact ? '28px' : '48px', gap: compact ? '20px' : '36px',
+      heroDir: centered ? 'column' : 'row', heroAlign: centered ? 'center' : 'flex-start', heroText: centered ? 'center' : 'left',
+      frameW: device === 'mobile' ? '390px' : '960px',
+      deskPressed: device === 'desktop' ? 'true' : 'false', mobPressed: device === 'mobile' ? 'true' : 'false',
+      deskBg: device === 'desktop' ? on : 'transparent', mobBg: device === 'mobile' ? on : 'transparent',
+      setDesk: () => this.setState({ device: 'desktop' }), setMob: () => this.setState({ device: 'mobile' }),
+      show1: step >= 1, skel1: step < 1, show2: step >= 2, skel2: step < 2,
+      show3: step >= 4, skel3: step >= 2 && step < 4,
+      show4: step >= 5, skel4: step < 5,
+      showPins: done && comments,
+      commentsPressed: comments ? 'true' : 'false', commentsBorder: comments ? 'var(--info)' : 'var(--line)',
+      toggleComments: () => this.setState({ comments: !comments }),
+      replay: () => { this.setState({ fixed: false, tab: 'plan' }); this.start(); },
+      features: [
+        { n: '01', title: 'Load any mesh', body: 'STL and OBJ, cleaned and scaled in millimetres.', delay: '0s' },
+        { n: '02', title: 'Box or brush-on', body: 'See the mold shell and pour channels.', delay: '0.08s' },
+        { n: '03', title: 'Thin-wall heatmap', body: 'Spots under your minimum light up red.', delay: '0.16s' }
+      ],
+      tabs: tabDefs.map((t) => ({ label: t[1], sel: tab === t[0] ? 'true' : 'false', color: tab === t[0] ? 'var(--text)' : 'var(--muted)', line: tab === t[0] ? accent : 'transparent', pick: () => this.setState({ tab: t[0] }) })),
+      tabPlan: tab === 'plan', tabCrit: tab === 'crit', tabTweaks: tab === 'tweaks', tabShip: tab === 'ship',
+      plan, crit, total: done ? String(total) : '—',
+      fixLabel: fixed ? 'Fixes applied' : 'Apply 2 suggested fixes', fixBg: fixed ? 'var(--success)' : accent,
+      applyFixes: () => this.setState({ fixed: true }),
+      swatches: sw.map((w) => ({ name: w[0], hex: w[1], sel: accent === w[1] ? 'true' : 'false', ring: accent === w[1] ? '0 0 0 2px var(--bg1), 0 0 0 4px var(--text)' : 'none', pick: () => this.setState({ accent: w[1] }) })),
+      cozyBg: compact ? 'transparent' : on, compactBg: compact ? on : 'transparent',
+      setCozy: () => this.setState({ density: 'cozy' }), setCompact: () => this.setState({ density: 'compact' }),
+      splitBg: centered ? 'transparent' : on, centeredBg: centered ? on : 'transparent',
+      setSplit: () => this.setState({ hero: 'split' }), setCentered: () => this.setState({ hero: 'centered' }),
+      exports: [['Single-file HTML', '.html'], ['PDF', '.pdf'], ['Project folder', '.zip'], ['Markdown spec', '.md']].map((e) => ({ label: e.at(0), ext: (s.exported || {})[e.at(1)] ? e.at(1) + ' ✓' : e.at(1), color: (s.exported || {})[e.at(1)] ? 'var(--success-text)' : 'var(--muted)', go: () => this.setState({ exported: Object.assign({}, s.exported || {}, { [e.at(1)]: true }) }) })),
+      standalone: !this.props.embedded, rootMinH: this.props.embedded ? '100%' : '900px', projName: this.props.project || 'Castform',
+      saveLabel: s.savedLib ? 'Saved to library ✓' : 'Save to ' + (this.props.project || 'Castform'),
+      saveLib: () => { this.setState({ savedLib: true }); if (this.props.onSave) this.props.onSave('Beta landing page'); },
+      handoff: () => { if (this.props.onHandoff) this.props.onHandoff(); else this.setState({ handed: true }); },
+      memLabel: s.savedMem ? 'Design decisions saved ✓' : 'Save design decisions to memory', saveMem: () => this.setState({ savedMem: true })
+    };
+  }
+}
+</script>
+</body>
+</html>

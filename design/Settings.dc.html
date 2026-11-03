@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:transparent}
+.hx{--bg0:#0a0a0a;--bg-deep:#050505;--bg1:#141414;--bg2:#1e1e1e;--bg3:#282828;--line:#323232;--line2:#3c3c3c;--line3:#484848;--dim:#606060;--text:#eeeeee;--text2:#d4d4d4;--text3:#b4b4b4;--muted:#9a9a9a;--muted2:#808080;--link-hover:#8ab8ff;
+--accent-p:#fab283;--accent-p-fill:#fab283;--accent-p-text:#fab283;--accent-p-deep:#7a4f35;--accent-o:#9d7cd8;--accent-o-fill:#9d7cd8;--accent-o-text:#9d7cd8;--on-accent:#0a0a0a;--on-accent-o:#0a0a0a;
+--info:#5c9cf5;--info-text:#5c9cf5;--cyan:#56b6c2;--cyan-text:#56b6c2;--success:#7fd88f;--success-text:#7fd88f;--warning:#f5a742;--warning-text:#f5a742;--error:#e06c75;--error-text:#e06c75;
+--font-ui:Inter,system-ui,sans-serif;--font-display:Inter,system-ui,sans-serif;--display-weight:600;--display-track:-0.02em;--font-label:'JetBrains Mono',monospace;color-scheme:dark}
+.hx[data-theme="claude"]{--bg0:#faf9f5;--bg-deep:#f5f0e8;--bg1:#f5f0e8;--bg2:#efe9de;--bg3:#e8e0d2;--line:#e6dfd8;--line2:#d6cdbf;--line3:#b8ae9f;--dim:#8e8b82;--text:#141413;--text2:#3d3d3a;--text3:#3d3d3a;--muted:#6c6a64;--muted2:#8e8b82;--link-hover:#141413;
+--accent-p:#cc785c;--accent-p-fill:#cc785c;--accent-p-text:#a9583e;--accent-p-deep:#f2d8cc;--accent-o:#5db8a6;--accent-o-fill:#5db8a6;--accent-o-text:#2f7d6d;--on-accent:#ffffff;--on-accent-o:#141413;
+--info:#a9583e;--info-text:#a9583e;--cyan:#5db8a6;--cyan-text:#2f7d6d;--success:#5db872;--success-text:#2f7a43;--warning:#d4a017;--warning-text:#8a6400;--error:#c64545;--error-text:#c64545;
+--font-display:Copernicus,'Tiempos Headline','Cormorant Garamond',Georgia,serif;--display-weight:500;--display-track:-0.01em;--font-label:Inter,system-ui,sans-serif;color-scheme:light}
+
+a{color:var(--info-text)}a:hover{color:var(--link-hover)}
+button{font:inherit;cursor:pointer}
+button,a,input,textarea,select{transition:filter .15s ease,transform .15s ease,box-shadow .25s ease,border-color .25s ease,background-color .25s ease,color .25s ease}
+button:hover,a:hover{filter:brightness(1.18)}
+button:active,a:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent-p) 45%, transparent)}50%{box-shadow:0 0 0 8px transparent}}
+@keyframes flow{to{stroke-dashoffset:-24}}
+@keyframes shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+.rise{animation:rise .4s cubic-bezier(.2,.7,.2,1) both}
+.pulse{animation:pulse 1.4s ease-in-out infinite}
+.glow{animation:glow 1.6s ease-out infinite}
+.flow path{stroke-dasharray:6 6;animation:flow .8s linear infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+textarea{font:inherit}
+</style>
+</helmet>
+<div class="hx" data-theme="{{theme}}" style="width: 1440px; height: 900px; display: flex; flex-direction: column; background: var(--bg0); color: var(--text); font-family: var(--font-ui); font-size: 14px; line-height: 1.5; overflow: hidden;">
+  <div style="height: 2px; background: {{accent}}; transition: background-color .4s ease;"></div>
+  <header style="display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--bg2);">
+    <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">harness</span>
+    <span style="display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{accent}};"></span>{{wsName}}</span>
+    <span style="flex: 1 1 auto; text-align: center; color: var(--muted); font-size: 13px;">{{wsName}} <span style="color: var(--dim);">/</span> Settings <span style="color: var(--dim);">/</span> <span style="color: var(--text);">{{pageTitle}}</span></span>
+  </header>
+
+  <div style="flex: 1 1 auto; display: flex; min-height: 0;">
+    <nav aria-label="Workspaces" style="flex: 0 0 64px; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 14px 0; border-right: 1px solid var(--bg2);">
+      <button type="button" aria-label="Personal workspace" onClick="{{pickP}}" style="width: 40px; height: 40px; border-radius: 10px; border: 0; background: var(--bg2); color: var(--accent-p-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; box-shadow: 0 0 0 2px {{ringP}};">P</button>
+      <button type="button" aria-label="BSC AI Factory workspace" onClick="{{pickO}}" style="width: 40px; height: 40px; border-radius: 10px; border: 0; background: var(--bg2); color: var(--accent-o-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 13px; box-shadow: 0 0 0 2px {{ringO}};">AF</button>
+    </nav>
+
+    <aside aria-label="Settings sections" style="flex: 0 0 240px; padding: 16px 10px; background: var(--bg1); border-right: 1px solid var(--bg2); display: flex; flex-direction: column; gap: 1px; overflow-y: auto;">
+      <sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+        <span style="font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 12px 10px 6px;">{{g.name}}</span>
+        <sc-for list="{{g.items}}" as="i" hint-placeholder-count="5">
+          <button type="button" aria-current="{{i.cur}}" onClick="{{i.pick}}" style="display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 7px; border: 0; background: {{i.bg}}; color: var(--text); font-size: 13px; font-weight: {{i.weight}}; text-align: left; box-shadow: inset 2px 0 0 {{i.line}};">{{i.label}}<span style="margin-left: auto; font-size: 11px; color: var(--muted);">{{i.badge}}</span></button>
+        </sc-for>
+      </sc-for>
+    </aside>
+
+    <main style="flex: 1 1 auto; min-width: 0; overflow-y: auto; padding: 28px 40px;">
+      <div class="rise" style="max-width: 860px; display: flex; flex-direction: column; gap: 22px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <h1 style="margin: 0; font-size: 30px; font-family: var(--font-display); font-weight: var(--display-weight); letter-spacing: var(--display-track);">{{pageTitle}}</h1>
+          <span style="color: var(--muted); font-size: 14px;">{{pageLead}}</span>
+        </div>
+        <sc-if value="{{hasBanner}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--accent-o); background: var(--bg1); font-size: 13px;">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" style="color: var(--accent-o-text);" stroke-width="1.6"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>
+            {{banner}}
+          </div>
+        </sc-if>
+        <sc-for list="{{sections}}" as="sec" hint-placeholder-count="2">
+          <section style="display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; background: var(--bg1); overflow: hidden;">
+            <span style="display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-bottom: 1px solid var(--bg3);"><span style="font-size: 14px; font-weight: 600;">{{sec.title}}</span><span style="font-size: 12px; color: var(--muted);">{{sec.note}}</span><sc-if value="{{sec.hasLink}}" hint-placeholder-val="{{ false }}"><a href="{{sec.href}}" style="margin-left: auto; font-size: 12px;">{{sec.linkText}}</a></sc-if></span>
+            <sc-for list="{{sec.rows}}" as="r" hint-placeholder-count="4">
+              <div style="display: flex; align-items: center; gap: 16px; padding: 11px 18px; border-top: 1px solid var(--bg2);">
+                <span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;"><span style="font-size: 13px;">{{r.label}}</span><span style="font-size: 12px; color: var(--muted);">{{r.note}}</span></span>
+                <sc-if value="{{r.isToggle}}" hint-placeholder-val="{{ false }}">
+                  <button type="button" role="switch" aria-checked="{{r.on}}" aria-label="{{r.label}}" onClick="{{r.toggle}}" disabled="{{r.locked}}" style="width: 36px; height: 20px; border-radius: 999px; border: 0; padding: 2px; background: {{r.track}}; display: flex; justify-content: {{r.side}}; flex: 0 0 auto; opacity: {{r.opacity}};"><span style="width: 16px; height: 16px; border-radius: 50%; background: var(--bg0);"></span></button>
+                </sc-if>
+                <sc-if value="{{r.isValue}}" hint-placeholder-val="{{ true }}">
+                  <span style="font-family: {{r.font}}; font-size: 12.5px; color: {{r.color}}; text-align: right; max-width: 340px;">{{r.value}}</span>
+                </sc-if>
+                <sc-if value="{{r.isButton}}" hint-placeholder-val="{{ false }}">
+                  <button type="button" onClick="{{r.toggle}}" style="height: 30px; padding: 0 12px; border-radius: 7px; border: 1px solid {{r.btnBorder}}; background: transparent; color: {{r.btnColor}}; font-size: 12px;">{{r.value}}</button>
+                </sc-if>
+              </div>
+            </sc-for>
+          </section>
+        </sc-for>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["claude","opencode"],"default":"claude"},"$preview":{"width":1440,"height":900}}'>
+const V = (label, note, value, extra) => Object.assign({ k: 'v', label, note, value }, extra || {});
+const TG = (id, label, note, on, extra) => Object.assign({ k: 't', id, label, note, on }, extra || {});
+const BT = (id, label, note, value, danger) => ({ k: 'b', id, label, note, value, danger });
+const S = (title, note, rows, link) => ({ title, note, rows, link });
+const mono = { mono: true };
+const PAGES = (org) => ({
+  general: { title: 'General', lead: 'Name, look and defaults for this workspace.', sections: [
+    S('Identity', '', [V('Name', '', org ? 'BSC AI Factory' : 'Personal'), V('Accent', 'Shown in the top strip, rail and buttons', org ? 'Teal' : 'Coral'), V('Initials', '', org ? 'AF' : 'P', mono)]),
+    S('Defaults', 'New chats start with these', [V('Default project', 'Where quick chats go — no chat is left outside a project', 'General'), V('Default model', '', org ? 'ai-factory/llama-4-maverick' : 'anthropic/claude-opus-5-5', mono), V('Language', '', 'English')]),
+    S('Danger zone', '', [BT('leave', org ? 'Leave organization' : 'Delete workspace', org ? 'Your org data stays with the org' : 'Deletes chats, memory and artifacts in this workspace', org ? 'Leave…' : 'Delete…', true)])
+  ] },
+  members: { title: 'Members & SSO', lead: org ? 'Who is in this workspace and how they sign in.' : 'Personal workspaces have one member: you.', sections: org ? [
+    S('Single sign-on', '', [V('Identity provider', 'OIDC', 'MyAccessID via CAIM (Keycloak)'), TG('sso_force', 'Require SSO', 'Password sign-in is off', true, { locked: true }), TG('scim', 'Sync members from the IdP', 'Adds and removes people automatically', true, { locked: true })]),
+    S('Members', '38 people', [V('Greg', 'you', 'Admin'), V('[Member]', 'DIG', 'Member'), V('[Member]', 'DIG', 'Member'), V('[Member]', 'Operations', 'Viewer')])
+  ] : [S('Sharing', '', [V('Members', '', 'Only you'), V('Want to collaborate?', 'Create a Team workspace and invite people there', 'New team workspace →', { link: 'NewWorkspace.dc.html' })])] },
+  providers: { title: 'Model providers', lead: 'Which models chats, loops and routines may use here.', sections: [
+    S('Providers', org ? 'managed by your organization' : '', org ? [V('AI Factory inference', 'custom · openai-compatible · on-prem', 'default', mono), V('Azure OpenAI', 'west europe', 'connected'), V('Anthropic via Bedrock', 'eu-central-1', 'pending approval', { warn: true })] : [V('Anthropic', 'own key in keychain', 'default', mono), V('OpenRouter', 'own key', 'connected'), V('Ollama', 'this computer · localhost', 'connected')], { text: 'Open providers', href: 'Providers.dc.html' }),
+    S('Custom providers', 'written to this workspace’s opencode.json', [V('Add an OpenAI-compatible or AI SDK endpoint', '', 'Add custom provider →', { link: 'CustomProvider.dc.html' })])
+  ] },
+  connectors: { title: 'Connectors & MCP', lead: 'Apps and MCP servers chats can call. Credentials are kept per workspace.', sections: [
+    S('Connected', '', org ? [V('Keycloak admin (CAIM)', 'MCP · http', 'connected'), V('GitLab', 'MCP · http', 'connected'), V('Confluence', 'connector', 'connected')] : [V('Gmail', 'connector', 'connected'), V('Google Drive', 'connector', 'connected'), V('Hugging Face', 'MCP · http', 'needs sign-in', { warn: true }), V('Blender', 'MCP · stdio · this computer', 'stopped')], { text: 'Manage', href: 'Connections.dc.html' })
+  ] },
+  memory: { title: 'Memory', lead: 'What the agent remembers in this workspace, and how.', sections: [
+    S('Backend', '', [V('Memory engine', 'Facts, Graphify, both, or your own MCP server', 'Graphify + facts'), TG('learn', 'Suggest memories from chats', 'You approve each one', true), TG('cross', 'Share with other workspaces', 'Never — each workspace has its own', false, { locked: true })], { text: 'Open memory', href: 'Memory.dc.html' }),
+    S('Your data', '', [BT('export', 'Export memory', 'Facts as Markdown, graph as graph.json', 'Export'), BT('wipe', 'Delete all memory', 'Cannot be undone', 'Delete…', true)])
+  ] },
+  skills: { title: 'Skills & plugins', lead: 'SKILL.md folders available to chats, loops and artifacts here.', sections: [
+    S('Skills', '', [TG('sk1', 'frontend-design', 'built-in', true), TG('sk2', 'docx · pptx · xlsx · pdf', 'built-in file formats', true), TG('sk3', 'castform-release', 'yours · ~/code/castform/.skills', !org), TG('sk4', 'Open Design templates', '93 prompt templates, 15 deck templates', true)]),
+    S('Plugins', '', [TG('pl1', 'graphify', 'memory graph · opencode integration', true), TG('pl2', 'data analysis', 'SQL, charts, dashboards', org)])
+  ] },
+  artifacts: { title: 'Artifacts & sharing', lead: 'Defaults for docs, decks, prototypes and the rest.', sections: [
+    S('Sharing', '', [V('Default visibility', '', 'Private'), TG('ext', 'Allow public links', org ? 'Blocked by org policy' : 'Anyone with the link can view', !org, { locked: org }), V('Exports allowed', '', 'PDF, PPTX, DOCX, HTML, ZIP, Markdown')]),
+    S('Design systems', 'Open Design DESIGN.md packages in this workspace', [V('Claude Warm Editorial', 'default', 'in use'), V(org ? 'BSC AI Factory brand' : 'Castform brand', '', 'available')])
+  ] },
+  routines: { title: 'Routines', lead: 'Scheduled prompts and graphs that run on their own.', sections: [
+    S('This workspace', '', org ? [V('Nightly realm drift check', 'Daily 02:00 · AI Factory runner', 'on')] : [V('Morning brief', 'Weekdays 08:30 · cloud', 'on'), V('Weekly research brief', 'Mondays 08:30 · cloud', 'on'), V('Fix until tests pass', 'On push · Greg’s MacBook', 'on'), V('Inbox triage', 'Every 2 h', 'paused')], { text: 'Open routines', href: 'Routines.dc.html' }),
+    S('Defaults', '', [TG('ask', 'Ask before acting', 'Routines pause at approval steps', true), V('If a computer is asleep', '', 'Run when it wakes')])
+  ] },
+  computers: { title: 'Computers', lead: 'Which linked computers this workspace may use, and for what.', sections: [
+    S('Allowed here', '', org ? [V('AI Factory runner', 'org-managed', 'allowed'), V('Linux workstation', '~/work/caim', 'allowed')] : [V('Greg’s MacBook', 'files, shell, browser, computer use', 'allowed'), V('Linux workstation', 'files, shell', 'allowed'), V('Old iMac', 'offline', 'allowed')], { text: 'Manage computers', href: 'Computers.dc.html' })
+  ] },
+  data: { title: 'Data & retention', lead: 'Where this workspace keeps things and for how long.', sections: [
+    S('Storage', '', [V('Data folder', '', org ? '~/.harness/ws/bsc-ai-factory' : '~/.harness/ws/personal', mono), V('Encryption at rest', '', 'on (keychain key)'), V('Residency', '', org ? 'EU only' : 'this computer')]),
+    S('Retention', org ? 'set by org policy' : '', [V('Chats', '', org ? '1 year' : 'Forever'), V('Prompt logs', '', org ? '90 days, audit only' : 'Off'), BT('exportall', 'Export this workspace', 'Chats, artifacts, memory, config as .zip', 'Export')])
+  ] },
+  audit: { title: 'Audit log', lead: org ? 'Uploaded to your organization daily.' : 'Local activity in this workspace.', sections: [
+    S('Today', '', [V('14:18 · computer use', 'Castform chat · Blender', '6 actions'), V('14:02 · shell', 'Fix until tests pass · pnpm test', 'exit 0', mono), V('11:40 · export', 'Castform — teaser · PDF', 'you'), V('08:30 · routine', 'Morning brief', 'ok')])
+  ] },
+  engine: { title: 'Engine', lead: 'The opencode and Open Design processes behind this workspace.', sections: [
+    S('opencode', '', [V('Version', 'pinned per workspace', '[VERSION]', mono), V('Server', '', org ? '127.0.0.1:4097 · running' : '127.0.0.1:4096 · running', mono), V('Config', '', org ? '~/.harness/ws/bsc-ai-factory/config/opencode.json' : '~/.harness/ws/personal/config/opencode.json', mono), BT('restart', 'Restart server', 'Open chats reconnect on their own', 'Restart')]),
+    S('Open Design', '', [V('Daemon', '', 'running · loopback only', mono), V('Agent', '', 'opencode (this workspace)', mono), BT('logs', 'Logs', 'Last 500 lines from both processes', 'Open logs')])
+  ] },
+  appearance: { title: 'Appearance', lead: 'App-wide: these apply to every workspace.', sections: [
+    S('Theme', '', [BT('theme', 'Theme', 'Claude (cream) or opencode (dark)', 'Switch theme'), TG('sys', 'Follow system light/dark', 'Claude by day, opencode by night', false), TG('motion', 'Reduce motion', 'Also follows your system setting', false)])
+  ] }
+});
+const GROUPS = [['Workspace', ['general', 'members', 'providers', 'connectors', 'memory', 'skills', 'artifacts']], ['Automation', ['routines', 'computers']], ['System', ['data', 'audit', 'engine', 'appearance']]];
+class Component extends DCLogic {
+  renderVals() {
+    const s = this.state || {};
+    const org = s.ws === 'org';
+    const pages = PAGES(org);
+    const pk = s.page || 'general';
+    const page = pages[pk];
+    const theme = s.theme || this.props.theme || 'claude';
+    const sections = page.sections.map((sec) => ({
+      title: sec.title, note: sec.note, hasLink: !!sec.link, href: sec.link ? sec.link.href : '#', linkText: sec.link ? sec.link.text : '',
+      rows: sec.rows.map((r) => {
+        const key = (org ? 'o_' : 'p_') + r.id;
+        const on = r.k === 't' ? (s[key] != null ? s[key] : r.on) : false;
+        return { label: r.label, note: r.note, value: r.link ? r.value : r.value,
+          isToggle: r.k === 't', isValue: r.k === 'v', isButton: r.k === 'b',
+          on: on ? 'true' : 'false', track: on ? 'var(--accent-p-fill)' : 'var(--line2)', side: on ? 'flex-end' : 'flex-start',
+          locked: !!r.locked, opacity: r.locked ? 0.55 : 1,
+          font: r.mono ? "'JetBrains Mono', monospace" : 'var(--font-ui)',
+          color: r.warn ? 'var(--warning-text)' : (r.link ? 'var(--info-text)' : 'var(--text2)'),
+          btnBorder: r.danger ? 'var(--error)' : 'var(--line)', btnColor: r.danger ? 'var(--error-text)' : 'var(--text)',
+          toggle: () => {
+            if (r.locked) return;
+            if (r.id === 'theme') { this.setState({ theme: theme === 'claude' ? 'opencode' : 'claude' }); return; }
+            if (r.k === 't') this.setState({ [key]: !on });
+          } };
+      })
+    }));
+    const badge = { members: org ? '38' : '', providers: org ? 'locked' : '', routines: org ? '1' : '4', computers: org ? '2' : '3' };
+    return {
+      theme,
+      accent: org ? 'var(--accent-o)' : 'var(--accent-p)', wsName: org ? 'BSC AI Factory' : 'Personal',
+      ringP: org ? 'transparent' : 'var(--accent-p)', ringO: org ? 'var(--accent-o)' : 'transparent',
+      pickP: () => this.setState({ ws: 'p' }), pickO: () => this.setState({ ws: 'org' }),
+      pageTitle: page.title, pageLead: page.lead,
+      hasBanner: org && ['providers', 'artifacts', 'data', 'members'].includes(pk),
+      banner: 'Some settings here are managed by your organization’s policy and are locked.',
+      groups: GROUPS.map((g) => ({ name: g.at(0), items: g.at(1).map((k) => ({ label: pages[k].title, badge: badge[k] || '', cur: pk === k ? 'page' : 'false', bg: pk === k ? 'var(--bg2)' : 'transparent', weight: pk === k ? 500 : 400, line: pk === k ? (org ? 'var(--accent-o)' : 'var(--accent-p)') : 'transparent', pick: () => this.setState({ page: k }) })) })),
+      sections
+    };
+  }
+}
+</script>
+</body>
+</html>

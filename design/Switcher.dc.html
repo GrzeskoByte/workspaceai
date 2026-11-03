@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Workspace switcher</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:transparent}
+.hx{--bg0:#0a0a0a;--bg-deep:#050505;--bg1:#141414;--bg2:#1e1e1e;--bg3:#282828;--line:#323232;--line2:#3c3c3c;--line3:#484848;--dim:#606060;--text:#eeeeee;--text2:#d4d4d4;--text3:#b4b4b4;--muted:#9a9a9a;--muted2:#808080;--link-hover:#8ab8ff;
+--accent-p:#fab283;--accent-p-fill:#fab283;--accent-p-text:#fab283;--accent-p-deep:#7a4f35;--accent-o:#9d7cd8;--accent-o-fill:#9d7cd8;--accent-o-text:#9d7cd8;--on-accent:#0a0a0a;--on-accent-o:#0a0a0a;
+--info:#5c9cf5;--info-text:#5c9cf5;--cyan:#56b6c2;--cyan-text:#56b6c2;--success:#7fd88f;--success-text:#7fd88f;--warning:#f5a742;--warning-text:#f5a742;--error:#e06c75;--error-text:#e06c75;
+--font-ui:Inter,system-ui,sans-serif;--font-display:Inter,system-ui,sans-serif;--display-weight:600;--display-track:-0.02em;--font-label:'JetBrains Mono',monospace;color-scheme:dark}
+.hx[data-theme="claude"]{--bg0:#faf9f5;--bg-deep:#f5f0e8;--bg1:#f5f0e8;--bg2:#efe9de;--bg3:#e8e0d2;--line:#e6dfd8;--line2:#d6cdbf;--line3:#b8ae9f;--dim:#8e8b82;--text:#141413;--text2:#3d3d3a;--text3:#3d3d3a;--muted:#6c6a64;--muted2:#8e8b82;--link-hover:#141413;
+--accent-p:#cc785c;--accent-p-fill:#cc785c;--accent-p-text:#a9583e;--accent-p-deep:#f2d8cc;--accent-o:#5db8a6;--accent-o-fill:#5db8a6;--accent-o-text:#2f7d6d;--on-accent:#ffffff;--on-accent-o:#141413;
+--info:#a9583e;--info-text:#a9583e;--cyan:#5db8a6;--cyan-text:#2f7d6d;--success:#5db872;--success-text:#2f7a43;--warning:#d4a017;--warning-text:#8a6400;--error:#c64545;--error-text:#c64545;
+--font-display:Copernicus,'Tiempos Headline','Cormorant Garamond',Georgia,serif;--display-weight:500;--display-track:-0.01em;--font-label:Inter,system-ui,sans-serif;color-scheme:light}
+
+a{color:var(--info-text)}a:hover{color:var(--link-hover)}
+button{font:inherit;cursor:pointer}
+button,a,input,textarea,select{transition:filter .15s ease,transform .15s ease,box-shadow .25s ease,border-color .25s ease,background-color .25s ease,color .25s ease}
+button:hover,a:hover{filter:brightness(1.18)}
+button:active,a:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent-p) 45%, transparent)}50%{box-shadow:0 0 0 8px transparent}}
+@keyframes flow{to{stroke-dashoffset:-24}}
+@keyframes shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+.rise{animation:rise .4s cubic-bezier(.2,.7,.2,1) both}
+.pulse{animation:pulse 1.4s ease-in-out infinite}
+.glow{animation:glow 1.6s ease-out infinite}
+.flow path{stroke-dasharray:6 6;animation:flow .8s linear infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div class="hx" data-theme="{{theme}}" style="width: 760px; height: 640px; box-sizing: border-box; padding: 40px; background: var(--bg-deep); display: flex; align-items: flex-start; justify-content: center; font-family: var(--font-ui); color: var(--text); font-size: 14px; line-height: 1.5;">
+  <div role="dialog" aria-label="Switch workspace" style="width: 640px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg1); box-shadow: 0 24px 60px rgba(0,0,0,0.6); overflow: hidden; display: flex; flex-direction: column;">
+
+    <label style="display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--bg2);">
+      <svg style="color: var(--muted);" aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+      <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Search workspaces</span>
+      <input type="search" placeholder="Switch workspace…" style="flex: 1 1 auto; background: transparent; border: 0; outline: none; color: var(--text); font: inherit; font-size: 15px;">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px;">esc</span>
+    </label>
+
+    <div style="padding: 8px; display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 6px 10px 4px;">Workspaces</span>
+
+      <a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; background: var(--bg2); color: var(--text); text-decoration: none; border: 1px solid var(--accent-p);">
+        <span style="width: 36px; height: 36px; border-radius: 9px; background: var(--bg3); color: var(--accent-p-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; display: flex; align-items: center; justify-content: center;">P</span>
+        <span style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px;">
+          <span style="display: flex; align-items: center; gap: 8px; font-weight: 600;">Personal <span style="font-size: 11px; font-weight: 500; color: var(--on-accent); background: var(--accent-p-fill); border-radius: 4px; padding: 0 6px;">current</span></span>
+          <span style="font-size: 12px; color: var(--muted);">Anthropic, OpenRouter, Ollama · 4 connectors · personal memory</span>
+        </span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted);">⌘1</span>
+      </a>
+
+      <a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; color: var(--text); text-decoration: none; border: 1px solid transparent;">
+        <span style="width: 36px; height: 36px; border-radius: 9px; background: var(--bg3); color: var(--accent-o-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 13px; display: flex; align-items: center; justify-content: center;">AF</span>
+        <span style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px;">
+          <span style="display: flex; align-items: center; gap: 8px; font-weight: 600;">BSC AI Factory
+            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: var(--accent-o-text); border: 1px solid var(--accent-o); border-radius: 4px; padding: 0 6px;">
+              <svg aria-hidden="true" width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>
+              org · SSO
+            </span>
+          </span>
+          <span style="font-size: 12px; color: var(--muted);">AI Factory vLLM, Azure OpenAI EU · 7 connectors · org memory · EU data only</span>
+        </span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted);">⌘2</span>
+      </a>
+
+      <a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; color: var(--text); text-decoration: none; border: 1px solid transparent;">
+        <span style="width: 36px; height: 36px; border-radius: 9px; background: var(--bg3); color: var(--cyan-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 13px; display: flex; align-items: center; justify-content: center;">CL</span>
+        <span style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-weight: 600;">Castform Labs</span>
+          <span style="font-size: 12px; color: var(--muted);">Shared team · OpenAI · 2 connectors · team memory</span>
+        </span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted);">⌘3</span>
+      </a>
+    </div>
+
+    <div style="border-top: 1px solid var(--bg2); padding: 8px; display: flex; flex-direction: column; gap: 2px;">
+      <a href="NewWorkspace.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: var(--text); text-decoration: none;">
+        <svg style="color: var(--muted);" aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 3v10M3 8h10"/></svg>
+        Create workspace…
+      </a>
+      <a href="#" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: var(--text); text-decoration: none;">
+        <svg style="color: var(--muted);" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M15 3h6v6M10 14L21 3M18 13v8H3V6h8"/></svg>
+        Join an organization with SSO…
+      </a>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--bg2); background: var(--bg0); font-size: 12px; color: var(--muted);">
+      <svg style="color: var(--success);" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>
+      Each workspace keeps its own chats, memory, connectors and providers. Nothing crosses over when you switch.
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["claude","opencode"],"default":"claude"},"$preview":{"width":760,"height":640}}'>
+class Component extends DCLogic {
+  renderVals() { return { theme: this.props.theme || 'claude' }; }
+}
+</script>
+</body>
+</html>

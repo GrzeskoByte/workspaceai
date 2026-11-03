@@ -1,0 +1,9 @@
+{
+  "identifier": "default",
+  "description": "The Harness window can ask the shell for the supervisor address and go fullscreen for artifacts.",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["http://127.0.0.1:5173", "http://localhost:5173"]
+  },
+  "permissions": ["core:default", "core:window:allow-set-fullscreen", "allow-supervisor-info"]
+}

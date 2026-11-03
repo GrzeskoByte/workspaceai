@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Memory</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:transparent}
+.hx{--bg0:#0a0a0a;--bg-deep:#050505;--bg1:#141414;--bg2:#1e1e1e;--bg3:#282828;--line:#323232;--line2:#3c3c3c;--line3:#484848;--dim:#606060;--text:#eeeeee;--text2:#d4d4d4;--text3:#b4b4b4;--muted:#9a9a9a;--muted2:#808080;--link-hover:#8ab8ff;
+--accent-p:#fab283;--accent-p-fill:#fab283;--accent-p-text:#fab283;--accent-p-deep:#7a4f35;--accent-o:#9d7cd8;--accent-o-fill:#9d7cd8;--accent-o-text:#9d7cd8;--on-accent:#0a0a0a;--on-accent-o:#0a0a0a;
+--info:#5c9cf5;--info-text:#5c9cf5;--cyan:#56b6c2;--cyan-text:#56b6c2;--success:#7fd88f;--success-text:#7fd88f;--warning:#f5a742;--warning-text:#f5a742;--error:#e06c75;--error-text:#e06c75;
+--font-ui:Inter,system-ui,sans-serif;--font-display:Inter,system-ui,sans-serif;--display-weight:600;--display-track:-0.02em;--font-label:'JetBrains Mono',monospace;color-scheme:dark}
+.hx[data-theme="claude"]{--bg0:#faf9f5;--bg-deep:#f5f0e8;--bg1:#f5f0e8;--bg2:#efe9de;--bg3:#e8e0d2;--line:#e6dfd8;--line2:#d6cdbf;--line3:#b8ae9f;--dim:#8e8b82;--text:#141413;--text2:#3d3d3a;--text3:#3d3d3a;--muted:#6c6a64;--muted2:#8e8b82;--link-hover:#141413;
+--accent-p:#cc785c;--accent-p-fill:#cc785c;--accent-p-text:#a9583e;--accent-p-deep:#f2d8cc;--accent-o:#5db8a6;--accent-o-fill:#5db8a6;--accent-o-text:#2f7d6d;--on-accent:#ffffff;--on-accent-o:#141413;
+--info:#a9583e;--info-text:#a9583e;--cyan:#5db8a6;--cyan-text:#2f7d6d;--success:#5db872;--success-text:#2f7a43;--warning:#d4a017;--warning-text:#8a6400;--error:#c64545;--error-text:#c64545;
+--font-display:Copernicus,'Tiempos Headline','Cormorant Garamond',Georgia,serif;--display-weight:500;--display-track:-0.01em;--font-label:Inter,system-ui,sans-serif;color-scheme:light}
+
+a{color:var(--info-text)}a:hover{color:var(--link-hover)}
+button{font:inherit;cursor:pointer}
+button,a,input,textarea,select{transition:filter .15s ease,transform .15s ease,box-shadow .25s ease,border-color .25s ease,background-color .25s ease,color .25s ease}
+button:hover,a:hover{filter:brightness(1.18)}
+button:active,a:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent-p) 45%, transparent)}50%{box-shadow:0 0 0 8px transparent}}
+@keyframes flow{to{stroke-dashoffset:-24}}
+@keyframes shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+.rise{animation:rise .4s cubic-bezier(.2,.7,.2,1) both}
+.pulse{animation:pulse 1.4s ease-in-out infinite}
+.glow{animation:glow 1.6s ease-out infinite}
+.flow path{stroke-dasharray:6 6;animation:flow .8s linear infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+textarea{font:inherit}
+</style>
+<style>
+.hx{--ws-accent:var(--accent-p);--ws-accent-text:var(--accent-p-text)}
+.hx[data-accent="org"]{--accent-p:var(--accent-o);--accent-p-fill:var(--accent-o-fill);--accent-p-text:var(--accent-o-text);--on-accent:var(--on-accent-o)}
+.hx[data-accent="teal"]{--accent-p:#5db8a6;--accent-p-fill:#5db8a6;--accent-p-text:#2f7d6d;--on-accent:#141413}
+.hx[data-accent="amber"]{--accent-p:#e8a55a;--accent-p-fill:#e8a55a;--accent-p-text:#8a5a12;--on-accent:#141413}
+.hx[data-accent="blue"]{--accent-p:#5c9cf5;--accent-p-fill:#5c9cf5;--accent-p-text:#2f63b8;--on-accent:#141413}
+.hx[data-accent="green"]{--accent-p:#5db872;--accent-p-fill:#5db872;--accent-p-text:#2f7a43;--on-accent:#141413}
+.hx[data-theme="opencode"][data-accent="teal"]{--accent-p-text:#5db8a6}.hx[data-theme="opencode"][data-accent="amber"]{--accent-p-text:#e8a55a}.hx[data-theme="opencode"][data-accent="blue"]{--accent-p-text:#5c9cf5}.hx[data-theme="opencode"][data-accent="green"]{--accent-p-text:#5db872}
+@keyframes spin{to{transform:rotate(360deg)}}.spin{animation:spin .9s linear infinite}
+.btn{height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--text);font-size:13px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;cursor:pointer;white-space:nowrap}
+.btn-p{border:0;background:var(--accent-p-fill);color:var(--on-accent);font-weight:600}
+.btn-d{border-color:var(--error);color:var(--error-text)}
+.btn[disabled],.chip[disabled],.opt[disabled],.navrow[disabled],.sw[disabled]{opacity:.45;cursor:not-allowed;filter:none}
+.chip{height:28px;padding:0 10px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap}
+.chip[aria-pressed="true"]{border-color:var(--accent-p);background:var(--bg2)}
+.card{border:1px solid var(--line);border-radius:12px;background:var(--bg1)}
+.lbl{font-family:var(--font-label);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.muted{color:var(--muted)}.mono{font-family:'JetBrains Mono',monospace}
+.disp{font-family:var(--font-display);font-weight:var(--display-weight);letter-spacing:var(--display-track)}
+.inp{height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg0);color:var(--text);font-family:inherit;font-size:13px;box-sizing:border-box}
+.inp:focus{outline:none;border-color:var(--accent-p);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent-p) 18%,transparent)}
+.sw{width:36px;height:20px;border-radius:999px;border:0;padding:2px;display:flex;background:var(--line2);justify-content:flex-start;flex:0 0 auto;cursor:pointer}
+.sw[aria-checked="true"]{background:var(--accent-p-fill);justify-content:flex-end}
+.sw>span{width:16px;height:16px;border-radius:50%;background:var(--bg0)}
+.opt{padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text);text-align:left;display:flex;flex-direction:column;gap:2px;cursor:pointer;font-size:14px}
+.opt[aria-pressed="true"]{border-color:var(--accent-p);background:var(--bg2);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent-p) 15%,transparent)}
+.navrow{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:7px;border:0;background:transparent;color:var(--text);font-size:13px;text-align:left;cursor:pointer;width:100%;box-sizing:border-box}
+.navrow:hover{background:var(--bg2);filter:none}
+.navrow[aria-current="page"],.navrow[aria-current="true"],.navrow[aria-current="step"]{background:var(--bg2);font-weight:500;box-shadow:inset 2px 0 0 var(--accent-p)}
+.treerow{display:flex;align-items:center;border-radius:7px}
+.treerow:hover{background:var(--bg2)}
+.treerow[aria-current="page"]{background:var(--bg2);box-shadow:inset 2px 0 0 var(--accent-p)}
+.treemain{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:6px;padding:5px 6px;border:0;background:transparent;color:var(--text);font-size:13px;cursor:pointer}
+.treemain:hover{filter:none}
+.treeact{width:22px;height:22px;border:0;border-radius:5px;background:transparent;color:var(--muted);font-size:12px;cursor:pointer;opacity:0;flex:0 0 auto}
+.treerow:hover .treeact,.treeact:focus-visible{opacity:1}
+.treeact:hover{background:var(--bg3);color:var(--text);filter:none}
+.tile{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg1);color:var(--text);text-align:left;cursor:pointer;font-size:13px}
+.tile:hover{border-color:var(--accent-p);filter:none}
+.link{border:0;background:transparent;padding:0;color:var(--info-text);cursor:pointer;font:inherit}
+.menu{position:absolute;z-index:20;padding:6px;border-radius:12px;border:1px solid var(--line);background:var(--bg1);box-shadow:0 12px 30px rgba(0,0,0,.18);display:flex;flex-direction:column;gap:1px;max-height:360px;overflow-y:auto}
+.scrim{position:absolute;inset:0;z-index:25;background:rgba(10,10,10,.35);display:flex;justify-content:center;align-items:flex-start}
+.tab{padding:8px 12px;border:0;background:transparent;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer}
+.tab[aria-selected="true"]{color:var(--text);box-shadow:inset 0 -2px 0 var(--accent-p)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+<style>
+.rrow{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;border:1px solid transparent;cursor:pointer;width:100%;box-sizing:border-box}
+.rrow:hover{background:var(--bg2);filter:none}
+.rrow[aria-current="true"]{background:var(--bg2);border-color:var(--line)}
+.runchip{display:flex;flex-direction:column;align-items:flex-start;padding:4px 6px;border-radius:6px;border:1px solid transparent;font-size:11px;line-height:1.3;color:var(--text);cursor:pointer;text-align:left;width:100%;overflow:hidden;white-space:nowrap;font-family:inherit}
+.histrow{display:grid;grid-template-columns:12px 110px 1fr 60px;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;background:var(--bg1);border:0;color:var(--text);font-size:12px;cursor:pointer;width:100%;font-family:inherit}
+.pal{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg0);color:var(--text);text-align:left;cursor:grab;font-family:inherit}
+.pal:hover{border-color:var(--accent-p);filter:none}
+.palicon{width:26px;height:26px;flex:0 0 auto;box-sizing:border-box;border-color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:12px;background:var(--bg1)}
+.handle{position:absolute;width:18px;height:18px;padding:0;border-radius:50%;border:1.5px solid var(--accent-p);background:var(--bg0);color:var(--accent-p-text);font-size:10px;line-height:1;cursor:pointer;z-index:3}
+div[role="button"]:hover>.handle{opacity:1!important}
+.edgechip{position:absolute;padding:1px 6px;border-radius:6px;border:1px solid transparent;background:var(--bg-deep);color:var(--text2);font-size:10.5px;font-family:'JetBrains Mono',monospace;cursor:pointer;white-space:nowrap;z-index:2}
+.edgechip:hover{border-color:var(--line3);filter:none}
+</style>
+</helmet>
+<div class="hx" data-theme="{{theme}}" style="position: relative; width: {{rootW}}; height: {{rootH}}; display: flex; flex-direction: column; background: var(--bg0); color: var(--text); font-family: var(--font-ui); font-size: 14px; line-height: 1.5; overflow: hidden;">
+  <sc-if value="{{standalone}}" hint-placeholder-val="{{ true }}">
+  <div style="height: 2px; background: {{accent}}; transition: background-color .4s ease;"></div>
+  <header style="display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--bg2);">
+    <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">harness</span>
+    <div role="group" aria-label="Workspace" style="display: inline-flex; padding: 2px; border-radius: 999px; border: 1px solid var(--line);">
+      <button type="button" onClick="{{pickP}}" style="height: 24px; padding: 0 10px; border-radius: 999px; border: 0; background: {{pBg}}; color: var(--text); font-size: 12px;">Personal</button>
+      <button type="button" onClick="{{pickO}}" style="height: 24px; padding: 0 10px; border-radius: 999px; border: 0; background: {{oBg}}; color: var(--text); font-size: 12px;">BSC AI Factory</button>
+    </div>
+    <span style="flex: 1 1 auto; text-align: center; color: var(--muted); font-size: 13px;">{{wsName}} <span style="color: var(--dim);">/</span> <span style="color: var(--text);">Memory</span></span>
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted);">{{mcpStatus}}</span>
+  </header>
+  </sc-if>
+
+  <div style="flex: 1 1 auto; display: flex; min-height: 0;">
+    <aside aria-label="Memory backend" style="flex: 0 0 340px; padding: 16px; background: var(--bg1); border-right: 1px solid var(--bg2); display: flex; flex-direction: column; gap: 12px; overflow-y: auto;">
+      <span style="font-size: 20px; font-family: var(--font-display); font-weight: var(--display-weight); letter-spacing: var(--display-track);">Memory for {{wsName}}</span>
+      <span style="font-size: 12px; color: var(--muted);">Each workspace picks its own memory. It is served to opencode as an MCP server and never shared with another workspace.</span>
+      <sc-for list="{{backends}}" as="b" hint-placeholder-count="4">
+        <button type="button" role="radio" aria-checked="{{b.on}}" onClick="{{b.pick}}" style="display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 12px; border-radius: 10px; border: 1px solid {{b.border}}; background: {{b.bg}}; color: var(--text); text-align: left;">
+          <span style="display: flex; align-items: center; gap: 8px; width: 100%;"><span style="width: 14px; height: 14px; border-radius: 50%; border: 2px solid {{b.border}}; background: {{b.dot}}; box-sizing: border-box;"></span><span style="font-size: 13px; font-weight: 600;">{{b.name}}</span><span style="margin-left: auto; font-size: 11px; color: var(--accent-p-text);">{{b.tag}}</span></span>
+          <span style="font-size: 12px; color: var(--muted); padding-left: 22px;">{{b.d}}</span>
+        </button>
+      </sc-for>
+      <sc-if value="{{isGraph}}" hint-placeholder-val="{{ true }}">
+        <div class="rise" style="display: flex; flex-direction: column; gap: 10px; padding-top: 6px; border-top: 1px solid var(--bg3); font-size: 13px;">
+          <span style="font-size: 13px; font-weight: 600;">Graphify settings</span>
+          <span style="font-size: 12px; color: var(--muted);">Folders mapped</span>
+          <sc-for list="{{folders}}" as="f" hint-placeholder-count="3">
+            <span style="display: flex; justify-content: space-between; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px;"><span>{{f.path}}</span><span style="color: {{f.color}};">{{f.state}}</span></span>
+          </sc-for>
+          <span style="display: flex; justify-content: space-between;">Keep up to date <span>{{update}}</span></span>
+          <span style="display: flex; justify-content: space-between; gap: 10px;">Docs and images read by <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; text-align: right;">{{docModel}}</span></span>
+          <span style="display: flex; justify-content: space-between;">Answer budget per query <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px;">2 000 tokens</span></span>
+          <span style="display: flex; justify-content: space-between;">Graph files <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px;">graphify-out/</span></span>
+          <span style="font-size: 12px; color: var(--muted);">{{policyNote}}</span>
+          <button type="button" onClick="{{rebuild}}" style="height: 32px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 12px;">{{rebuildLabel}}</button>
+        </div>
+      </sc-if>
+          <sc-if value="{{hasFacts}}" hint-placeholder-val="{{ true }}">
+        <div class="rise" style="display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid var(--bg3);">
+          <span style="font-size: 13px; font-weight: 600;">Facts · {{factCount}}</span>
+          <sc-for list="{{facts}}" as="f" hint-placeholder-count="3"><span style="display: flex; gap: 8px; align-items: flex-start; font-size: 12px;"><span style="flex: 1 1 auto;">{{f.text}}</span><span class="mono muted" style="font-size: 10.5px;">{{f.scope}}</span><button type="button" class="link" onClick="{{f.remove}}" aria-label="Forget" style="color: var(--muted);">✕</button></span></sc-for>
+          <span style="display: flex; gap: 6px;"><input class="inp" type="text" value="{{factDraft}}" onChange="{{onFact}}" placeholder="Add a fact" style="height: 30px; flex: 1 1 auto;" aria-label="New fact"><button type="button" class="btn" onClick="{{addFact}}" style="height: 30px;">Save</button></span>
+        </div>
+      </sc-if>
+</aside>
+
+    <main style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--bg2);">
+        <label style="flex: 1 1 auto; display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg1);">
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted);">query</span>
+          <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Ask the memory graph</span>
+          <input type="text" value="{{queryText}}" onChange="{{onQuery}}" aria-label="Question for the memory graph" style="flex: 1 1 auto; min-width: 0; background: transparent; border: 0; outline: none; color: var(--text); font: inherit; font-size: 13px;">
+        </label>
+        <button type="button" onClick="{{ask}}" style="height: 32px; padding: 0 14px; border-radius: 8px; border: 0; background: var(--accent-p-fill); color: var(--on-accent); font-weight: 600; font-size: 12px;">Ask</button>
+      </div>
+      <div style="position: relative; flex: 1 1 auto; overflow: hidden; background: var(--bg-deep);">
+        <svg aria-hidden="true" width="760" height="560" viewBox="0 0 760 560" style="position: absolute; left: 0; top: 0;">
+          <path d="{{edgesD}}" style="fill: none; stroke: var(--line2); stroke-width: 1;"></path>
+          <path d="{{ambD}}" style="fill: none; stroke: var(--warning); stroke-width: 1.25; stroke-dasharray: 4 4;"></path>
+          <path class="flow" d="{{pathD}}" style="fill: none; stroke: var(--accent-p); stroke-width: 3;"></path>
+        </svg>
+        <sc-for list="{{nodes}}" as="n" hint-placeholder-count="20">
+          <button type="button" aria-label="{{n.label}}" onClick="{{n.pick}}" class="{{n.cls}}" style="position: absolute; left: {{n.left}}; top: {{n.top}}; width: {{n.size}}; height: {{n.size}}; padding: 0; border-radius: 50%; border: 2px solid {{n.ring}}; background: {{n.color}}; transform: translate(-50%, -50%); animation-delay: {{n.delay}};"></button>
+          <span style="position: absolute; left: {{n.left}}; top: {{n.labelTop}}; transform: translateX(-50%); font-size: 11px; color: var(--text2); white-space: nowrap; pointer-events: none; font-weight: {{n.weight}};">{{n.shown}}</span>
+        </sc-for>
+        <div style="position: absolute; left: 16px; bottom: 14px; display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: var(--muted);">
+          <sc-for list="{{legend}}" as="g" hint-placeholder-count="5"><button type="button" class="chip" aria-pressed="{{g.on}}" onClick="{{g.pick}}" style="height: 24px; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{g.color}};"></span>{{g.name}}</button></sc-for>
+          <span style="display: inline-flex; align-items: center; gap: 5px;"><span style="width: 14px; border-top: 1.5px dashed var(--warning);"></span>ambiguous, needs review</span>
+        </div>
+      </div>
+      <div style="flex: 0 0 auto; padding: 12px 16px; border-top: 1px solid var(--bg2); background: var(--bg1); font-size: 13px; min-height: 64px;">
+        <span class="rise" style="display: block;">{{answer}}</span>
+      </div>
+    </main>
+
+    <aside aria-label="Details" style="flex: 0 0 320px; padding: 16px; background: var(--bg1); border-left: 1px solid var(--bg2); display: flex; flex-direction: column; gap: 14px; overflow-y: auto;">
+      <div class="rise" style="display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);">{{sel.kind}}</span>
+        <span style="font-size: 18px; font-family: var(--font-display); font-weight: var(--display-weight);">{{sel.label}}</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted);">{{sel.file}}</span>
+        <span style="font-size: 12px; color: var(--muted);">Linked to</span>
+        <sc-for list="{{sel.links}}" as="k" hint-placeholder-count="3">
+          <span style="display: flex; justify-content: space-between; gap: 8px; font-size: 12px;"><span>{{k.name}}</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: {{k.color}};">{{k.tag}}</span></span>
+        </sc-for>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--bg3);">
+        <span style="font-size: 13px; font-weight: 600;">Needs your review · {{reviewCount}}</span>
+        <sc-for list="{{review}}" as="r" hint-placeholder-count="3">
+          <div class="rise" style="display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 8px; border: 1px solid var(--warning); font-size: 12px;">
+            <span>{{r.text}}</span>
+            <span style="display: flex; gap: 6px;">
+              <button type="button" onClick="{{r.ok}}" style="height: 26px; padding: 0 10px; border-radius: 6px; border: 0; background: var(--success); color: var(--on-accent-o); font-size: 12px;">Keep</button>
+              <button type="button" onClick="{{r.no}}" style="height: 26px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 12px;">Drop</button>
+            </span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid var(--bg3); font-size: 12px;">
+        <span style="font-size: 13px; font-weight: 600;">From GRAPH_REPORT.md</span>
+        <sc-for list="{{report}}" as="x" hint-placeholder-count="3"><button type="button" class="link" onClick="{{x.use}}" style="text-align: left; font-size: 12px; color: var(--text);">· {{x.text}}</button></sc-for>
+      </div>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["claude","opencode"],"default":"claude"},"$preview":{"width":1440,"height":900}}'>
+const COMM = { geo: ['Geometry', 'var(--accent-p)'], solver: ['Solver', 'var(--cyan)'], ui: ['UI', 'var(--accent-o)'], docs: ['Docs and decisions', 'var(--warning)'], tests: ['Tests', 'var(--success)'] };
+const NODES = [
+  ['shell', 'ShellOffset', 'geo', 230, 180, 26, 'class · sim/shell.ts'], ['sdf', 'signedDistance', 'geo', 150, 120, 16, 'function · sim/offset.ts'], ['mesh', 'MeshLoader', 'geo', 300, 100, 18, 'class · sim/mesh.ts'],
+  ['wall', 'wallThickness', 'geo', 170, 260, 18, 'function · sim/shell.ts'], ['stl', 'parseSTL', 'geo', 330, 220, 12, 'function · sim/mesh.ts'],
+  ['solve', 'Solver', 'solver', 520, 170, 24, 'class · sim/solver/convergence.ts'], ['iter', 'iterate', 'solver', 600, 110, 14, 'function'], ['tol', 'tolerance', 'solver', 600, 240, 12, 'const'], ['pour', 'pourChannels', 'solver', 470, 270, 16, 'function'],
+  ['panel', 'SimPanel', 'ui', 420, 420, 18, 'component · web/SimPanel.tsx'], ['slider', 'WallSlider', 'ui', 320, 470, 12, 'component'], ['heat', 'Heatmap', 'ui', 520, 470, 16, 'component'],
+  ['adr', 'Decision: mm everywhere', 'docs', 110, 400, 16, 'docs/decisions/0003.md'], ['note', 'Supplier: Mold Star 30', 'docs', 170, 480, 12, 'notes/suppliers.md'], ['brief', 'Teaser deck', 'docs', 640, 400, 12, 'artifact · deck'],
+  ['t1', 'shell.spec', 'tests', 260, 340, 12, 'sim/shell.spec.ts'], ['t2', 'solver.spec', 'tests', 660, 300, 12, 'sim/solver/solver.spec.ts']
+];
+const EDGES = [['sdf', 'shell'], ['mesh', 'shell'], ['wall', 'shell'], ['stl', 'mesh'], ['shell', 'solve'], ['iter', 'solve'], ['tol', 'solve'], ['pour', 'solve'], ['solve', 'heat'], ['panel', 'heat'], ['slider', 'panel'], ['wall', 'slider'], ['adr', 'wall'], ['t1', 'shell'], ['t2', 'solve'], ['brief', 'heat'], ['note', 'adr']];
+const AMB = [['note', 'wall', 'Does “Mold Star 30” set the 8 mm minimum wall?'], ['brief', 'solve', 'Teaser deck mentions the solver’s speed — same claim as bench results?'], ['tol', 'pour', 'tolerance used by pourChannels?']];
+class Component extends DCLogic {
+  componentWillUnmount() { clearTimeout(this.t); }
+  renderVals() {
+    const s = this.state || {};
+    const org = this.props.ws ? this.props.ws === 'org' : s.ws === 'org'; const emb = !!this.props.embedded; const hl = s.hl || null; const facts = s.facts || (org ? [['Realm exports must never be pasted into chats.', 'workspace'], ['Staging and prod differ in two mappers.', 'CAIM']] : [['Default mold wall is 8 mm for FDM masters.', 'Simulation engine'], ['Investor deck stays under 6 slides.', 'Castform'], ['Prefers short, direct answers.', 'workspace']]);
+    const backend = s['be_' + (org ? 'org' : 'p')] || 'both';
+    const isGraph = backend === 'graph' || backend === 'both';
+    const sel = NODES.find((n) => n.at(0) === (s.sel || 'shell'));
+    const byId = {};
+    NODES.forEach((n) => { byId[n.at(0)] = n; });
+    const L = (a, b) => 'M' + byId[a].at(3) + ' ' + byId[a].at(4) + ' L' + byId[b].at(3) + ' ' + byId[b].at(4) + ' ';
+    const reviewed = s.reviewed || {};
+    const pathIds = s.asked ? ['slider', 'wall', 'shell', 'solve'] : [];
+    let pathD = '';
+    for (let i = 1; i < pathIds.length; i++) pathD += L(pathIds.at(i - 1), pathIds.at(i));
+    const be = [['facts', 'Facts', 'Short statements you approve, kept as files. Simple and readable.', ''], ['graph', 'Graphify', 'A knowledge graph of the project folders: code by syntax, docs by an LLM pass. Queried over MCP.', ''], ['both', 'Graphify + facts', 'The graph for “how does this fit together”, facts for preferences and decisions.', 'recommended'], ['mcp', 'Custom MCP server', 'Point memory at any MCP memory server you run.', '']];
+    return {
+      theme: this.props.theme || 'claude',
+      accent: org ? 'var(--accent-o)' : 'var(--accent-p)',
+      wsName: org ? 'BSC AI Factory' : 'Personal',
+      pBg: org ? 'transparent' : 'var(--bg3)', oBg: org ? 'var(--bg3)' : 'transparent',
+      pickP: () => this.setState({ ws: 'p' }), pickO: () => this.setState({ ws: 'org' }),
+      mcpStatus: isGraph ? 'graphify MCP · running · graph.json 2 min old' : 'facts MCP · running',
+      backends: be.map((b) => ({ name: b.at(1), d: b.at(2), tag: b.at(3), on: backend === b.at(0) ? 'true' : 'false', border: backend === b.at(0) ? 'var(--accent-p)' : 'var(--line)', bg: backend === b.at(0) ? 'var(--bg2)' : 'transparent', dot: backend === b.at(0) ? 'var(--accent-p)' : 'transparent', pick: () => this.setState({ ['be_' + (org ? 'org' : 'p')]: b.at(0) }) })),
+      isGraph,
+      folders: org ? [{ path: '~/work/caim', state: 'mapped', color: 'var(--success-text)' }, { path: '~/work/data-portal', state: 'mapped', color: 'var(--success-text)' }] : [{ path: '~/code/castform', state: 'mapped', color: 'var(--success-text)' }, { path: '~/code/equivaleat', state: 'mapped', color: 'var(--success-text)' }, { path: '~/Documents/notes', state: 'off', color: 'var(--muted)' }],
+      update: 'Git hooks + watch code',
+      docModel: org ? 'ai-factory/llama-4-maverick' : 'anthropic/claude-sonnet-5-5',
+      policyNote: org ? 'Org policy: the docs pass may only use org providers, and graph files stay on EU storage.' : 'Code is parsed locally with no model calls; only docs and images use the model above.',
+      rebuildLabel: s.building ? 'Rebuilding… only changed files' : 'Rebuild now',
+      rebuild: () => { this.setState({ building: true }); clearTimeout(this.t); this.t = setTimeout(() => this.setState({ building: false }), 2200); },
+      queryText: s.q != null ? s.q : 'How does the wall slider reach the solver?', onQuery: (e) => this.setState({ q: e.target.value, asked: false }),
+      standalone: !emb, rootW: emb ? '100%' : '1440px', rootH: emb ? '100%' : '900px',
+      hasFacts: backend === 'facts' || backend === 'both', factCount: String(facts.length), factDraft: s.factDraft || '', onFact: (e) => this.setState({ factDraft: e.target.value }),
+      facts: facts.map((f, i) => ({ text: f.at(0), scope: f.at(1), remove: () => this.setState({ facts: facts.filter((x, j) => j !== i) }) })),
+      addFact: () => { const t = (s.factDraft || '').trim(); if (!t) return; this.setState({ facts: facts.concat([[t, 'workspace']]), factDraft: '' }); if (this.props.onToast) this.props.onToast('Fact saved'); },
+      ask: () => this.setState({ asked: true, sel: 'shell' }),
+      answer: s.asked ? (/slider|solver/i.test(s.q == null ? 'slider' : s.q) ? 'WallSlider → wallThickness → ShellOffset → Solver: the slider sets wallThickness, which ShellOffset reads before the solver runs. 4 hops, 212 tokens.' : 'From the graph: “' + (s.q || '').slice(0, 60) + '” touches ShellOffset and wallThickness (2 hops). Highlighted on the graph · 168 tokens.') : 'Ask a question, or click a node to see what it links to.',
+      edgesD: EDGES.map((e) => L(e.at(0), e.at(1))).join(''),
+      ambD: AMB.filter((a) => !reviewed[a.at(0) + a.at(1)]).map((a) => L(a.at(0), a.at(1))).join(''),
+      pathD,
+      nodes: NODES.map((n, i) => {
+        const c = COMM[n.at(2)];
+        const on = sel.at(0) === n.at(0) || pathIds.includes(n.at(0));
+        return { label: n.at(1), left: n.at(3) + 'px', top: n.at(4) + 'px', size: n.at(5) + 'px', labelTop: (n.at(4) + n.at(5) / 2 + 4) + 'px',
+          color: hl && n.at(2) !== hl ? 'var(--line2)' : c.at(1), ring: on ? 'var(--text)' : 'var(--bg-deep)', cls: on ? 'glow' : 'rise', delay: (i * 0.03).toFixed(2) + 's',
+          shown: n.at(5) >= 16 || on ? n.at(1) : '', weight: on ? 600 : 400, pick: () => this.setState({ sel: n.at(0) }) };
+      }),
+      legend: Object.keys(COMM).map((k) => ({ name: COMM[k].at(0), color: COMM[k].at(1), on: hl === k ? 'true' : 'false', pick: () => this.setState({ hl: hl === k ? null : k }) })),
+      sel: { label: sel.at(1), kind: COMM[sel.at(2)].at(0), file: sel.at(6),
+        links: EDGES.filter((e) => e.includes(sel.at(0))).map((e) => { const o = e.at(0) === sel.at(0) ? e.at(1) : e.at(0); return { name: byId[o].at(1), tag: byId[o].at(2) === sel.at(2) ? 'EXTRACTED' : 'INFERRED', color: byId[o].at(2) === sel.at(2) ? 'var(--success-text)' : 'var(--info-text)' }; }) },
+      review: AMB.filter((a) => !reviewed[a.at(0) + a.at(1)]).map((a) => ({ text: a.at(2), ok: () => this.setState({ reviewed: Object.assign({}, reviewed, { [a.at(0) + a.at(1)]: 'keep' }) }), no: () => this.setState({ reviewed: Object.assign({}, reviewed, { [a.at(0) + a.at(1)]: 'drop' }) }) })),
+      reviewCount: String(AMB.filter((a) => !reviewed[a.at(0) + a.at(1)]).length),
+      report: [['ShellOffset is the most connected node (god node).', 'What depends on ShellOffset?'], ['Surprising link: the teaser deck cites the heatmap.', 'Why does the teaser deck cite the heatmap?'], ['Suggested question: what sets the minimum wall?', 'What sets the minimum wall?']].map((r) => ({ text: r.at(0), use: () => this.setState({ q: r.at(1), asked: false }) }))
+    };
+  }
+}
+</script>
+</body>
+</html>

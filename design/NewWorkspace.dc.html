@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New workspace</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:transparent}
+.hx{--bg0:#0a0a0a;--bg-deep:#050505;--bg1:#141414;--bg2:#1e1e1e;--bg3:#282828;--line:#323232;--line2:#3c3c3c;--line3:#484848;--dim:#606060;--text:#eeeeee;--text2:#d4d4d4;--text3:#b4b4b4;--muted:#9a9a9a;--muted2:#808080;--link-hover:#8ab8ff;
+--accent-p:#fab283;--accent-p-fill:#fab283;--accent-p-text:#fab283;--accent-p-deep:#7a4f35;--accent-o:#9d7cd8;--accent-o-fill:#9d7cd8;--accent-o-text:#9d7cd8;--on-accent:#0a0a0a;--on-accent-o:#0a0a0a;
+--info:#5c9cf5;--info-text:#5c9cf5;--cyan:#56b6c2;--cyan-text:#56b6c2;--success:#7fd88f;--success-text:#7fd88f;--warning:#f5a742;--warning-text:#f5a742;--error:#e06c75;--error-text:#e06c75;
+--font-ui:Inter,system-ui,sans-serif;--font-display:Inter,system-ui,sans-serif;--display-weight:600;--display-track:-0.02em;--font-label:'JetBrains Mono',monospace;color-scheme:dark}
+.hx[data-theme="claude"]{--bg0:#faf9f5;--bg-deep:#f5f0e8;--bg1:#f5f0e8;--bg2:#efe9de;--bg3:#e8e0d2;--line:#e6dfd8;--line2:#d6cdbf;--line3:#b8ae9f;--dim:#8e8b82;--text:#141413;--text2:#3d3d3a;--text3:#3d3d3a;--muted:#6c6a64;--muted2:#8e8b82;--link-hover:#141413;
+--accent-p:#cc785c;--accent-p-fill:#cc785c;--accent-p-text:#a9583e;--accent-p-deep:#f2d8cc;--accent-o:#5db8a6;--accent-o-fill:#5db8a6;--accent-o-text:#2f7d6d;--on-accent:#ffffff;--on-accent-o:#141413;
+--info:#a9583e;--info-text:#a9583e;--cyan:#5db8a6;--cyan-text:#2f7d6d;--success:#5db872;--success-text:#2f7a43;--warning:#d4a017;--warning-text:#8a6400;--error:#c64545;--error-text:#c64545;
+--font-display:Copernicus,'Tiempos Headline','Cormorant Garamond',Georgia,serif;--display-weight:500;--display-track:-0.01em;--font-label:Inter,system-ui,sans-serif;color-scheme:light}
+
+a{color:var(--info-text)}a:hover{color:var(--link-hover)}
+button{font:inherit;cursor:pointer}
+button,a,input,textarea,select{transition:filter .15s ease,transform .15s ease,box-shadow .25s ease,border-color .25s ease,background-color .25s ease,color .25s ease}
+button:hover,a:hover{filter:brightness(1.18)}
+button:active,a:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent-p) 45%, transparent)}50%{box-shadow:0 0 0 8px transparent}}
+@keyframes flow{to{stroke-dashoffset:-24}}
+@keyframes shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+.rise{animation:rise .4s cubic-bezier(.2,.7,.2,1) both}
+.pulse{animation:pulse 1.4s ease-in-out infinite}
+.glow{animation:glow 1.6s ease-out infinite}
+.flow path{stroke-dasharray:6 6;animation:flow .8s linear infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div class="hx" data-theme="{{theme}}" style="width: 880px; height: 760px; box-sizing: border-box; padding: 40px; background: var(--bg-deep); display: flex; align-items: center; justify-content: center; font-family: var(--font-ui); color: var(--text); font-size: 14px; line-height: 1.5;">
+  <div role="dialog" aria-label="Create workspace" style="width: 760px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg1); box-shadow: 0 24px 60px rgba(0,0,0,0.6); display: flex; flex-direction: column;">
+    <div style="display: flex; align-items: center; gap: 12px; padding: 18px 24px; border-bottom: 1px solid var(--bg2);">
+      <span style="flex: 1 1 auto; font-size: 18px; font-weight: 600; letter-spacing: -0.01em;">Create workspace</span>
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted);">step 1 of 3</span>
+      <a href="Main.dc.html" aria-label="Close" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: var(--muted);">
+        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l10 10M13 3L3 13"/></svg>
+      </a>
+    </div>
+
+    <div style="padding: 20px 24px; display: flex; flex-direction: column; gap: 20px;">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <span style="font-size: 13px; font-weight: 500;">Type</span>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;">
+          <button type="button" style="text-align: left; padding: 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg0); color: var(--text); display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-weight: 600; font-size: 13px;">Personal</span>
+            <span style="font-size: 12px; color: var(--muted);">Your own keys and accounts</span>
+          </button>
+          <button type="button" aria-pressed="true" style="text-align: left; padding: 12px; border-radius: 10px; border: 1px solid var(--accent-o); background: var(--bg2); color: var(--text); display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-weight: 600; font-size: 13px; color: var(--accent-o-text);">Organization</span>
+            <span style="font-size: 12px; color: var(--muted);">Join with SSO; admin sets providers and policy</span>
+          </button>
+          <button type="button" style="text-align: left; padding: 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg0); color: var(--text); display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-weight: 600; font-size: 13px;">Team</span>
+            <span style="font-size: 12px; color: var(--muted);">Shared space you manage</span>
+          </button>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+        <label style="flex: 1 1 280px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500;">
+          Sign in with
+          <input type="text" value="MyAccessID — eduGAIN" style="height: 38px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg0); color: var(--text); font: inherit; font-weight: 400;">
+        </label>
+        <label style="flex: 1 1 200px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500;">
+          Workspace name
+          <input type="text" value="BSC AI Factory" style="height: 38px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg0); color: var(--text); font: inherit; font-weight: 400;">
+        </label>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 24px;">
+        <div style="flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 13px; font-weight: 500;">Accent</span>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" aria-label="Peach" style="width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--accent-p-fill);"></button>
+            <button type="button" aria-label="Purple, selected" style="width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--accent-o-fill); box-shadow: 0 0 0 2px var(--bg1), 0 0 0 4px var(--text);"></button>
+            <button type="button" aria-label="Blue" style="width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--info);"></button>
+            <button type="button" aria-label="Cyan" style="width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--cyan);"></button>
+            <button type="button" aria-label="Green" style="width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--success);"></button>
+          </div>
+        </div>
+        <div style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 13px; font-weight: 500;">Start from</span>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 12px; padding: 6px 10px; border-radius: 7px; background: var(--bg2); border: 1px solid var(--accent-o);">Organization defaults</span>
+            <span style="font-size: 12px; padding: 6px 10px; border-radius: 7px; border: 1px solid var(--line);">Empty</span>
+            <span style="font-size: 12px; padding: 6px 10px; border-radius: 7px; border: 1px solid var(--line);">Copy settings from Personal</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 10px; border: 1px solid var(--bg3); background: var(--bg0);">
+        <span style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;">
+          <svg style="color: var(--success);" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>
+          Always separate from your other workspaces
+        </span>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 20px; font-size: 13px; color: var(--text2);">
+          <span style="display: flex; gap: 8px;"><span style="color: var(--success-text);">✓</span>Chat history and search</span>
+          <span style="display: flex; gap: 8px;"><span style="color: var(--success-text);">✓</span>Memory store</span>
+          <span style="display: flex; gap: 8px;"><span style="color: var(--success-text);">✓</span>Connector and MCP credentials</span>
+          <span style="display: flex; gap: 8px;"><span style="color: var(--success-text);">✓</span>Model providers and keys</span>
+          <span style="display: flex; gap: 8px;"><span style="color: var(--success-text);">✓</span>Artifacts and share links</span>
+          <span style="display: flex; gap: 8px;"><span style="color: var(--success-text);">✓</span>Skills and plugins</span>
+        </div>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted);">data dir  ~/.harness/ws/bsc-ai-factory</span>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; padding: 16px 24px; border-top: 1px solid var(--bg2);">
+      <span style="flex: 1 1 auto; font-size: 12px; color: var(--muted);">Next: providers your admin allows, then connectors.</span>
+      <a href="Main.dc.html" style="height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); color: var(--text); text-decoration: none; display: inline-flex; align-items: center; font-size: 13px; box-sizing: border-box;">Cancel</a>
+      <a href="Providers.dc.html" style="height: 36px; padding: 0 16px; border-radius: 8px; background: var(--accent-o-fill); color: var(--on-accent-o); text-decoration: none; display: inline-flex; align-items: center; font-size: 13px; font-weight: 600;">Continue with SSO</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["claude","opencode"],"default":"claude"},"$preview":{"width":880,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() { return { theme: this.props.theme || 'claude' }; }
+}
+</script>
+</body>
+</html>

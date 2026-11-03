@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Home</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:transparent}
+.hx{--bg0:#0a0a0a;--bg-deep:#050505;--bg1:#141414;--bg2:#1e1e1e;--bg3:#282828;--line:#323232;--line2:#3c3c3c;--line3:#484848;--dim:#606060;--text:#eeeeee;--text2:#d4d4d4;--text3:#b4b4b4;--muted:#9a9a9a;--muted2:#808080;--link-hover:#8ab8ff;
+--accent-p:#fab283;--accent-p-fill:#fab283;--accent-p-text:#fab283;--accent-p-deep:#7a4f35;--accent-o:#9d7cd8;--accent-o-fill:#9d7cd8;--accent-o-text:#9d7cd8;--on-accent:#0a0a0a;--on-accent-o:#0a0a0a;
+--info:#5c9cf5;--info-text:#5c9cf5;--cyan:#56b6c2;--cyan-text:#56b6c2;--success:#7fd88f;--success-text:#7fd88f;--warning:#f5a742;--warning-text:#f5a742;--error:#e06c75;--error-text:#e06c75;
+--font-ui:Inter,system-ui,sans-serif;--font-display:Inter,system-ui,sans-serif;--display-weight:600;--display-track:-0.02em;--font-label:'JetBrains Mono',monospace;color-scheme:dark}
+.hx[data-theme="claude"]{--bg0:#faf9f5;--bg-deep:#f5f0e8;--bg1:#f5f0e8;--bg2:#efe9de;--bg3:#e8e0d2;--line:#e6dfd8;--line2:#d6cdbf;--line3:#b8ae9f;--dim:#8e8b82;--text:#141413;--text2:#3d3d3a;--text3:#3d3d3a;--muted:#6c6a64;--muted2:#8e8b82;--link-hover:#141413;
+--accent-p:#cc785c;--accent-p-fill:#cc785c;--accent-p-text:#a9583e;--accent-p-deep:#f2d8cc;--accent-o:#5db8a6;--accent-o-fill:#5db8a6;--accent-o-text:#2f7d6d;--on-accent:#ffffff;--on-accent-o:#141413;
+--info:#a9583e;--info-text:#a9583e;--cyan:#5db8a6;--cyan-text:#2f7d6d;--success:#5db872;--success-text:#2f7a43;--warning:#d4a017;--warning-text:#8a6400;--error:#c64545;--error-text:#c64545;
+--font-display:Copernicus,'Tiempos Headline','Cormorant Garamond',Georgia,serif;--display-weight:500;--display-track:-0.01em;--font-label:Inter,system-ui,sans-serif;color-scheme:light}
+
+a{color:var(--info-text)}a:hover{color:var(--link-hover)}
+button{font:inherit;cursor:pointer}
+button,a,input,textarea,select{transition:filter .15s ease,transform .15s ease,box-shadow .25s ease,border-color .25s ease,background-color .25s ease,color .25s ease}
+button:hover,a:hover{filter:brightness(1.18)}
+button:active,a:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent-p) 45%, transparent)}50%{box-shadow:0 0 0 8px transparent}}
+@keyframes flow{to{stroke-dashoffset:-24}}
+@keyframes shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+.rise{animation:rise .4s cubic-bezier(.2,.7,.2,1) both}
+.pulse{animation:pulse 1.4s ease-in-out infinite}
+.glow{animation:glow 1.6s ease-out infinite}
+.flow path{stroke-dasharray:6 6;animation:flow .8s linear infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+textarea{font:inherit}
+</style>
+</helmet>
+<div class="hx" data-theme="{{theme}}" style="width: 1440px; height: 900px; display: flex; flex-direction: column; background: var(--bg0); color: var(--text); font-family: var(--font-ui); font-size: 14px; line-height: 1.5; overflow: hidden;">
+  <div style="height: 2px; background: var(--accent-p);"></div>
+  <header style="display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--bg2);">
+    <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">harness</span>
+    <span style="display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-p);"></span>Personal</span>
+    <span style="flex: 1 1 auto;"></span>
+    <a href="Routines.dc.html" style="font-size: 12px; color: var(--muted); text-decoration: none;">Routines</a>
+    <a href="Computers.dc.html" style="font-size: 12px; color: var(--muted); text-decoration: none;">Computers</a>
+    <a href="Settings.dc.html" style="font-size: 12px; color: var(--muted); text-decoration: none;">Settings</a>
+  </header>
+  <div style="flex: 1 1 auto; display: flex; min-height: 0;">
+    <nav aria-label="Workspaces" style="flex: 0 0 64px; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 14px 0; border-right: 1px solid var(--bg2);">
+      <a href="Home.dc.html" aria-label="Personal workspace" style="width: 40px; height: 40px; border-radius: 10px; background: var(--bg2); color: var(--accent-p-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 0 0 2px var(--accent-p);">P</a>
+      <a href="Main.dc.html" aria-label="BSC AI Factory workspace" style="width: 40px; height: 40px; border-radius: 10px; background: var(--bg2); color: var(--accent-o-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 13px; display: flex; align-items: center; justify-content: center; text-decoration: none;">AF</a>
+    </nav>
+    <main style="flex: 1 1 auto; min-width: 0; overflow-y: auto; display: flex; justify-content: center; background: var(--bg0);">
+      <div style="width: 100%; max-width: 860px; padding: 64px 32px 32px; display: flex; flex-direction: column; gap: 28px;">
+        <h1 class="rise" style="margin: 0; text-align: center; font-size: 44px; font-family: var(--font-display); font-weight: var(--display-weight); letter-spacing: var(--display-track); line-height: 1.1;">Good afternoon. What are we making?</h1>
+
+        <div class="rise" style="animation-delay: .08s; position: relative; border: 1px solid var(--line); border-radius: 16px; background: var(--bg1); padding: 14px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 1px 3px rgba(20,20,19,0.06);">
+          <label for="ask" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Message</label>
+          <textarea id="ask" rows="3" placeholder="{{placeholder}}" style="resize: none; background: transparent; border: 0; outline: none; color: var(--text); font: inherit; font-size: 16px;"></textarea>
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+            <button type="button" onClick="{{togglePicker}}" aria-expanded="{{pickerOpen}}" style="display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--accent-p); background: var(--bg2); color: var(--text); font-size: 12px;">
+              <svg aria-hidden="true" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" style="color: var(--accent-p-text);" stroke-width="1.5"><path d="M2 4.5h4l1.5 1.5H14v6.5H2z"/></svg>
+              in {{project}}
+              <svg aria-hidden="true" width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>
+            </button>
+            <sc-for list="{{modes}}" as="m" hint-placeholder-count="6">
+              <button type="button" aria-pressed="{{m.on}}" onClick="{{m.pick}}" style="height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid {{m.border}}; background: {{m.bg}}; color: var(--text); font-size: 12px;">{{m.label}}</button>
+            </sc-for>
+            <span style="flex: 1 1 auto;"></span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted);">anthropic/claude-opus-5-5</span>
+            <button type="button" aria-label="Send" style="width: 34px; height: 34px; border-radius: 9px; border: 0; background: var(--accent-p-fill); color: var(--on-accent); display: flex; align-items: center; justify-content: center;"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5"/></svg></button>
+          </div>
+          <sc-if value="{{showPicker}}" hint-placeholder-val="{{ false }}">
+            <div class="rise" role="listbox" aria-label="Project" style="position: absolute; left: 14px; top: 100%; margin-top: 6px; width: 300px; padding: 6px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg1); box-shadow: 0 12px 30px rgba(0,0,0,0.18); z-index: 2; display: flex; flex-direction: column; gap: 1px;">
+              <span style="font-size: 11px; color: var(--muted); padding: 4px 8px;">Every chat needs a project</span>
+              <sc-for list="{{projects}}" as="p" hint-placeholder-count="7">
+                <button type="button" role="option" aria-selected="{{p.sel}}" onClick="{{p.pick}}" style="display: flex; align-items: center; gap: 6px; padding: 6px 8px 6px {{p.pad}}; border-radius: 7px; border: 0; background: {{p.bg}}; color: var(--text); font-size: 13px; text-align: left;">
+                  <svg aria-hidden="true" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" style="color: var(--muted);" stroke-width="1.5"><path d="M2 4.5h4l1.5 1.5H14v6.5H2z"/></svg>{{p.label}}<span style="margin-left: auto; font-size: 11px; color: var(--muted);">{{p.note}}</span>
+                </button>
+              </sc-for>
+              <button type="button" style="margin-top: 4px; padding: 6px 8px; border-radius: 7px; border: 1px dashed var(--line2); background: transparent; color: var(--muted); font-size: 12px; text-align: left;">+ New project…</button>
+            </div>
+          </sc-if>
+        </div>
+
+        <div class="rise" style="animation-delay: .16s; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;">
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);">Needs you</span>
+            <a href="LoopBuilder.dc.html" style="padding: 12px; border-radius: 12px; background: var(--bg2); color: var(--text); text-decoration: none; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; font-weight: 500;">Approve a commit</span><span style="font-size: 12px; color: var(--muted);">Fix until tests pass · Castform › Simulation engine</span></a>
+            <a href="Memory.dc.html" style="padding: 12px; border-radius: 12px; background: var(--bg2); color: var(--text); text-decoration: none; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; font-weight: 500;">Review 3 memory links</span><span style="font-size: 12px; color: var(--muted);">Graphify flagged them as ambiguous</span></a>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);">Continue</span>
+            <a href="Main.dc.html" style="padding: 12px; border-radius: 12px; border: 1px solid var(--line); color: var(--text); text-decoration: none; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; font-weight: 500;">Castform teaser deck</span><span style="font-size: 12px; color: var(--muted);">Castform · deck v2</span></a>
+            <a href="Generate.dc.html" style="padding: 12px; border-radius: 12px; border: 1px solid var(--line); color: var(--text); text-decoration: none; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; font-weight: 500;">Beta landing page</span><span style="font-size: 12px; color: var(--muted);">Castform › Marketing site · prototype</span></a>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span style="font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);">Coming up</span>
+            <a href="Routines.dc.html" style="padding: 12px; border-radius: 12px; border: 1px solid var(--line); color: var(--text); text-decoration: none; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; font-weight: 500;">Morning brief</span><span style="font-size: 12px; color: var(--muted);">Tomorrow 08:30 · cloud</span></a>
+            <a href="Routines.dc.html" style="padding: 12px; border-radius: 12px; border: 1px solid var(--line); color: var(--text); text-decoration: none; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13px; font-weight: 500;">Weekly research brief</span><span style="font-size: 12px; color: var(--muted);">Mon 08:30 · graph</span></a>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["claude","opencode"],"default":"claude"},"$preview":{"width":1440,"height":900}}'>
+const PROJ = [['General', 0, 'default'], ['Castform', 0, ''], ['Simulation engine', 1, ''], ['Solver', 2, ''], ['Marketing site', 1, ''], ['Equivaleat', 0, '']];
+const MODES = [['chat', 'Chat', 'Ask anything — it stays in the project you pick'], ['doc', 'Doc', 'Describe the document you need'], ['deck', 'Deck', 'What is the deck about, and who is it for?'], ['proto', 'Prototype', 'Describe the screen or page'], ['research', 'Research', 'What should I find out?'], ['loop', 'Loop', 'Describe a task to repeat until it’s done']];
+class Component extends DCLogic {
+  renderVals() {
+    const s = this.state || {};
+    const mode = s.mode || 'chat';
+    const proj = s.proj || 'General';
+    return {
+      theme: this.props.theme || 'claude',
+      project: proj,
+      placeholder: MODES.find((m) => m.at(0) === mode).at(2),
+      modes: MODES.map((m) => ({ label: m.at(1), on: mode === m.at(0) ? 'true' : 'false', border: mode === m.at(0) ? 'var(--accent-p)' : 'var(--line)', bg: mode === m.at(0) ? 'var(--bg2)' : 'transparent', pick: () => this.setState({ mode: m.at(0) }) })),
+      showPicker: !!s.picker, pickerOpen: s.picker ? 'true' : 'false',
+      togglePicker: () => this.setState({ picker: !s.picker }),
+      projects: PROJ.map((p) => ({ label: p.at(0), note: p.at(2), pad: (8 + p.at(1) * 16) + 'px', sel: proj === p.at(0) ? 'true' : 'false', bg: proj === p.at(0) ? 'var(--bg2)' : 'transparent', pick: () => this.setState({ proj: p.at(0), picker: false }) }))
+    };
+  }
+}
+</script>
+</body>
+</html>

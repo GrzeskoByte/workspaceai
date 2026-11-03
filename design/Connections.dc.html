@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Connectors and memory settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:transparent}
+.hx{--bg0:#0a0a0a;--bg-deep:#050505;--bg1:#141414;--bg2:#1e1e1e;--bg3:#282828;--line:#323232;--line2:#3c3c3c;--line3:#484848;--dim:#606060;--text:#eeeeee;--text2:#d4d4d4;--text3:#b4b4b4;--muted:#9a9a9a;--muted2:#808080;--link-hover:#8ab8ff;
+--accent-p:#fab283;--accent-p-fill:#fab283;--accent-p-text:#fab283;--accent-p-deep:#7a4f35;--accent-o:#9d7cd8;--accent-o-fill:#9d7cd8;--accent-o-text:#9d7cd8;--on-accent:#0a0a0a;--on-accent-o:#0a0a0a;
+--info:#5c9cf5;--info-text:#5c9cf5;--cyan:#56b6c2;--cyan-text:#56b6c2;--success:#7fd88f;--success-text:#7fd88f;--warning:#f5a742;--warning-text:#f5a742;--error:#e06c75;--error-text:#e06c75;
+--font-ui:Inter,system-ui,sans-serif;--font-display:Inter,system-ui,sans-serif;--display-weight:600;--display-track:-0.02em;--font-label:'JetBrains Mono',monospace;color-scheme:dark}
+.hx[data-theme="claude"]{--bg0:#faf9f5;--bg-deep:#f5f0e8;--bg1:#f5f0e8;--bg2:#efe9de;--bg3:#e8e0d2;--line:#e6dfd8;--line2:#d6cdbf;--line3:#b8ae9f;--dim:#8e8b82;--text:#141413;--text2:#3d3d3a;--text3:#3d3d3a;--muted:#6c6a64;--muted2:#8e8b82;--link-hover:#141413;
+--accent-p:#cc785c;--accent-p-fill:#cc785c;--accent-p-text:#a9583e;--accent-p-deep:#f2d8cc;--accent-o:#5db8a6;--accent-o-fill:#5db8a6;--accent-o-text:#2f7d6d;--on-accent:#ffffff;--on-accent-o:#141413;
+--info:#a9583e;--info-text:#a9583e;--cyan:#5db8a6;--cyan-text:#2f7d6d;--success:#5db872;--success-text:#2f7a43;--warning:#d4a017;--warning-text:#8a6400;--error:#c64545;--error-text:#c64545;
+--font-display:Copernicus,'Tiempos Headline','Cormorant Garamond',Georgia,serif;--display-weight:500;--display-track:-0.01em;--font-label:Inter,system-ui,sans-serif;color-scheme:light}
+
+a{color:var(--info-text)}a:hover{color:var(--link-hover)}
+button{font:inherit;cursor:pointer}
+button,a,input,textarea,select{transition:filter .15s ease,transform .15s ease,box-shadow .25s ease,border-color .25s ease,background-color .25s ease,color .25s ease}
+button:hover,a:hover{filter:brightness(1.18)}
+button:active,a:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent-p) 45%, transparent)}50%{box-shadow:0 0 0 8px transparent}}
+@keyframes flow{to{stroke-dashoffset:-24}}
+@keyframes shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+.rise{animation:rise .4s cubic-bezier(.2,.7,.2,1) both}
+.pulse{animation:pulse 1.4s ease-in-out infinite}
+.glow{animation:glow 1.6s ease-out infinite}
+.flow path{stroke-dasharray:6 6;animation:flow .8s linear infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div class="hx" data-theme="{{theme}}" style="width: 100%; min-height: 900px; display: flex; flex-direction: column; background: var(--bg0); color: var(--text); font-family: var(--font-ui); font-size: 14px; line-height: 1.5;">
+  <div style="height: 2px; background: var(--accent-p-fill);"></div>
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--bg2);">
+    <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">harness</span>
+    <span style="display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-p-fill);"></span>Personal <span style="color: var(--muted); font-family: 'JetBrains Mono', monospace;">· settings</span></span>
+  </header>
+
+  <div style="flex: 1 1 auto; display: flex; flex-wrap: wrap; align-items: stretch;">
+    <nav aria-label="Workspaces" style="flex: 0 0 64px; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 14px 0; border-right: 1px solid var(--bg2);">
+      <a href="Main.dc.html" aria-label="Personal workspace" style="width: 40px; height: 40px; border-radius: 10px; background: var(--bg2); color: var(--accent-p-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 0 0 2px var(--accent-p);">P</a>
+      <a href="Providers.dc.html" aria-label="BSC AI Factory workspace" style="width: 40px; height: 40px; border-radius: 10px; background: var(--bg2); color: var(--accent-o-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 13px; display: flex; align-items: center; justify-content: center; text-decoration: none;">AF</a>
+    </nav>
+
+    <aside aria-label="Settings" style="flex: 0 1 232px; min-width: 200px; padding: 18px 12px; background: var(--bg1); border-right: 1px solid var(--bg2); display: flex; flex-direction: column; gap: 2px; box-sizing: border-box;">
+      <span style="font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 0 10px 8px;">Workspace settings</span>
+      <a href="Settings.dc.html" style="padding: 7px 10px; border-radius: 7px; color: var(--text); text-decoration: none; font-size: 13px;">General</a>
+      <a href="Providers.dc.html" style="padding: 7px 10px; border-radius: 7px; color: var(--text); text-decoration: none; font-size: 13px;">Model providers</a>
+      <a href="Connections.dc.html" aria-current="page" style="padding: 7px 10px; border-radius: 7px; background: var(--bg2); color: var(--text); text-decoration: none; font-size: 13px; font-weight: 500; box-shadow: inset 2px 0 0 var(--accent-p);">Connectors &amp; MCP</a>
+      <a href="Settings.dc.html" style="padding: 7px 10px; border-radius: 7px; color: var(--text); text-decoration: none; font-size: 13px;">Memory</a>
+      <a href="Settings.dc.html" style="padding: 7px 10px; border-radius: 7px; color: var(--text); text-decoration: none; font-size: 13px;">Skills</a>
+      <a href="Settings.dc.html" style="padding: 7px 10px; border-radius: 7px; color: var(--text); text-decoration: none; font-size: 13px;">Artifacts &amp; sharing</a>
+      <a href="Settings.dc.html" style="padding: 7px 10px; border-radius: 7px; color: var(--text); text-decoration: none; font-size: 13px;">Appearance</a>
+    </aside>
+
+    <main style="flex: 999 1 560px; min-width: 0; padding: 32px 40px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px;">
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px;">
+        <div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 4px;">
+          <h1 style="margin: 0; font-size: 24px; font-family: var(--font-display); font-weight: var(--display-weight); letter-spacing: -0.02em;">Connectors &amp; MCP</h1>
+          <p style="margin: 0; color: var(--muted);">Servers and accounts connected here are visible only in Personal. Credentials are stored per workspace.</p>
+        </div>
+        <button type="button" style="height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 13px;">Copy config from workspace…</button>
+        <button type="button" style="height: 36px; padding: 0 14px; border-radius: 8px; border: 0; background: var(--accent-p-fill); color: var(--on-accent); font-weight: 600; font-size: 13px;">Add MCP server</button>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+        <div style="flex: 999 1 560px; min-width: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--bg1); overflow-x: auto;">
+          <div style="min-width: 620px;">
+            <div style="display: grid; grid-template-columns: 2fr 1.2fr 0.8fr 1fr 64px; gap: 12px; padding: 10px 18px; border-bottom: 1px solid var(--bg3); font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);">
+              <span>Server</span><span>Transport</span><span>Tools</span><span>Status</span><span>On</span>
+            </div>
+            <sc-for list="{{servers}}" as="s" hint-placeholder-count="4">
+              <div style="display: grid; grid-template-columns: 2fr 1.2fr 0.8fr 1fr 64px; gap: 12px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--bg2);">
+                <span style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+                  <span style="width: 30px; height: 30px; border-radius: 8px; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: {{s.color}};">{{s.mono}}</span>
+                  <span style="display: flex; flex-direction: column; min-width: 0;">
+                    <span style="font-weight: 500; font-size: 13px;">{{s.name}}</span>
+                    <span style="font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{s.account}}</span>
+                  </span>
+                </span>
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text2);">{{s.transport}}</span>
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text2);">{{s.tools}}</span>
+                <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: {{s.statusColor}};"><span style="width: 7px; height: 7px; border-radius: 50%; background: {{s.statusColor}};"></span>{{s.status}}</span>
+                <button type="button" aria-pressed="{{s.on}}" aria-label="Enable {{s.name}}" style="width: 36px; height: 20px; border-radius: 999px; border: 0; padding: 2px; background: {{s.track}}; display: flex; justify-content: {{s.knobSide}};">
+                  <span style="width: 16px; height: 16px; border-radius: 50%; background: var(--bg0);"></span>
+                </button>
+              </div>
+            </sc-for>
+            <div style="padding: 14px 18px; display: flex; flex-direction: column; gap: 6px;">
+              <span style="font-size: 12px; color: var(--muted);">Or paste a server definition — stored in this workspace's config only</span>
+              <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text2); background: var(--bg0); border: 1px solid var(--bg3); border-radius: 8px; padding: 10px 12px; white-space: pre-wrap;">{ "name": "blender", "command": "uvx", "args": ["blender-mcp"], "scope": "workspace:personal" }</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+          <div style="border: 1px solid var(--line); border-radius: 12px; background: var(--bg1); padding: 18px; display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+            <span style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
+              <svg style="color: var(--accent-p);" aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>
+              Memory
+            </span>
+            <span style="display: flex; justify-content: space-between; gap: 12px;"><span style="color: var(--muted);">Store</span><span>Personal · 16 files</span></span>
+            <span style="display: flex; justify-content: space-between; align-items: center; gap: 12px;"><span>Learn from chats</span>
+              <span style="width: 36px; height: 20px; border-radius: 999px; padding: 2px; background: var(--accent-p-fill); display: flex; justify-content: flex-end; box-sizing: border-box;"><span style="width: 16px; height: 16px; border-radius: 50%; background: var(--bg0);"></span></span>
+            </span>
+            <span style="display: flex; justify-content: space-between; align-items: center; gap: 12px;"><span style="color: var(--muted);">Shared with other workspaces</span>
+              <span style="display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px;">
+                <svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>
+                Never
+              </span>
+            </span>
+            <a href="Settings.dc.html" style="font-size: 13px;">Browse memory files</a>
+          </div>
+          <div style="border: 1px solid var(--line); border-radius: 12px; background: var(--bg1); padding: 18px; display: flex; flex-direction: column; gap: 10px; font-size: 13px;">
+            <span style="font-weight: 600;">Chat history</span>
+            <span style="display: flex; justify-content: space-between; gap: 12px;"><span style="color: var(--muted);">Retention</span><span>Keep forever</span></span>
+            <span style="display: flex; justify-content: space-between; gap: 12px;"><span style="color: var(--muted);">Searchable from</span><span>This workspace only</span></span>
+            <span style="display: flex; justify-content: space-between; gap: 12px;"><span style="color: var(--muted);">Stored</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px;">~/.harness/ws/personal</span></span>
+          </div>
+          <div style="border: 1px solid var(--bg3); border-radius: 12px; padding: 16px 18px; font-size: 13px; color: var(--muted);">
+            Copying from another workspace brings the server definition only. You sign in again here, so tokens never travel between workspaces.
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["claude","opencode"],"default":"claude"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const row = (mono, color, name, account, transport, tools, status, on) => ({
+      mono, color, name, account, transport, tools, status, on: on ? 'true' : 'false',
+      statusColor: status === 'Connected' ? 'var(--success)' : (status === 'Needs sign-in' ? 'var(--warning)' : 'var(--muted)'),
+      track: on ? 'var(--accent-p)' : 'var(--line2)', knobSide: on ? 'flex-end' : 'flex-start'
+    });
+    return { theme: (this.state && this.state.theme) || this.props.theme || 'claude',
+      servers: [
+        row('Gm', 'var(--error)', 'Gmail', 'personal account', 'remote · oauth', '24', 'Connected', true),
+        row('Dr', 'var(--info)', 'Google Drive', 'personal account', 'remote · oauth', '11', 'Connected', true),
+        row('HF', 'var(--warning)', 'Hugging Face', 'GrzeskoByte', 'remote · http', '5', 'Needs sign-in', true),
+        row('Bl', 'var(--cyan)', 'Blender', 'this computer', 'local · stdio', '26', 'Stopped', false)
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

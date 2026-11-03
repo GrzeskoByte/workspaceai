@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Harness main window</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:transparent}
+.hx{--bg0:#0a0a0a;--bg-deep:#050505;--bg1:#141414;--bg2:#1e1e1e;--bg3:#282828;--line:#323232;--line2:#3c3c3c;--line3:#484848;--dim:#606060;--text:#eeeeee;--text2:#d4d4d4;--text3:#b4b4b4;--muted:#9a9a9a;--muted2:#808080;--link-hover:#8ab8ff;
+--accent-p:#fab283;--accent-p-fill:#fab283;--accent-p-text:#fab283;--accent-p-deep:#7a4f35;--accent-o:#9d7cd8;--accent-o-fill:#9d7cd8;--accent-o-text:#9d7cd8;--on-accent:#0a0a0a;--on-accent-o:#0a0a0a;
+--info:#5c9cf5;--info-text:#5c9cf5;--cyan:#56b6c2;--cyan-text:#56b6c2;--success:#7fd88f;--success-text:#7fd88f;--warning:#f5a742;--warning-text:#f5a742;--error:#e06c75;--error-text:#e06c75;
+--font-ui:Inter,system-ui,sans-serif;--font-display:Inter,system-ui,sans-serif;--display-weight:600;--display-track:-0.02em;--font-label:'JetBrains Mono',monospace;color-scheme:dark}
+.hx[data-theme="claude"]{--bg0:#faf9f5;--bg-deep:#f5f0e8;--bg1:#f5f0e8;--bg2:#efe9de;--bg3:#e8e0d2;--line:#e6dfd8;--line2:#d6cdbf;--line3:#b8ae9f;--dim:#8e8b82;--text:#141413;--text2:#3d3d3a;--text3:#3d3d3a;--muted:#6c6a64;--muted2:#8e8b82;--link-hover:#141413;
+--accent-p:#cc785c;--accent-p-fill:#cc785c;--accent-p-text:#a9583e;--accent-p-deep:#f2d8cc;--accent-o:#5db8a6;--accent-o-fill:#5db8a6;--accent-o-text:#2f7d6d;--on-accent:#ffffff;--on-accent-o:#141413;
+--info:#a9583e;--info-text:#a9583e;--cyan:#5db8a6;--cyan-text:#2f7d6d;--success:#5db872;--success-text:#2f7a43;--warning:#d4a017;--warning-text:#8a6400;--error:#c64545;--error-text:#c64545;
+--font-display:Copernicus,'Tiempos Headline','Cormorant Garamond',Georgia,serif;--display-weight:500;--display-track:-0.01em;--font-label:Inter,system-ui,sans-serif;color-scheme:light}
+
+a{color:var(--info-text)}a:hover{color:var(--link-hover)}
+button{font:inherit;cursor:pointer}
+button,a,input,textarea,select{transition:filter .15s ease,transform .15s ease,box-shadow .25s ease,border-color .25s ease,background-color .25s ease,color .25s ease}
+button:hover,a:hover{filter:brightness(1.18)}
+button:active,a:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent-p) 45%, transparent)}50%{box-shadow:0 0 0 8px transparent}}
+@keyframes flow{to{stroke-dashoffset:-24}}
+@keyframes shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+.rise{animation:rise .4s cubic-bezier(.2,.7,.2,1) both}
+.pulse{animation:pulse 1.4s ease-in-out infinite}
+.glow{animation:glow 1.6s ease-out infinite}
+.flow path{stroke-dasharray:6 6;animation:flow .8s linear infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+textarea{font:inherit}
+</style>
+</helmet>
+<div class="hx" data-theme="{{theme}}" style="width: 100%; min-height: 900px; display: flex; flex-direction: column; background: var(--bg0); color: var(--text); font-family: var(--font-ui); font-size: 14px; line-height: 1.5; box-sizing: border-box;">
+
+  <div style="height: 2px; background: {{accent}}; transition: background-color .4s ease;"></div>
+
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--bg2); background: var(--bg0);">
+    <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 14px; letter-spacing: -0.01em;">harness</span>
+    <span style="display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; color: var(--text);">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: {{accent}};"></span>
+      {{wsName}}
+      <span style="color: var(--muted); font-family: 'JetBrains Mono', monospace;">· isolated</span>
+    </span>
+    <span style="flex: 1 1 200px; text-align: center; color: var(--muted); font-size: 13px;">{{wsName}} <span style="color: var(--dim);">/</span> {{projName}} <span style="color: var(--dim);">/</span> <span style="color: var(--text);">{{chatTitle}}</span></span>
+    <span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--bg3); font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted);"><span style="width: 6px; height: 6px; border-radius: 50%; background: var(--success);"></span>opencode serve {{port}}</span>
+    <button type="button" onClick="{{toggleTheme}}" aria-label="Switch theme" style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg2); color: var(--text); font-size: 12px;">
+      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>
+      Theme · {{themeLabel}}
+    </button>
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted);">⌘K switch · ⌘1 ⌘2</span>
+  </header>
+
+  <div style="flex: 1 1 auto; display: flex; flex-wrap: wrap; align-items: stretch; min-height: 0;">
+
+    <nav aria-label="Workspaces" style="flex: 0 0 64px; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 14px 0; background: var(--bg0); border-right: 1px solid var(--bg2); box-sizing: border-box;">
+      <div style="position: relative; display: flex; justify-content: center; width: 64px;">
+        <span style="position: absolute; left: 0; top: 8px; width: 3px; height: 24px; border-radius: 0 3px 3px 0; background: {{barP}};"></span>
+        <button type="button" aria-label="Personal workspace" onClick="{{pickP}}" style="width: 40px; height: 40px; border-radius: 10px; border: 0; background: var(--bg2); color: var(--accent-p-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 14px; box-shadow: 0 0 0 2px {{ringP}};">P</button>
+      </div>
+      <div style="position: relative; display: flex; justify-content: center; width: 64px;">
+        <span style="position: absolute; left: 0; top: 8px; width: 3px; height: 24px; border-radius: 0 3px 3px 0; background: {{barO}};"></span>
+        <button type="button" aria-label="BSC AI Factory workspace" onClick="{{pickO}}" style="width: 40px; height: 40px; border-radius: 10px; border: 0; background: var(--bg2); color: var(--accent-o-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 13px; box-shadow: 0 0 0 2px {{ringO}};">AF</button>
+      </div>
+      <a href="NewWorkspace.dc.html" aria-label="Add workspace" style="width: 40px; height: 40px; border-radius: 10px; border: 1px dashed var(--line3); display: flex; align-items: center; justify-content: center; color: var(--muted); box-sizing: border-box; text-decoration: none;">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>
+      </a>
+      <div style="flex: 1 1 auto;"></div>
+      <a href="Settings.dc.html" aria-label="Workspace settings" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: var(--muted); border-radius: 10px;">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </a>
+      <span aria-label="Signed in as Greg" style="width: 32px; height: 32px; border-radius: 50%; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: var(--text);">G</span>
+    </nav>
+
+    <aside style="flex: 0 1 264px; min-width: 220px; display: flex; flex-direction: column; gap: 16px; padding: 14px 12px; background: var(--bg1); border-right: 1px solid var(--bg2); box-sizing: border-box;">
+      <a href="Switcher.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; background: var(--bg2); color: var(--text); text-decoration: none;">
+        <span style="width: 28px; height: 28px; border-radius: 7px; background: var(--bg3); color: {{accentText}}; font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 12px; display: flex; align-items: center; justify-content: center;">{{wsInitials}}</span>
+        <span style="flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0;">
+          <span style="font-weight: 600; font-size: 13px;">{{wsName}}</span>
+          <span style="font-size: 12px; color: var(--muted);">{{wsKind}}</span>
+        </span>
+        <svg style="color: var(--muted);" aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 6l3-3 3 3M5 10l3 3 3-3"/></svg>
+      </a>
+
+      <button type="button" style="display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 8px; border: 1px solid {{accent}}; background: transparent; color: {{accentText}}; font-weight: 500; font-size: 13px; text-align: left;">
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 3v10M3 8h10"/></svg>
+        New chat in {{projName}}
+        <span style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted);">⌘N</span>
+      </button>
+
+      <label style="display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--bg3); color: var(--muted); font-size: 13px;">
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+        <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Search this workspace</span>
+        <input type="search" placeholder="Search {{wsName}}" style="flex: 1 1 auto; min-width: 0; background: transparent; border: 0; outline: none; color: var(--text); font: inherit;">
+      </label>
+
+      <div style="display: flex; flex-direction: column; gap: 1px;">
+        <span style="display: flex; align-items: center; font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 0 10px 6px;">Projects<span style="margin-left: auto; text-transform: none; letter-spacing: 0; font-family: var(--font-ui);">every chat lives in one</span></span>
+        <sc-for list="{{tree}}" as="t" hint-placeholder-count="9">
+          <a href="{{t.href}}" onClick="{{t.click}}" style="display: flex; align-items: center; gap: 6px; padding: 5px 8px 5px {{t.pad}}; border-radius: 7px; background: {{t.bg}}; color: var(--text); text-decoration: none; font-size: 13px; font-weight: {{t.weight}};">
+            <sc-if value="{{t.isProject}}" hint-placeholder-val="{{ true }}">
+              <svg aria-hidden="true" width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" style="color: var(--muted); transform: {{t.rot}}; transition: transform .2s ease;" stroke-width="2"><path d="M6 4l4 4-4 4"/></svg>
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" style="color: {{t.iconColor}};" stroke-width="1.5"><path d="M2 4.5h4l1.5 1.5H14v6.5H2z"/></svg>
+            </sc-if>
+            <sc-if value="{{t.isChat}}" hint-placeholder-val="{{ false }}">
+              <svg aria-hidden="true" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" style="color: var(--muted); margin-left: 16px;" stroke-width="1.5"><path d="M3 3.5h10v7H7l-3 2.5v-2.5H3z"/></svg>
+            </sc-if>
+            <sc-if value="{{t.isLoop}}" hint-placeholder-val="{{ false }}">
+              <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="color: var(--cyan); margin-left: 16px;" stroke-width="1.8"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg>
+            </sc-if>
+            <span style="flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{t.label}}</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--muted);">{{t.meta}}</span>
+          </a>
+        </sc-for>
+        <button type="button" style="margin-top: 6px; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 7px; border: 1px dashed var(--line2); background: transparent; color: var(--muted); font-size: 12px; text-align: left;">
+          <svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 3v10M3 8h10"/></svg>
+          New project or sub-project
+        </button>
+      </div>
+
+      <div style="flex: 1 1 auto;"></div>
+
+      <div style="display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--bg3); font-size: 12px; color: var(--muted);">
+        <span style="display: flex; align-items: center; gap: 6px; color: var(--text); font-weight: 500;">
+          <svg aria-hidden="true" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" style="color: {{accentText}};" stroke-width="1.6"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>
+          Scoped to this workspace
+        </span>
+        <span>History · memory · {{mcp}} connectors · {{providerCount}} providers</span>
+      </div>
+    </aside>
+
+    <main style="flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; background: var(--bg0);">
+      <div style="flex: 1 1 auto; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; max-width: 760px; width: 100%; margin: 0 auto; box-sizing: border-box;">
+
+        <sc-if value="{{isP}}" hint-placeholder-val="{{ true }}">
+          <div class="rise" style="align-self: flex-end; max-width: 80%; padding: 12px 14px; border-radius: 12px; background: var(--bg2); font-size: 14px;">Turn the Castform notes into a 6-slide teaser deck — problem, how the simulation works, a demo slide, roadmap.</div>
+          <div class="rise" style="display: flex; flex-direction: column; gap: 12px; animation-delay: 0.15s;">
+            <div style="display: flex; flex-direction: column; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted);">
+              <span><span style="color: var(--success-text);">✓</span> read  castform-notes.md</span>
+              <span><span style="color: var(--success-text);">✓</span> memory  Personal · 3 entries</span>
+              <span><span style="color: var(--success-text);">✓</span> artifact  slides · created</span>
+            </div>
+            <p style="margin: 0;">Built the deck from your notes. Slide 3 reuses yesterday's wall-thickness render; roadmap dates are left as placeholders for you to fill in.</p>
+            <a href="Artifact.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg1); color: var(--text); text-decoration: none; max-width: 420px;">
+              <span style="width: 36px; height: 36px; border-radius: 8px; background: var(--bg3); display: flex; align-items: center; justify-content: center; color: var(--accent-p-text);">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+              </span>
+              <span style="display: flex; flex-direction: column;">
+                <span style="font-weight: 600; font-size: 13px;">Castform — teaser</span>
+                <span style="font-size: 12px; color: var(--muted);">Slides · 6 slides · v2</span>
+              </span>
+              <span style="margin-left: auto; font-size: 12px; color: var(--accent-p-text);">Open</span>
+            </a>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{isO}}" hint-placeholder-val="{{ false }}">
+          <div class="rise" style="align-self: flex-end; max-width: 80%; padding: 12px 14px; border-radius: 12px; background: var(--bg2); font-size: 14px;">Draft the runbook for onboarding a new IdP through MyAccessID into CAIM. Include the realm mapper steps.</div>
+          <div class="rise" style="display: flex; flex-direction: column; gap: 12px; animation-delay: 0.15s;">
+            <div style="display: flex; flex-direction: column; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted);">
+              <span><span style="color: var(--success-text);">✓</span> keycloak-admin  get_realm_mappers(caim)</span>
+              <span><span style="color: var(--success-text);">✓</span> memory  Org · DIG · 5 entries</span>
+              <span><span style="color: var(--success-text);">✓</span> artifact  doc · updated to v3</span>
+            </div>
+            <p style="margin: 0;">Here's the updated runbook. I pulled the live mapper config through the CAIM Keycloak connector — two attribute mappers differ between staging and prod, flagged in section 3.</p>
+            <a href="#" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg1); color: var(--text); text-decoration: none; max-width: 420px;">
+              <span style="width: 36px; height: 36px; border-radius: 8px; background: var(--bg3); display: flex; align-items: center; justify-content: center; color: var(--accent-o-text);">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg>
+              </span>
+              <span style="display: flex; flex-direction: column;">
+                <span style="font-weight: 600; font-size: 13px;">MyAccessID IdP onboarding</span>
+                <span style="font-size: 12px; color: var(--muted);">Doc · 5 sections · v3</span>
+              </span>
+              <span style="margin-left: auto; font-size: 12px; color: var(--accent-o-text);">Open</span>
+            </a>
+          </div>
+        </sc-if>
+      </div>
+
+      <div style="padding: 0 32px 24px; max-width: 760px; width: 100%; margin: 0 auto; box-sizing: border-box;">
+        <div style="border: 1px solid var(--line); border-radius: 12px; background: var(--bg1); padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+          <label style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);" for="composer">Message</label>
+          <textarea id="composer" rows="2" placeholder="Message {{wsName}}…" style="resize: none; background: transparent; border: 0; outline: none; color: var(--text); font-size: 14px;"></textarea>
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+            <button type="button" aria-label="Attach files" style="width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--muted); display: flex; align-items: center; justify-content: center;">
+              <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7L14 4.5a3.3 3.3 0 0 1 4.7 4.7L10.2 17.7a1.7 1.7 0 0 1-2.4-2.4L15.5 7.6"/></svg>
+            </button>
+            <button type="button" style="display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg2); color: var(--text); font-size: 12px;">
+              <span style="width: 6px; height: 6px; border-radius: 50%; background: {{accent}};"></span>
+              {{model}}
+              <span style="color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 11px;">{{provider}}</span>
+              <svg style="color: var(--muted);" aria-hidden="true" width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>
+            </button>
+            <a href="Connections.dc.html" style="display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); color: var(--muted); font-size: 12px; text-decoration: none; box-sizing: border-box;">
+              <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0zM12 18v4"/></svg>
+              {{mcp}} connectors
+            </a>
+            <span style="display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); color: var(--muted); font-size: 12px; box-sizing: border-box;">
+              <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>
+              {{memory}}
+            </span>
+            <button type="button" aria-label="Send" style="margin-left: auto; width: 32px; height: 32px; border-radius: 8px; border: 0; background: {{accent}}; color: {{onAccent}}; display: flex; align-items: center; justify-content: center;">
+              <svg aria-hidden="true" width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <section aria-label="Artifact" style="flex: 1 1 480px; max-width: 560px; min-width: 300px; display: flex; flex-direction: column; background: var(--bg1); border-left: 1px solid var(--bg2);">
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--bg2);">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--bg3); color: {{accentText}};">{{artType}}</span>
+        <span style="font-weight: 600; font-size: 13px; flex: 1 1 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{artTitle}}</span>
+        <button type="button" style="height: 28px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 11px;">{{artVersion}} ▾</button>
+        <button type="button" style="height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 12px;">Share</button>
+        <button type="button" style="height: 28px; padding: 0 10px; border-radius: 6px; border: 0; background: {{accent}}; color: {{onAccent}}; font-size: 12px; font-weight: 500;">Export</button>
+        <button type="button" aria-label="Close artifact" style="width: 28px; height: 28px; border-radius: 6px; border: 0; background: transparent; color: var(--muted); display: flex; align-items: center; justify-content: center;">
+          <svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l10 10M13 3L3 13"/></svg>
+        </button>
+      </div>
+
+      <sc-if value="{{isP}}" hint-placeholder-val="{{ true }}">
+        <div class="rise" style="animation-delay: 0.25s; flex: 1 1 auto; padding: 18px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="aspect-ratio: 16 / 9; border-radius: 8px; background: var(--bg0); border: 1px solid var(--bg3); padding: 28px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted);">01 / 06</span>
+            <span style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="font-size: 30px; font-family: var(--font-display); font-weight: var(--display-weight); letter-spacing: -0.02em; color: var(--accent-p-text);">Castform</span>
+              <span style="font-size: 15px; color: var(--text);">See the mold before you pour it.</span>
+            </span>
+            <span style="font-size: 11px; color: var(--muted);">[PRESENTER] · [DATE]</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px;">
+            <sc-for list="{{slides}}" as="s" hint-placeholder-count="6">
+              <span style="aspect-ratio: 16 / 9; border-radius: 4px; background: var(--bg0); border: 1px solid {{s.border}}; display: flex; align-items: flex-end; padding: 4px; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted);">{{s.n}}</span>
+            </sc-for>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 13px;">
+            <span style="color: var(--muted); font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;">Outline</span>
+            <span>1 · Castform</span><span>2 · Pouring blind is expensive</span><span>3 · Wall-thickness simulation</span><span>4 · Live demo</span><span>5 · Roadmap</span><span>6 · Ask</span>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isO}}" hint-placeholder-val="{{ false }}">
+        <div class="rise" style="animation-delay: 0.25s; flex: 1 1 auto; padding: 22px 26px; display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+          <h2 style="margin: 0; font-size: 20px; font-family: var(--font-display); font-weight: var(--display-weight); letter-spacing: -0.01em;">MyAccessID IdP onboarding</h2>
+          <span style="font-size: 12px; color: var(--muted);">Owner Greg · BSC AI Factory · shared with DIG</span>
+          <h3 style="margin: 8px 0 0; font-size: 14px; font-weight: 600; color: var(--accent-o-text);">1 · Prerequisites</h3>
+          <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; color: var(--text2);">
+            <li>IdP is registered in eduGAIN with SIRTFI asserted</li>
+            <li>Entity ID and metadata URL from the institution</li>
+            <li>CAIM realm admin role on staging and prod</li>
+          </ul>
+          <h3 style="margin: 8px 0 0; font-size: 14px; font-weight: 600; color: var(--accent-o-text);">2 · Register in MyAccessID</h3>
+          <p style="margin: 0; color: var(--text2);">Request the IdP be added to the AI Factory proxy allow-list, then confirm the released attributes.</p>
+          <h3 style="margin: 8px 0 0; font-size: 14px; font-weight: 600; color: var(--accent-o-text);">3 · CAIM realm mappers</h3>
+          <div style="display: flex; gap: 10px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--warning); background: var(--bg2);">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color: var(--warning); flex: 0 0 auto; margin-top: 2px;"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg>
+            <span style="color: var(--text);">Two mappers differ between staging and prod — <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--warning-text);">entitlement</span> and <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--warning-text);">schac-home-org</span>. Align before go-live.</span>
+          </div>
+          <span style="margin-top: auto; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted);">
+            <span style="width: 20px; height: 20px; border-radius: 50%; background: var(--bg3); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text);">S</span>
+            2 comments · exports .docx · PDF · Markdown
+          </span>
+        </div>
+      </sc-if>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["claude","opencode"],"default":"claude"},"startWorkspace":{"editor":"enum","options":["personal","org"],"default":"personal"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const ws = (this.state && this.state.ws) || this.props.startWorkspace || 'personal';
+    const P = ws === 'personal';
+    const accent = P ? 'var(--accent-p)' : 'var(--accent-o)';
+    const mk = (list) => list.map((c, i) => ({ title: c[0], meta: c[1], bg: i === 0 ? 'var(--bg2)' : 'transparent' }));
+    return { theme: (this.state && this.state.theme) || this.props.theme || 'claude',
+      accentText: P ? 'var(--accent-p-text)' : 'var(--accent-o-text)',
+      onAccent: P ? 'var(--on-accent)' : 'var(--on-accent-o)',
+      themeLabel: ((this.state && this.state.theme) || this.props.theme || 'claude') === 'claude' ? 'Claude' : 'opencode',
+      toggleTheme: () => this.setState({ theme: (((this.state && this.state.theme) || this.props.theme || 'claude') === 'claude') ? 'opencode' : 'claude' }),
+      isP: P, isO: !P, accent,
+      wsName: P ? 'Personal' : 'BSC AI Factory',
+      wsInitials: P ? 'P' : 'AF',
+      wsKind: P ? 'Personal workspace' : 'Organization · admin-managed',
+      ringP: P ? 'var(--accent-p)' : 'transparent', barP: P ? 'var(--accent-p)' : 'transparent',
+      ringO: P ? 'transparent' : 'var(--accent-o)', barO: P ? 'transparent' : 'var(--accent-o)',
+      pickP: () => this.setState({ ws: 'personal' }),
+      pickO: () => this.setState({ ws: 'org' }),
+      chatTitle: P ? 'Castform teaser deck' : 'IdP onboarding runbook',
+      chats: P ? mk([
+        ['Castform teaser deck', 'now · slides'],
+        ['Mold wall-thickness math', 'yesterday'],
+        ['Blender export to STL', 'Mon']
+      ]) : mk([
+        ['IdP onboarding runbook', 'now · doc'],
+        ['CAIM realm export diff', 'yesterday'],
+        ['SIR2 federation test plan', 'last week · doc']
+      ]),
+      projName: P ? 'Castform' : 'CAIM',
+      tree: (() => {
+        const st = this.state || {};
+        const T = (label, kind, kids, open, meta, href) => ({ label, kind, kids: kids || [], open, meta: meta || '', href: href || '#' });
+        const data = P ? [
+          T('General', 'project', [T('Weekend trip budget', 'chat'), T('Silicone supplier notes', 'chat')], false, 'default'),
+          T('Castform', 'project', [
+            T('Castform teaser deck', 'chat', null, null, 'now', 'Main.dc.html'),
+            T('Simulation engine', 'project', [T('Mold wall-thickness math', 'chat'), T('Fix until tests pass', 'loop', null, null, '', 'LoopBuilder.dc.html')], true, '', 'Project.dc.html'),
+            T('Marketing site', 'project', [T('Beta landing page', 'chat', null, null, '', 'Generate.dc.html')], false),
+            T('Blender export to STL', 'chat')
+          ], true, 'AGENTS.md', 'Project.dc.html'),
+          T('Equivaleat', 'project', [T('Onboarding copy', 'chat')], false)
+        ] : [
+          T('General', 'project', [T('Data Portal job quota', 'chat')], false, 'default'),
+          T('CAIM', 'project', [
+            T('IdP onboarding runbook', 'chat', null, null, 'now', 'Main.dc.html'),
+            T('Federation', 'project', [T('SIR2 federation test plan', 'chat'), T('eduGAIN metadata refresh', 'chat')], true),
+            T('Realm ops', 'project', [T('CAIM realm export diff', 'chat'), T('Nightly realm drift check', 'loop', null, null, '', 'LoopBuilder.dc.html')], true)
+          ], true, 'AGENTS.md', 'Project.dc.html'),
+          T('Data Portal + ORVM', 'project', [T('ORVM M2M token flow', 'chat')], false)
+        ];
+        const out = [];
+        const walk = (items, depth, path) => items.forEach((it) => {
+          const key = ws + '/' + path + it.label;
+          const open = st['open_' + key] != null ? st['open_' + key] : !!it.open;
+          const isP = it.kind === 'project';
+          out.push({ label: it.label, meta: isP && !open ? String(it.kids.length) : it.meta, href: isP ? '#' : it.href,
+            pad: (8 + depth * 14) + 'px', isProject: isP, isChat: it.kind === 'chat', isLoop: it.kind === 'loop',
+            rot: open ? 'rotate(90deg)' : 'none', iconColor: depth === 0 ? (P ? 'var(--accent-p)' : 'var(--accent-o)') : 'var(--muted)',
+            bg: it.meta === 'now' ? 'var(--bg2)' : 'transparent', weight: it.meta === 'now' || (isP && depth === 0) ? 500 : 400,
+            click: isP ? (e) => { e.preventDefault(); this.setState({ ['open_' + key]: !open }); } : undefined });
+          if (isP && open) walk(it.kids, depth + 1, path + it.label + '/');
+        });
+        walk(data, 0, '');
+        return out;
+      })(),
+      loopName: P ? 'Fix until tests pass' : 'Nightly realm drift check',
+      otherProjects: P ? ['Equivaleat'] : ['Data Portal + ORVM', 'Federation'],
+      loose: P ? ['Weekend trip budget', 'Silicone supplier notes'] : ['Data Portal job quota'],
+      port: P ? ':4096' : ':4097',
+      model: P ? 'anthropic/claude-opus-5-5' : 'ai-factory/llama-4-maverick',
+      provider: P ? 'own key' : 'custom · on-prem',
+      mcp: P ? '4' : '7',
+      providerCount: P ? '3' : '2',
+      memory: P ? 'Personal memory' : 'Org memory · DIG',
+      artType: P ? 'SLIDES' : 'DOC',
+      artTitle: P ? 'Castform — teaser' : 'MyAccessID IdP onboarding',
+      artVersion: P ? 'v2' : 'v3',
+      slides: [1,2,3,4,5,6].map((n) => ({ n: String(n), border: n === 1 ? accent : 'var(--bg3)' }))
+    };
+  }
+}
+</script>
+</body>
+</html>

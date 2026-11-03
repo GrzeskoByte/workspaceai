@@ -1,0 +1,447 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "App.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "page": "prototype",
+      "title": "Harness prototype — onboarding through every screen (press Play)",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "Artboard-xmbz.dc.html": {
+      "h": 600,
+      "title": "Artboard 2",
+      "w": 800,
+      "x": 3806,
+      "y": 2118
+    },
+    "Artifact.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "page": "screens",
+      "title": "Artifact — full view (Slides)",
+      "w": 1440,
+      "x": 0,
+      "y": 2600
+    },
+    "Computers.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "page": "prototype",
+      "title": "Computers (embedded)",
+      "w": 1440,
+      "x": 0,
+      "y": 2600
+    },
+    "Connections.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "page": "screens",
+      "title": "Workspace — MCP, connectors & memory",
+      "w": 1440,
+      "x": 1520,
+      "y": 1300
+    },
+    "CreateBrief.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "page": "prototype",
+      "title": "New artifact brief (embedded)",
+      "w": 1440,
+      "x": 0,
+      "y": 3900
+    },
+    "CustomProvider.dc.html": {
+      "h": 820,
+      "page": "screens",
+      "title": "Add custom provider → opencode.json",
+      "w": 1120,
+      "x": 3040,
+      "y": 1300
+    },
+    "Generate.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "page": "prototype",
+      "title": "Generating (embedded)",
+      "w": 1440,
+      "x": 1520,
+      "y": 3900
+    },
+    "GraphEditor.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "page": "prototype",
+      "title": "BPMN graph editor (embedded in the prototype)",
+      "w": 1440,
+      "x": 0,
+      "y": 1300
+    },
+    "Home.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "page": "screens",
+      "title": "Home — new chat, always in a project",
+      "w": 1440,
+      "x": 1520,
+      "y": 9100
+    },
+    "LoopBuilder.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "page": "screens",
+      "title": "Loop / graph builder — press Run",
+      "w": 1440,
+      "x": 1520,
+      "y": 3900
+    },
+    "Main.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "is_interactive": true,
+      "page": "screens",
+      "title": "Main window — switch workspace, expand the project tree",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "Memory.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "page": "prototype",
+      "title": "Memory · Graphify or facts (embedded)",
+      "w": 1440,
+      "x": 1520,
+      "y": 2600
+    },
+    "NewWorkspace.dc.html": {
+      "h": 760,
+      "page": "screens",
+      "title": "New workspace dialog",
+      "w": 880,
+      "x": 1520,
+      "y": 2600
+    },
+    "Project.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "is_interactive": true,
+      "page": "screens",
+      "title": "Project — nested sub-project, all tabs",
+      "w": 1440,
+      "x": 0,
+      "y": 3900
+    },
+    "Providers.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "page": "screens",
+      "title": "Org workspace — model providers",
+      "w": 1440,
+      "x": 0,
+      "y": 1300
+    },
+    "Routines.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "page": "prototype",
+      "title": "Routines (embedded)",
+      "w": 1440,
+      "x": 1520,
+      "y": 1300
+    },
+    "Settings.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "page": "screens",
+      "title": "Settings — every section, both workspaces",
+      "w": 1440,
+      "x": 0,
+      "y": 9100
+    },
+    "Switcher.dc.html": {
+      "h": 640,
+      "page": "screens",
+      "title": "Workspace switcher (⌘K / ⌘1–9)",
+      "w": 760,
+      "x": 1520,
+      "y": 0
+    },
+    "Welcome.dc.html": {
+      "h": 800,
+      "is_interactive": true,
+      "page": "screens",
+      "title": "Welcome — first-run setup",
+      "w": 1120,
+      "x": 0,
+      "y": 10400
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-10-28T10:00:00Z",
+    "v": 1
+  },
+  "designSystems": [
+    {
+      "artifact": "https://claude.ai/artifact/W8px5omr6VTs7L5WBvyrm9",
+      "copiedAt": "2026-10-28T12:10:00Z",
+      "namespace": "claudewarm",
+      "title": "Claude Warm Editorial",
+      "version": "1793208852-ebe2"
+    }
+  ],
+  "launch": {
+    "page": "prototype",
+    "view": "canvas"
+  },
+  "noteOrder": [
+    "t1",
+    "t2",
+    "t3",
+    "t4",
+    "t5",
+    "arch",
+    "od",
+    "theme",
+    "t6",
+    "t7",
+    "t8",
+    "t9",
+    "blocks",
+    "nest",
+    "p1",
+    "p2",
+    "pn",
+    "bp",
+    "old",
+    "artp",
+    "comp"
+  ],
+  "notes": {
+    "arch": {
+      "fill": "orange",
+      "page": "screens",
+      "size": 24,
+      "text": "Engine: opencode\n\n• Workspace = its own opencode serve process (own port), config dir and data dir. Nothing is shared between processes.\n• Custom providers = the provider block of that workspace's opencode.json (npm package, baseURL, apiKey from env/file, models + limits).\n• Project = a folder opencode runs in; its AGENTS.md holds project instructions.\n• Chat = an opencode session (/session API, live updates over /event SSE).\n• Memory = a harness layer per workspace and per project, given to opencode as an MCP server.\n• Loops = a harness orchestrator that drives sessions per node; agent nodes can export as opencode agents.",
+      "w": 560,
+      "x": 2360,
+      "y": 0
+    },
+    "blocks": {
+      "fill": "teal",
+      "page": "screens",
+      "size": 24,
+      "text": "BPMN 2.0 is the graph language — see the Prototype page.",
+      "w": 520,
+      "x": 3040,
+      "y": 6500
+    },
+    "bp": {
+      "fill": "teal",
+      "page": "prototype",
+      "size": 24,
+      "text": "Graphs are BPMN 2.0 — modelled with bpmn-js, run by bpmn-engine\n\nEvents: start (none, timer, message, conditional), intermediate (timer, message), end (none, error, terminate).\nTasks: user, agent (opencode or an ACP agent), service, browser step (Playwright MCP), script, business rule, send, receive; call activity and sub-process.\nGateways: exclusive, parallel, inclusive, event-based. Markers: loop ↻, multi-instance ||| / ≡; boundary timer and error events. Lanes You · Agent · Harness.\n\nModel check must pass before Run. Run executes in bpmn-engine: user tasks wait for a signal, state is saved after every step and can be paused and resumed. Dry run sends nothing. The bpmn.io logo stays visible, as its licence requires.",
+      "w": 520,
+      "x": 2080,
+      "y": 0
+    },
+    "nest": {
+      "fill": "green",
+      "page": "screens",
+      "size": 24,
+      "text": "Projects nest like folders\n\nEvery chat, loop and artifact belongs to a project — quick chats go to the workspace’s General project. A sub-project is a sub-folder with its own AGENTS.md, inheriting its parent’s instructions, model and connectors unless it overrides them.",
+      "w": 520,
+      "x": 3040,
+      "y": 3900
+    },
+    "od": {
+      "fill": "purple",
+      "page": "screens",
+      "size": 24,
+      "text": "Borrowed from Open Design (nexu-io/open-design)\n\n• Pipeline: brief → questions → direction → design system → artifact → handoff → memory.\n• Output modes (od.mode): prototype, deck, live artifact, image, video, design system — plus our Doc and Sheet.\n• Design systems = folders with a DESIGN.md brand contract (+ tokens.css, manifest.json). Scoped per workspace here.\n• Skills follow the SKILL.md convention; templates form a gallery by mode and scenario.\n• Preview runs in a sandboxed iframe; live artifacts re-render from a tweaks manifest.\n• Critique: a self-review scoresheet before handoff.\n• Exports: single-file HTML, PDF, PPTX, ZIP, Markdown, MP4.\n• Handoff: continue as code in a project chat (opencode).",
+      "w": 520,
+      "x": 3040,
+      "y": 5200
+    },
+    "old": {
+      "fill": "gray",
+      "page": "screens",
+      "size": 24,
+      "text": "These are the earlier static screen designs, kept for reference. Everything here now works inside the prototype on the Prototype page.",
+      "w": 600,
+      "x": 3520,
+      "y": 0
+    },
+    "p1": {
+      "kind": "title1",
+      "maxW": 2960,
+      "page": "prototype",
+      "text": "Harness prototype",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "p2": {
+      "kind": "title1",
+      "maxW": 2960,
+      "page": "prototype",
+      "text": "Screens the prototype embeds — also usable on their own",
+      "w": 240,
+      "x": 0,
+      "y": 1000
+    },
+    "pn": {
+      "fill": "orange",
+      "page": "prototype",
+      "size": 24,
+      "text": "Press Play on the prototype.\n\nIt starts at onboarding: start opencode or connect to a running opencode server, import earlier opencode sessions as chats (folders become projects), personal workspace, model (or reuse opencode’s providers), web search, memory backend, first project with AGENTS.md, and theme. “Skip setup” loads demo data. A work workspace is added later from + in the rail.\n\nThen everything works with shared state: workspaces, the nested project tree, chats (each one an opencode session you can open in the TUI) that stream replies and create docs, decks, prototypes and sheets, per-chat web search, the artifact panel, ⌘K search, every settings section, BPMN graphs, routines, computers and memory.",
+      "w": 520,
+      "x": 1520,
+      "y": 0
+    },
+    "t1": {
+      "kind": "title1",
+      "maxW": 2280,
+      "page": "screens",
+      "text": "Shell & workspace switching",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "t2": {
+      "kind": "title1",
+      "maxW": 4160,
+      "page": "screens",
+      "text": "Per-workspace settings & custom providers",
+      "w": 240,
+      "x": 0,
+      "y": 1000
+    },
+    "t3": {
+      "kind": "title1",
+      "maxW": 2400,
+      "page": "screens",
+      "text": "Artifacts & creating a workspace",
+      "w": 240,
+      "x": 0,
+      "y": 2300
+    },
+    "t4": {
+      "kind": "title1",
+      "maxW": 2960,
+      "page": "screens",
+      "text": "Projects, instructions, memory & loops",
+      "w": 240,
+      "x": 0,
+      "y": 3600
+    },
+    "t5": {
+      "kind": "title1",
+      "maxW": 3560,
+      "page": "screens",
+      "text": "Creating artifacts (pipeline from Open Design)",
+      "w": 240,
+      "x": 0,
+      "y": 4900
+    },
+    "t6": {
+      "kind": "title1",
+      "maxW": 2960,
+      "page": "screens",
+      "text": "Automation: graphs and routines",
+      "w": 240,
+      "x": 0,
+      "y": 6200
+    },
+    "t7": {
+      "kind": "title1",
+      "maxW": 2960,
+      "page": "screens",
+      "text": "Computers and memory",
+      "w": 240,
+      "x": 0,
+      "y": 7500
+    },
+    "t8": {
+      "kind": "title1",
+      "maxW": 2960,
+      "page": "screens",
+      "text": "Settings and home",
+      "w": 240,
+      "x": 0,
+      "y": 8800
+    },
+    "t9": {
+      "kind": "title1",
+      "maxW": 1440,
+      "page": "screens",
+      "text": "First run",
+      "w": 240,
+      "x": 0,
+      "y": 10100
+    },
+    "theme": {
+      "fill": "orange",
+      "page": "screens",
+      "size": 24,
+      "text": "Themes\n\n• Claude (default) — from the Claude Warm Editorial design system: cream canvas, coral primary, serif display headings, teal for the org workspace.\n• opencode — the original dark palette.\n\nSwitch with the Theme button in the main window's header, or Tweaks › theme on any screen. Every colour on every screen is a token, so a third theme is one more block of values.",
+      "w": 440,
+      "x": 3000,
+      "y": 0
+    },
+    "artp": {
+      "x": 2640,
+      "y": 0,
+      "w": 480,
+      "fill": "purple",
+      "size": 24,
+      "page": "prototype",
+      "text": "Artifacts live in projects too\n\nAn artifact belongs to the project — or sub-project — of the chat that made it. In the sidebar it sits under that chat (↳), so a doc made in a Simulation engine chat appears inside Castform › Simulation engine.\n\nMove the chat and its artifacts move with it. A project’s Artifacts tab also lists what its sub-projects made. Artifacts started from the library ask for a project and sit directly under it."
+    },
+    "comp": {
+      "x": 3180,
+      "y": 0,
+      "w": 480,
+      "fill": "green",
+      "size": 24,
+      "page": "prototype",
+      "text": "Open-source parts in the prototype\n\n• bpmn-js + bpmn-engine — graph editor and runs\n• ACP — Settings › Agents (ACP); pick an agent in the ◆ agent/model menu; agent tasks can run on one\n• LiteLLM proxy (MIT edition) — the org's AI Factory gateway; also a preset in Add custom provider\n• Playwright MCP — Browser step in graphs; connector in the personal workspace\n• Tauri 2 — the desktop shell; opencode and Open Design run as sidecars (Settings › Engine)\n• chrono-node — routines written in plain words (\"tomorrow at 9\", \"every 2 hours 9–18 weekdays\")\n• cmdk — ⌘K palette with groups, fuzzy match and ↑↓ ↵ esc"
+    }
+  },
+  "order": [
+    "App.dc.html",
+    "Main.dc.html",
+    "Switcher.dc.html",
+    "Providers.dc.html",
+    "Connections.dc.html",
+    "CustomProvider.dc.html",
+    "Artifact.dc.html",
+    "NewWorkspace.dc.html",
+    "Project.dc.html",
+    "LoopBuilder.dc.html",
+    "CreateBrief.dc.html",
+    "Generate.dc.html",
+    "GraphEditor.dc.html",
+    "Routines.dc.html",
+    "Computers.dc.html",
+    "Memory.dc.html",
+    "Settings.dc.html",
+    "Home.dc.html",
+    "Welcome.dc.html",
+    "Artboard-xmbz.dc.html"
+  ],
+  "pages": [
+    {
+      "id": "prototype",
+      "name": "Prototype"
+    },
+    {
+      "id": "screens",
+      "name": "Earlier static screens"
+    }
+  ],
+  "title": "Workspace Harness"
+}

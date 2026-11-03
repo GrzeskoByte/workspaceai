@@ -1,0 +1,46 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Harness",
+  "version": "0.1.0",
+  "identifier": "local.harness.desktop",
+  "build": {
+    "beforeDevCommand": "bash -c 'd=\"$PWD\"; while [ \"$d\" != \"/\" ] && [ ! -f \"$d/packages/supervisor/src/main.ts\" ]; do d=$(dirname \"$d\"); done; exec npm --prefix \"$d\" --workspace @harness/ui run serve'",
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeBuildCommand": "bash -c 'd=\"$PWD\"; while [ \"$d\" != \"/\" ] && [ ! -f \"$d/packages/supervisor/src/main.ts\" ]; do d=$(dirname \"$d\"); done; npm --prefix \"$d\" --workspace @harness/ui run build && node \"$d/scripts/stage-desktop.mjs\"'",
+    "frontendDist": "../../ui/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Harness",
+        "width": 1280,
+        "height": 840,
+        "minWidth": 960,
+        "minHeight": 640
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*; img-src 'self' data: blob: asset:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; worker-src 'self' blob:; frame-src 'self' blob: data: http: https:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "deb",
+      "appimage"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png"
+    ],
+    "resources": {
+      "resources/app/": "app/"
+    },
+    "externalBin": [
+      "binaries/node"
+    ]
+  }
+}

@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Loop builder</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:transparent}
+.hx{--bg0:#0a0a0a;--bg-deep:#050505;--bg1:#141414;--bg2:#1e1e1e;--bg3:#282828;--line:#323232;--line2:#3c3c3c;--line3:#484848;--dim:#606060;--text:#eeeeee;--text2:#d4d4d4;--text3:#b4b4b4;--muted:#9a9a9a;--muted2:#808080;--link-hover:#8ab8ff;
+--accent-p:#fab283;--accent-p-fill:#fab283;--accent-p-text:#fab283;--accent-p-deep:#7a4f35;--accent-o:#9d7cd8;--accent-o-fill:#9d7cd8;--accent-o-text:#9d7cd8;--on-accent:#0a0a0a;--on-accent-o:#0a0a0a;
+--info:#5c9cf5;--info-text:#5c9cf5;--cyan:#56b6c2;--cyan-text:#56b6c2;--success:#7fd88f;--success-text:#7fd88f;--warning:#f5a742;--warning-text:#f5a742;--error:#e06c75;--error-text:#e06c75;
+--font-ui:Inter,system-ui,sans-serif;--font-display:Inter,system-ui,sans-serif;--display-weight:600;--display-track:-0.02em;--font-label:'JetBrains Mono',monospace;color-scheme:dark}
+.hx[data-theme="claude"]{--bg0:#faf9f5;--bg-deep:#f5f0e8;--bg1:#f5f0e8;--bg2:#efe9de;--bg3:#e8e0d2;--line:#e6dfd8;--line2:#d6cdbf;--line3:#b8ae9f;--dim:#8e8b82;--text:#141413;--text2:#3d3d3a;--text3:#3d3d3a;--muted:#6c6a64;--muted2:#8e8b82;--link-hover:#141413;
+--accent-p:#cc785c;--accent-p-fill:#cc785c;--accent-p-text:#a9583e;--accent-p-deep:#f2d8cc;--accent-o:#5db8a6;--accent-o-fill:#5db8a6;--accent-o-text:#2f7d6d;--on-accent:#ffffff;--on-accent-o:#141413;
+--info:#a9583e;--info-text:#a9583e;--cyan:#5db8a6;--cyan-text:#2f7d6d;--success:#5db872;--success-text:#2f7a43;--warning:#d4a017;--warning-text:#8a6400;--error:#c64545;--error-text:#c64545;
+--font-display:Copernicus,'Tiempos Headline','Cormorant Garamond',Georgia,serif;--display-weight:500;--display-track:-0.01em;--font-label:Inter,system-ui,sans-serif;color-scheme:light}
+
+a{color:var(--info-text)}a:hover{color:var(--link-hover)}
+button{font:inherit;cursor:pointer}
+button,a,input,textarea,select{transition:filter .15s ease,transform .15s ease,box-shadow .25s ease,border-color .25s ease,background-color .25s ease,color .25s ease}
+button:hover,a:hover{filter:brightness(1.18)}
+button:active,a:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent-p) 45%, transparent)}50%{box-shadow:0 0 0 8px transparent}}
+@keyframes flow{to{stroke-dashoffset:-24}}
+@keyframes shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+.rise{animation:rise .4s cubic-bezier(.2,.7,.2,1) both}
+.pulse{animation:pulse 1.4s ease-in-out infinite}
+.glow{animation:glow 1.6s ease-out infinite}
+.flow path{stroke-dasharray:6 6;animation:flow .8s linear infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+textarea{font:inherit}
+</style>
+</helmet>
+<div class="hx" data-theme="{{theme}}" style="width: 1440px; height: 900px; display: flex; flex-direction: column; background: var(--bg0); color: var(--text); font-family: var(--font-ui); font-size: 14px; line-height: 1.5; overflow: hidden;">
+  <div style="height: 2px; background: var(--accent-p-fill);"></div>
+  <header style="display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--bg2);">
+    <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">harness</span>
+    <span style="display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-p-fill);"></span>Personal</span>
+    <span style="flex: 1 1 auto; text-align: center; color: var(--muted); font-size: 13px;">Personal <span style="color: var(--dim);">/</span> Castform <span style="color: var(--dim);">/</span> Loops <span style="color: var(--dim);">/</span> <span style="color: var(--text);">Fix until tests pass</span></span>
+    <span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--bg3); font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted);"><span style="width: 6px; height: 6px; border-radius: 50%; background: var(--success);"></span>opencode serve :4096</span>
+  </header>
+
+  <div style="flex: 1 1 auto; display: flex; min-height: 0;">
+    <nav aria-label="Workspaces" style="flex: 0 0 64px; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 14px 0; border-right: 1px solid var(--bg2);">
+      <a href="Main.dc.html" aria-label="Personal workspace" style="width: 40px; height: 40px; border-radius: 10px; background: var(--bg2); color: var(--accent-p-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 0 0 2px var(--accent-p);">P</a>
+      <a href="Main.dc.html" aria-label="BSC AI Factory workspace" style="width: 40px; height: 40px; border-radius: 10px; background: var(--bg2); color: var(--accent-o-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 13px; display: flex; align-items: center; justify-content: center; text-decoration: none;">AF</a>
+    </nav>
+
+    <aside aria-label="Node palette" style="flex: 0 0 192px; padding: 14px 10px; background: var(--bg1); border-right: 1px solid var(--bg2); display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">
+      <span style="font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 0 8px 6px;">Nodes · drag in</span>
+      <sc-for list="{{palette}}" as="n" hint-placeholder-count="10">
+        <button type="button" style="display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 7px; border: 1px solid var(--bg3); background: var(--bg0); color: var(--text); font-size: 13px; text-align: left;">
+          <span style="width: 8px; height: 8px; border-radius: 2px; background: {{n.color}};"></span>
+          {{n.label}}
+        </button>
+      </sc-for>
+      <span style="font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 14px 8px 6px;">Templates</span>
+      <a href="#" style="padding: 5px 8px; font-size: 13px; color: var(--text); text-decoration: none;">Research → doc</a>
+      <a href="#" style="padding: 5px 8px; font-size: 13px; color: var(--text); text-decoration: none;">Review every PR</a>
+      <a href="#" style="padding: 5px 8px; font-size: 13px; color: var(--text); text-decoration: none;">Nightly drift check</a>
+    </aside>
+
+    <main style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--bg2);">
+        <span style="font-weight: 600; font-size: 14px;">Fix until tests pass</span>
+        <span style="font-size: 12px; color: var(--muted);">{{iterLabel}}</span>
+        <span style="flex: 1 1 auto;"></span>
+        <button type="button" style="height: 30px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 12px;">Dry run</button>
+        <button type="button" style="height: 30px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 12px;">Schedule</button>
+        <button type="button" onClick="{{run}}" style="height: 30px; padding: 0 12px; border-radius: 7px; border: 0; background: var(--accent-p-fill); color: var(--on-accent); font-size: 12px; font-weight: 600;">{{runLabel}}</button>
+      </div>
+
+      <div style="position: relative; width: 864px; height: 560px; margin: 4px 10px 0; background-image: radial-gradient(var(--bg2) 1px, transparent 1px); background-size: 16px 16px;">
+        <div style="position: absolute; left: 448px; top: 40px; width: 408px; height: 304px; box-sizing: border-box; border: 1px dashed var(--accent-p); border-radius: 12px; background: color-mix(in srgb, var(--accent-p) 4%, transparent);"></div>
+        <div style="position: absolute; left: 460px; top: 44px; width: 260px; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 16px; color: var(--accent-p-text);">LOOP · until pass · max 5</div>
+
+        <svg width="47" height="8" viewBox="0 0 47 8" preserveAspectRatio="none" style="position: absolute; left: 200px; top: 100px; width: 47px; height: 8px; overflow: visible; fill: none; stroke: var(--dim); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-1" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#606060" stroke="none" style="stroke: none; fill: var(--dim); fill: context-stroke"/></marker></defs><path d="M 0 4 L 43 4" marker-end="url(#dc-arrow-head-filled-1)"></path></svg>
+        <svg width="47" height="8" viewBox="0 0 47 8" preserveAspectRatio="none" style="position: absolute; left: 416px; top: 100px; width: 47px; height: 8px; overflow: visible; fill: none; stroke: var(--dim); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-2" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#606060" stroke="none" style="stroke: none; fill: var(--dim); fill: context-stroke"/></marker></defs><path d="M 0 4 L 43 4" marker-end="url(#dc-arrow-head-filled-2)"></path></svg>
+        <svg width="47" height="8" viewBox="0 0 47 8" preserveAspectRatio="none" style="position: absolute; left: 632px; top: 100px; width: 47px; height: 8px; overflow: visible; fill: none; stroke: var(--dim); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-3" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#606060" stroke="none" style="stroke: none; fill: var(--dim); fill: context-stroke"/></marker></defs><path d="M 0 4 L 43 4" marker-end="url(#dc-arrow-head-filled-3)"></path></svg>
+        <svg width="8" height="95" viewBox="0 0 8 95" preserveAspectRatio="none" style="position: absolute; left: 760px; top: 136px; width: 8px; height: 95px; overflow: visible; fill: none; stroke: var(--dim); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-4" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#606060" stroke="none" style="stroke: none; fill: var(--dim); fill: context-stroke"/></marker></defs><path d="M 4 0 L 4 91" marker-end="url(#dc-arrow-head-filled-4)"></path></svg>
+        <svg class="{{flowCls}}" width="47" height="8" viewBox="0 0 47 8" preserveAspectRatio="none" style="position: absolute; left: 633px; top: 276px; width: 47px; height: 8px; overflow: visible; fill: none; stroke: var(--accent-p); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-5" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#fab283" stroke="none" style="stroke: none; fill: var(--accent-p); fill: context-stroke"/></marker></defs><path d="M 47 4 L 4 4" marker-end="url(#dc-arrow-head-filled-5)"></path></svg>
+        <svg class="{{flowCls}}" width="8" height="111" viewBox="0 0 8 111" preserveAspectRatio="none" style="position: absolute; left: 544px; top: 137px; width: 8px; height: 111px; overflow: visible; fill: none; stroke: var(--accent-p); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-6" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#fab283" stroke="none" style="stroke: none; fill: var(--accent-p); fill: context-stroke"/></marker></defs><path d="M 4 111 L 4 4" marker-end="url(#dc-arrow-head-filled-6)"></path></svg>
+        <svg width="8" height="47" viewBox="0 0 8 47" preserveAspectRatio="none" style="position: absolute; left: 760px; top: 328px; width: 8px; height: 47px; overflow: visible; fill: none; stroke: var(--dim); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-7" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#606060" stroke="none" style="stroke: none; fill: var(--dim); fill: context-stroke"/></marker></defs><path d="M 4 0 L 4 43" marker-end="url(#dc-arrow-head-filled-7)"></path></svg>
+        <svg width="47" height="8" viewBox="0 0 47 8" preserveAspectRatio="none" style="position: absolute; left: 633px; top: 404px; width: 47px; height: 8px; overflow: visible; fill: none; stroke: var(--dim); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-8" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#606060" stroke="none" style="stroke: none; fill: var(--dim); fill: context-stroke"/></marker></defs><path d="M 47 4 L 4 4" marker-end="url(#dc-arrow-head-filled-8)"></path></svg>
+        <svg width="47" height="8" viewBox="0 0 47 8" preserveAspectRatio="none" style="position: absolute; left: 417px; top: 404px; width: 47px; height: 8px; overflow: visible; fill: none; stroke: var(--dim); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-9" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#606060" stroke="none" style="stroke: none; fill: var(--dim); fill: context-stroke"/></marker></defs><path d="M 47 4 L 4 4" marker-end="url(#dc-arrow-head-filled-9)"></path></svg>
+
+        <div class="{{c0}}" style="position: absolute; left: 32px; top: 72px; width: 168px; height: 64px; box-sizing: border-box; padding: 8px 12px; display: flex; align-items: center; gap: 8px; background: var(--bg1); border: 1px solid {{b0}}; border-radius: 10px; transition: border-color .3s ease, background-color .3s ease; font-size: 13px; line-height: 18px;"><span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--warning-text);">TRIGGER</span><br>On push to main</span></div>
+        <div class="{{c1}}" style="position: absolute; left: 248px; top: 72px; width: 168px; height: 64px; box-sizing: border-box; padding: 8px 12px; display: flex; align-items: center; gap: 8px; background: var(--bg1); border: 1px solid {{b1}}; border-radius: 10px; transition: border-color .3s ease, background-color .3s ease; font-size: 13px; line-height: 18px;"><span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--info-text);">AGENT · plan</span><br>Read failing tests</span></div>
+        <div class="{{c2}}" style="position: absolute; left: 464px; top: 72px; width: 168px; height: 64px; box-sizing: border-box; padding: 8px 12px; display: flex; align-items: center; gap: 8px; background: var(--bg2); border: 1px solid {{b2}}; border-radius: 10px; transition: border-color .3s ease, background-color .3s ease; font-size: 13px; line-height: 18px;"><span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--info-text);">AGENT · build</span><br>Implement the fix</span></div>
+        <div class="{{c3}}" style="position: absolute; left: 680px; top: 72px; width: 168px; height: 64px; box-sizing: border-box; padding: 8px 12px; display: flex; align-items: center; gap: 8px; background: var(--bg1); border: 1px solid {{b3}}; border-radius: 10px; transition: border-color .3s ease, background-color .3s ease; font-size: 13px; line-height: 18px;"><span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--cyan-text);">TOOL · bash</span><br>pnpm test</span></div>
+        <div style="position: absolute; left: 680px; top: 232px; width: 168px; height: 96px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; text-align: center; background: {{b4}}; transition: background-color .3s ease; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); font-size: 13px; line-height: 18px;">Tests pass?</div>
+        <div class="{{c5}}" style="position: absolute; left: 464px; top: 248px; width: 168px; height: 64px; box-sizing: border-box; padding: 8px 12px; display: flex; align-items: center; gap: 8px; background: var(--bg1); border: 1px solid {{b5}}; border-radius: 10px; transition: border-color .3s ease, background-color .3s ease; font-size: 13px; line-height: 18px;"><span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent-p-text);">LOOP</span><br>Feed failures back</span></div>
+        <div class="{{c6}}" style="position: absolute; left: 680px; top: 376px; width: 168px; height: 64px; box-sizing: border-box; padding: 8px 12px; display: flex; align-items: center; gap: 8px; background: var(--bg1); border: 1px solid {{b6}}; border-radius: 10px; transition: border-color .3s ease, background-color .3s ease; font-size: 13px; line-height: 18px;"><span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--error-text);">HUMAN</span><br>Approve the diff</span></div>
+        <div class="{{c7}}" style="position: absolute; left: 464px; top: 376px; width: 168px; height: 64px; box-sizing: border-box; padding: 8px 12px; display: flex; align-items: center; gap: 8px; background: var(--bg1); border: 1px solid {{b7}}; border-radius: 10px; transition: border-color .3s ease, background-color .3s ease; font-size: 13px; line-height: 18px;"><span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--success-text);">OUTPUT</span><br>Commit + summary doc</span></div>
+        <div class="{{c8}}" style="position: absolute; left: 248px; top: 376px; width: 168px; height: 64px; box-sizing: border-box; padding: 8px 12px; display: flex; align-items: center; gap: 8px; background: var(--bg1); border: 1px solid {{b8}}; border-radius: 10px; transition: border-color .3s ease, background-color .3s ease; font-size: 13px; line-height: 18px;"><span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent-o-text);">MEMORY</span><br>Save what fixed it</span></div>
+
+        <div style="position: absolute; left: 642px; top: 252px; width: 28px; text-align: center; font-size: 13px; line-height: 16px; color: var(--accent-p-text);">no</div>
+        <div style="position: absolute; left: 560px; top: 184px; width: 40px; text-align: center; font-size: 13px; line-height: 16px; color: var(--accent-p-text);">retry</div>
+        <div style="position: absolute; left: 776px; top: 343px; width: 32px; text-align: center; font-size: 13px; line-height: 16px; color: var(--muted);">yes</div>
+      </div>
+
+      <div style="flex: 1 1 auto; margin: 0 10px 10px; border: 1px solid var(--bg2); border-radius: 10px; background: var(--bg1); padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text2); overflow: hidden;">
+        <span style="color: var(--muted);">{{runHeader}}</span>
+        <sc-for list="{{log}}" as="l" hint-placeholder-count="4">
+          <span class="rise"><span style="color: {{l.color}};">{{l.mark}}</span> {{l.text}}</span>
+        </sc-for>
+        <sc-if value="{{waiting}}" hint-placeholder-val="{{ false }}">
+          <span class="rise" style="display: flex; gap: 8px; padding-top: 4px; font-family: Inter, sans-serif;">
+            <button type="button" onClick="{{approve}}" style="height: 28px; padding: 0 12px; border-radius: 7px; border: 0; background: var(--success); color: var(--on-accent); font-size: 12px; font-weight: 600;">Approve diff</button>
+            <button type="button" onClick="{{reject}}" style="height: 28px; padding: 0 12px; border-radius: 7px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 12px;">Send back</button>
+          </span>
+        </sc-if>
+      </div>
+    </main>
+
+    <aside aria-label="Node inspector" style="flex: 0 0 300px; padding: 16px; background: var(--bg1); border-left: 1px solid var(--bg2); display: flex; flex-direction: column; gap: 14px; box-sizing: border-box; font-size: 13px;">
+      <span style="display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--info-text);">AGENT NODE</span>
+        <span style="font-size: 16px; font-weight: 600;">Implement the fix</span>
+      </span>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <span style="color: var(--muted); font-size: 12px;">opencode agent</span>
+        <span style="display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--line); background: var(--bg0); font-family: 'JetBrains Mono', monospace; font-size: 12px;">build <span style="color: var(--muted);">▾</span></span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <span style="color: var(--muted); font-size: 12px;">Model · from this workspace's providers</span>
+        <span style="display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--line); background: var(--bg0); font-family: 'JetBrains Mono', monospace; font-size: 12px;">anthropic/claude-opus-5-5 <span style="color: var(--muted);">▾</span></span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <span style="color: var(--muted); font-size: 12px;">Instructions</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; font-family: 'JetBrains Mono', monospace;">
+          <span style="padding: 2px 6px; border-radius: 4px; background: var(--bg3); color: var(--text2);">workspace</span>
+          <span style="padding: 2px 6px; border-radius: 4px; background: var(--bg3); color: var(--text2);">AGENTS.md</span>
+          <span style="padding: 2px 6px; border-radius: 4px; background: var(--bg3); color: var(--accent-p-text);">+ node prompt</span>
+        </div>
+        <label for="nodeprompt" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Node prompt</label>
+        <textarea id="nodeprompt" rows="4" style="resize: vertical; background: var(--bg0); border: 1px solid var(--bg3); border-radius: 8px; padding: 10px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; outline: none;">Fix only what $failures lists. Don't touch tests unless one is wrong; say so if it is.</textarea>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <span style="color: var(--muted); font-size: 12px;">Tools</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px;">
+          <span style="padding: 3px 8px; border-radius: 6px; border: 1px solid var(--accent-p);">edit</span>
+          <span style="padding: 3px 8px; border-radius: 6px; border: 1px solid var(--accent-p);">bash</span>
+          <span style="padding: 3px 8px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted);">webfetch</span>
+          <span style="padding: 3px 8px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted);">mcp · drive</span>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <span style="color: var(--muted); font-size: 12px;">Memory</span>
+        <span style="display: flex; justify-content: space-between;">Read project memory <span style="color: var(--success-text);">on</span></span>
+        <span style="display: flex; justify-content: space-between;">Write memory <span style="color: var(--muted);">off</span></span>
+      </div>
+      <div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px;">
+        <button type="button" style="height: 32px; border-radius: 7px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 12px;">Export as opencode agent</button>
+        <span style="font-size: 12px; color: var(--muted);">Writes .opencode/agent/implement-fix.md so the TUI can run it too.</span>
+      </div>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["claude","opencode"],"default":"claude"},"stepMs":{"editor":"int","min":200,"max":2000,"step":50,"default":650,"unit":"ms"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  componentWillUnmount() { clearInterval(this.timer); }
+  steps() {
+    const R = 'var(--error)', G = 'var(--success)', A = 'var(--warning)', M = 'var(--muted)';
+    return [
+      { n: 0, t: 'trigger · push to main (a41c9e2)', c: M, k: '›' },
+      { n: 1, t: 'plan · read 3 failing tests', c: M, k: '›' },
+      { n: 2, t: 'build · iter 1 · editing geometry/wall.ts', c: M, k: '›', it: 1 },
+      { n: 3, t: 'iter 1 · pnpm test · 3 failing', c: R, k: '✗' },
+      { n: 4 },
+      { n: 5, t: 'loop · failures fed back (1/5)', c: 'var(--accent-p)', k: '↺' },
+      { n: 2, t: 'build · iter 2 · editing units.ts', c: M, k: '›', it: 2 },
+      { n: 3, t: 'iter 2 · pnpm test · 1 failing', c: R, k: '✗' },
+      { n: 4 },
+      { n: 5, t: 'loop · failures fed back (2/5)', c: 'var(--accent-p)', k: '↺' },
+      { n: 2, t: 'build · iter 3 · mm→in leak fixed', c: M, k: '›', it: 3 },
+      { n: 3, t: 'iter 3 · pnpm test · 42 passing', c: G, k: '✓' },
+      { n: 4 },
+      { n: 6, t: 'waiting for your approval', c: A, k: '●', wait: true },
+      { n: 7, t: 'output · committed 3 files + summary doc', c: G, k: '✓' },
+      { n: 8, t: 'memory · saved "units leak lived in units.ts"', c: 'var(--accent-o)', k: '✓' },
+      { n: -1, t: 'done in 41s', c: G, k: '✓', end: true }
+    ];
+  }
+  tick() {
+    const st = this.steps();
+    const idx = (this.state && this.state.idx != null) ? this.state.idx : -1;
+    if (idx >= 0 && st[idx].wait) { clearInterval(this.timer); return; }
+    if (idx >= st.length - 1) { clearInterval(this.timer); this.setState({ running: false }); return; }
+    this.setState({ idx: idx + 1 });
+  }
+  go(from) {
+    clearInterval(this.timer);
+    this.setState({ idx: from, running: true });
+    this.timer = setInterval(() => this.tick(), this.props.stepMs || 650);
+  }
+  renderVals() {
+    const s = this.state || {};
+    const st = this.steps();
+    const idx = s.idx != null ? s.idx : -1;
+    const cur = idx >= 0 ? st[idx] : null;
+    const active = cur ? cur.n : -1;
+    const seen = {};
+    for (let i = 0; i <= idx; i++) seen[st[i].n] = true;
+    const v = {};
+    for (let n = 0; n <= 8; n++) {
+      const on = n === active;
+      v['c' + n] = on ? 'glow' : '';
+      v['b' + n] = on ? 'var(--accent-p)' : (seen[n] ? 'var(--dim)' : (idx < 0 && n === 2 ? 'var(--accent-p)' : 'var(--line)'));
+    }
+    v.b4 = active === 4 ? 'var(--accent-p-deep)' : (seen[4] ? 'var(--line2)' : 'var(--line)');
+    let iter = 0;
+    for (let i = 0; i <= idx; i++) if (st[i].it) iter = st[i].it;
+    const waiting = !!(cur && cur.wait);
+    const finished = !!(cur && cur.end);
+    return Object.assign(v, { theme: (this.state && this.state.theme) || this.props.theme || 'claude',
+      flowCls: s.running && !waiting ? 'flow' : '',
+      log: st.slice(0, idx + 1).filter((x) => x.t).map((x) => ({ text: x.t, color: x.c, mark: x.k })).slice(-6),
+      runHeader: idx < 0 ? 'idle · press Run to start · runs as an opencode session on :4096' : 'run #13 · session ses_8f2a · opencode :4096',
+      runLabel: s.running && !waiting ? 'Running…' : (finished ? 'Run again' : 'Run'),
+      iterLabel: idx < 0 ? 'saved · 9 nodes' : (finished ? 'finished · 3 iterations' : 'iteration ' + Math.max(iter, 1) + ' of max 5'),
+      waiting,
+      run: () => { if (!(s.running && !waiting)) this.go(0); },
+      approve: () => this.go(idx + 1),
+      reject: () => { clearInterval(this.timer); this.setState({ idx: -1, running: false }); }
+    });
+  }
+}
+</script>
+</body>
+</html>

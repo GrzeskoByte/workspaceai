@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Project</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:transparent}
+.hx{--bg0:#0a0a0a;--bg-deep:#050505;--bg1:#141414;--bg2:#1e1e1e;--bg3:#282828;--line:#323232;--line2:#3c3c3c;--line3:#484848;--dim:#606060;--text:#eeeeee;--text2:#d4d4d4;--text3:#b4b4b4;--muted:#9a9a9a;--muted2:#808080;--link-hover:#8ab8ff;
+--accent-p:#fab283;--accent-p-fill:#fab283;--accent-p-text:#fab283;--accent-p-deep:#7a4f35;--accent-o:#9d7cd8;--accent-o-fill:#9d7cd8;--accent-o-text:#9d7cd8;--on-accent:#0a0a0a;--on-accent-o:#0a0a0a;
+--info:#5c9cf5;--info-text:#5c9cf5;--cyan:#56b6c2;--cyan-text:#56b6c2;--success:#7fd88f;--success-text:#7fd88f;--warning:#f5a742;--warning-text:#f5a742;--error:#e06c75;--error-text:#e06c75;
+--font-ui:Inter,system-ui,sans-serif;--font-display:Inter,system-ui,sans-serif;--display-weight:600;--display-track:-0.02em;--font-label:'JetBrains Mono',monospace;color-scheme:dark}
+.hx[data-theme="claude"]{--bg0:#faf9f5;--bg-deep:#f5f0e8;--bg1:#f5f0e8;--bg2:#efe9de;--bg3:#e8e0d2;--line:#e6dfd8;--line2:#d6cdbf;--line3:#b8ae9f;--dim:#8e8b82;--text:#141413;--text2:#3d3d3a;--text3:#3d3d3a;--muted:#6c6a64;--muted2:#8e8b82;--link-hover:#141413;
+--accent-p:#cc785c;--accent-p-fill:#cc785c;--accent-p-text:#a9583e;--accent-p-deep:#f2d8cc;--accent-o:#5db8a6;--accent-o-fill:#5db8a6;--accent-o-text:#2f7d6d;--on-accent:#ffffff;--on-accent-o:#141413;
+--info:#a9583e;--info-text:#a9583e;--cyan:#5db8a6;--cyan-text:#2f7d6d;--success:#5db872;--success-text:#2f7a43;--warning:#d4a017;--warning-text:#8a6400;--error:#c64545;--error-text:#c64545;
+--font-display:Copernicus,'Tiempos Headline','Cormorant Garamond',Georgia,serif;--display-weight:500;--display-track:-0.01em;--font-label:Inter,system-ui,sans-serif;color-scheme:light}
+
+a{color:var(--info-text)}a:hover{color:var(--link-hover)}
+button{font:inherit;cursor:pointer}
+button,a,input,textarea,select{transition:filter .15s ease,transform .15s ease,box-shadow .25s ease,border-color .25s ease,background-color .25s ease,color .25s ease}
+button:hover,a:hover{filter:brightness(1.18)}
+button:active,a:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent-p) 45%, transparent)}50%{box-shadow:0 0 0 8px transparent}}
+@keyframes flow{to{stroke-dashoffset:-24}}
+@keyframes shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+.rise{animation:rise .4s cubic-bezier(.2,.7,.2,1) both}
+.pulse{animation:pulse 1.4s ease-in-out infinite}
+.glow{animation:glow 1.6s ease-out infinite}
+.flow path{stroke-dasharray:6 6;animation:flow .8s linear infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+textarea{font:inherit}
+</style>
+</helmet>
+<div class="hx" data-theme="{{theme}}" style="width: 100%; min-height: 900px; display: flex; flex-direction: column; background: var(--bg0); color: var(--text); font-family: var(--font-ui); font-size: 14px; line-height: 1.5;">
+  <div style="height: 2px; background: var(--accent-p);"></div>
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--bg2);">
+    <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">harness</span>
+    <span style="display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-p);"></span>Personal</span>
+    <span style="flex: 1 1 200px; text-align: center; color: var(--muted); font-size: 13px;">Personal <span style="color: var(--dim);">/</span> <a href="#" style="color: var(--muted); text-decoration: none;">Castform</a> <span style="color: var(--dim);">/</span> <span style="color: var(--text);">Simulation engine</span></span>
+    <span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--bg3); font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted);"><span style="width: 6px; height: 6px; border-radius: 50%; background: var(--success);"></span>opencode serve :4096</span>
+  </header>
+
+  <div style="flex: 1 1 auto; display: flex; flex-wrap: wrap; align-items: stretch;">
+    <nav aria-label="Workspaces" style="flex: 0 0 64px; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 14px 0; border-right: 1px solid var(--bg2);">
+      <a href="Main.dc.html" aria-label="Personal workspace" style="width: 40px; height: 40px; border-radius: 10px; background: var(--bg2); color: var(--accent-p-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 0 0 2px var(--accent-p);">P</a>
+      <a href="Main.dc.html" aria-label="BSC AI Factory workspace" style="width: 40px; height: 40px; border-radius: 10px; background: var(--bg2); color: var(--accent-o-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 13px; display: flex; align-items: center; justify-content: center; text-decoration: none;">AF</a>
+    </nav>
+
+    <aside style="flex: 0 1 264px; min-width: 220px; display: flex; flex-direction: column; gap: 1px; padding: 14px 12px; background: var(--bg1); border-right: 1px solid var(--bg2); box-sizing: border-box;">
+      <span style="font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 0 10px 6px;">Projects</span>
+      <sc-for list="{{tree}}" as="t" hint-placeholder-count="10">
+        <a href="{{t.href}}" style="display: flex; align-items: center; gap: 6px; padding: 5px 8px 5px {{t.pad}}; border-radius: 7px; background: {{t.bg}}; color: var(--text); text-decoration: none; font-size: 13px; font-weight: {{t.weight}};">
+          <span style="width: 14px; text-align: center; color: var(--muted); font-size: 11px;">{{t.glyph}}</span>
+          <span style="flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{t.label}}</span>
+        </a>
+      </sc-for>
+      <span style="margin-top: 10px; padding: 10px; border-radius: 8px; border: 1px dashed var(--line2); font-size: 12px; color: var(--muted);">Drag a project onto another to nest it. Chats always belong to a project; quick chats go to <b>General</b>.</span>
+    </aside>
+
+    <main style="flex: 999 1 640px; min-width: 0; padding: 26px 34px; display: flex; flex-direction: column; gap: 18px; box-sizing: border-box;">
+      <div class="rise" style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px;">
+        <span style="width: 44px; height: 44px; border-radius: 10px; background: var(--bg2); display: flex; align-items: center; justify-content: center; color: var(--accent-p);">
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 4.5h4l1.5 1.5H14v6.5H2z"/></svg>
+        </span>
+        <span style="flex: 1 1 260px; display: flex; flex-direction: column;">
+          <span style="font-size: 12px; color: var(--muted);">Sub-project of <a href="#">Castform</a></span>
+          <h1 style="margin: 0; font-size: 28px; font-family: var(--font-display); font-weight: var(--display-weight); letter-spacing: var(--display-track);">Simulation engine</h1>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted);">~/code/castform/sim · 4 chats · 1 loop · 1 sub-project</span>
+        </span>
+        <button type="button" style="height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 13px;">New sub-project</button>
+        <button type="button" style="height: 34px; padding: 0 14px; border-radius: 8px; border: 0; background: var(--accent-p-fill); color: var(--on-accent); font-weight: 600; font-size: 13px;">New chat here</button>
+      </div>
+
+      <div role="tablist" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--bg2);">
+        <sc-for list="{{tabs}}" as="b" hint-placeholder-count="6">
+          <button type="button" role="tab" aria-selected="{{b.sel}}" onClick="{{b.pick}}" style="padding: 8px 12px; border: 0; background: transparent; font-size: 13px; font-weight: 500; color: {{b.color}}; box-shadow: inset 0 -2px 0 {{b.line}};">{{b.label}}</button>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{tChats}}" hint-placeholder-val="{{ true }}">
+        <div class="rise" style="display: flex; flex-direction: column; gap: 18px;">
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+            <div style="padding: 14px 16px; border-radius: 12px; background: var(--bg2); display: flex; flex-direction: column; gap: 4px;">
+              <span style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4.5h4l1.5 1.5H14v6.5H2z"/></svg>
+                Solver
+              </span>
+              <span style="font-size: 12px; color: var(--muted);">Sub-project · ./sim/solver · 2 chats</span>
+            </div>
+            <div style="padding: 14px 16px; border-radius: 12px; border: 1px dashed var(--line2); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px;">+ Sub-project from a folder</div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <sc-for list="{{chats}}" as="c" hint-placeholder-count="5">
+              <a href="Main.dc.html" style="display: grid; grid-template-columns: 1fr 200px 90px; gap: 12px; align-items: center; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--bg3); color: var(--text); text-decoration: none;">
+                <span style="display: flex; flex-direction: column;"><span style="font-weight: 500; font-size: 13px;">{{c.title}}</span><span style="font-size: 12px; color: var(--muted);">{{c.where}}</span></span>
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted);">{{c.model}}</span>
+                <span style="font-size: 12px; color: var(--muted); text-align: right;">{{c.when}}</span>
+              </a>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{tInstr}}" hint-placeholder-val="{{ false }}">
+        <div class="rise" style="display: flex; flex-direction: column; gap: 12px;">
+          <span style="font-size: 13px; color: var(--muted);">Instructions inherit down the tree. Each layer adds to the one above; the narrower one wins when they disagree.</span>
+          <sc-for list="{{layers}}" as="l" hint-placeholder-count="4">
+            <div style="border: 1px solid {{l.border}}; border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; background: {{l.bg}}; margin-left: {{l.indent}};">
+              <span style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;">
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: {{l.numBg}}; color: {{l.numColor}};">{{l.n}}</span>
+                {{l.name}}
+                <span style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 400; color: var(--muted);">{{l.file}}</span>
+              </span>
+              <span style="font-size: 13px; color: var(--text2); white-space: pre-line; font-family: {{l.font}};">{{l.text}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{tMem}}" hint-placeholder-val="{{ false }}">
+        <div class="rise" style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 10px; background: var(--bg2); font-size: 13px;">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-o);"></span>
+            Memory backend for this workspace: <b>Graphify + facts</b>
+            <a href="Memory.dc.html" style="margin-left: auto; font-size: 12px;">Open memory</a>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;">
+            <div style="padding: 12px; border-radius: 10px; border: 1px solid var(--line);"><span style="font-size: 22px; font-family: var(--font-display);">412</span><br><span style="font-size: 12px; color: var(--muted);">graph nodes in ./sim</span></div>
+            <div style="padding: 12px; border-radius: 10px; border: 1px solid var(--line);"><span style="font-size: 22px; font-family: var(--font-display);">9</span><br><span style="font-size: 12px; color: var(--muted);">communities</span></div>
+            <div style="padding: 12px; border-radius: 10px; border: 1px solid var(--line);"><span style="font-size: 22px; font-family: var(--font-display);">3</span><br><span style="font-size: 12px; color: var(--muted);">links to review</span></div>
+          </div>
+          <span style="font-size: 13px; font-weight: 600;">Facts saved here</span>
+          <sc-for list="{{facts}}" as="m" hint-placeholder-count="3">
+            <div style="display: flex; gap: 10px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--bg3); font-size: 13px;"><span style="flex: 1 1 auto;">{{m.text}}</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted);">{{m.scope}}</span></div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{tFiles}}" hint-placeholder-val="{{ false }}">
+        <div class="rise" style="display: flex; flex-direction: column; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px;">
+          <span style="font-family: var(--font-ui); font-size: 13px; color: var(--muted); padding-bottom: 6px;">The project is the folder; sub-projects are sub-folders you promote.</span>
+          <sc-for list="{{files}}" as="f" hint-placeholder-count="8">
+            <span style="display: flex; gap: 8px; padding: 4px 8px 4px {{f.pad}}; border-radius: 6px; background: {{f.bg}};"><span style="color: {{f.color}};">{{f.glyph}}</span>{{f.name}}<span style="margin-left: auto; font-family: var(--font-ui); font-size: 11px; color: var(--accent-p-text);">{{f.tag}}</span></span>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{tLoops}}" hint-placeholder-val="{{ false }}">
+        <div class="rise" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+          <a href="GraphEditor.dc.html" style="padding: 16px; border-radius: 12px; border: 1px solid var(--line); color: var(--text); text-decoration: none; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-weight: 600;">Fix until tests pass</span>
+            <span style="font-size: 12px; color: var(--muted);">On push to main · runs on Greg’s MacBook</span>
+            <span style="font-size: 12px; color: var(--warning-text);">Tue 16:12 · waiting for approval</span>
+          </a>
+          <a href="GraphEditor.dc.html" style="padding: 16px; border-radius: 12px; border: 1px dashed var(--line2); color: var(--muted); text-decoration: none; display: flex; align-items: center; justify-content: center; font-size: 13px;">+ New loop from a pattern</a>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{tSet}}" hint-placeholder-val="{{ false }}">
+        <div class="rise" style="display: flex; flex-direction: column; gap: 10px; max-width: 640px; font-size: 13px;">
+          <sc-for list="{{settings}}" as="x" hint-placeholder-count="6">
+            <div style="display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--bg3);"><span style="display: flex; flex-direction: column;"><span>{{x.label}}</span><span style="font-size: 12px; color: var(--muted);">{{x.note}}</span></span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; text-align: right;">{{x.value}}</span></div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["claude","opencode"],"default":"claude"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const s = this.state || {};
+    const tab = s.tab || 'chats';
+    const T = [['chats', 'Chats'], ['instr', 'Instructions'], ['mem', 'Memory'], ['files', 'Files'], ['loops', 'Loops'], ['set', 'Settings']];
+    const tree = [
+      ['General', 0, '▸', '#'], ['Castform', 0, '▾', '#'], ['Castform teaser deck', 1, '·', 'Main.dc.html'], ['Simulation engine', 1, '▾', 'Project.dc.html', true],
+      ['Solver', 2, '▸', '#'], ['Mold wall-thickness math', 2, '·', '#'], ['Fix until tests pass', 2, '↻', 'GraphEditor.dc.html'],
+      ['Marketing site', 1, '▸', '#'], ['Blender export to STL', 1, '·', '#'], ['Equivaleat', 0, '▸', '#']
+    ];
+    return {
+      theme: this.props.theme || 'claude',
+      tree: tree.map((t) => ({ label: t.at(0), pad: (8 + t.at(1) * 14) + 'px', glyph: t.at(2), href: t.at(3), bg: t.at(4) ? 'var(--bg2)' : 'transparent', weight: t.at(4) || t.at(1) === 0 ? 500 : 400 })),
+      tabs: T.map((t) => ({ label: t.at(1), sel: tab === t.at(0) ? 'true' : 'false', color: tab === t.at(0) ? 'var(--text)' : 'var(--muted)', line: tab === t.at(0) ? 'var(--accent-p)' : 'transparent', pick: () => this.setState({ tab: t.at(0) }) })),
+      tChats: tab === 'chats', tInstr: tab === 'instr', tMem: tab === 'mem', tFiles: tab === 'files', tLoops: tab === 'loops', tSet: tab === 'set',
+      chats: [
+        { title: 'Mold wall-thickness math', where: 'Simulation engine', model: 'anthropic/claude-opus-5-5', when: 'yesterday' },
+        { title: 'Shell offset edge cases', where: 'Simulation engine', model: 'anthropic/claude-sonnet-5-5', when: 'Mon' },
+        { title: 'Solver convergence', where: 'Simulation engine › Solver', model: 'ollama/qwen3-coder', when: 'last week' },
+        { title: 'Pour channel placement', where: 'Simulation engine › Solver', model: 'anthropic/claude-opus-5-5', when: '2 weeks ago' }
+      ],
+      layers: [
+        { n: '1', name: 'Workspace · Personal', file: 'workspace settings', text: 'Answer in English. Prefer TypeScript and Python. Ask before deleting anything.', indent: '0px', border: 'var(--bg3)', bg: 'transparent', numBg: 'var(--bg3)', numColor: 'var(--muted)', font: 'var(--font-ui)' },
+        { n: '2', name: 'Castform', file: '~/code/castform/AGENTS.md', text: 'Units are millimetres everywhere. Run pnpm test before calling a change done.', indent: '16px', border: 'var(--bg3)', bg: 'transparent', numBg: 'var(--bg3)', numColor: 'var(--muted)', font: 'var(--font-ui)' },
+        { n: '3', name: 'Simulation engine · this project', file: '~/code/castform/sim/AGENTS.md', text: '# Simulation engine\n- Keep /sim free of UI imports.\n- Mesh ops must be deterministic; seed any randomness.\n- Benchmarks live in /sim/bench — never edit them to pass.', indent: '32px', border: 'var(--accent-p)', bg: 'var(--bg1)', numBg: 'var(--accent-p-fill)', numColor: 'var(--on-accent)', font: "'JetBrains Mono', monospace" },
+        { n: '4', name: 'Sub-projects and chats', file: 'add their own', text: 'Solver adds its own AGENTS.md; a chat can add a one-off instruction from the composer.', indent: '48px', border: 'var(--line2)', bg: 'transparent', numBg: 'var(--bg3)', numColor: 'var(--muted)', font: 'var(--font-ui)' }
+      ],
+      facts: [
+        { text: 'Default mold wall is 8 mm for FDM masters.', scope: 'this project' },
+        { text: 'Shell offset uses the signed-distance method, not mesh inflation.', scope: 'this project' },
+        { text: 'Prefers short, direct answers.', scope: 'workspace' }
+      ],
+      files: [
+        ['sim/', 0, '▾', 'var(--accent-p)', 'this project'], ['AGENTS.md', 1, '·', 'var(--muted)', ''], ['solver/', 1, '▾', 'var(--accent-p)', 'sub-project'], ['AGENTS.md', 2, '·', 'var(--muted)', ''],
+        ['convergence.ts', 2, '·', 'var(--muted)', ''], ['shell.ts', 1, '·', 'var(--muted)', ''], ['offset.ts', 1, '·', 'var(--muted)', ''], ['bench/', 1, '▸', 'var(--muted)', ''], ['graphify-out/', 1, '▸', 'var(--accent-o)', 'memory graph']
+      ].map((f, i) => ({ name: f.at(0), pad: (8 + f.at(1) * 18) + 'px', glyph: f.at(2), color: f.at(3), tag: f.at(4), bg: i === 0 ? 'var(--bg2)' : 'transparent' })),
+      settings: [
+        { label: 'Folder', note: 'The project is this folder; moving it moves the folder', value: '~/code/castform/sim' },
+        { label: 'Parent project', note: 'Drag in the sidebar to move', value: 'Castform' },
+        { label: 'Inherit instructions', note: 'Use the parent AGENTS.md above this one', value: 'on' },
+        { label: 'Default model', note: 'Overrides the parent', value: 'anthropic/claude-opus-5-5' },
+        { label: 'Connectors on here', note: 'A subset of the workspace’s', value: 'Drive, Blender' },
+        { label: 'Memory', note: 'Inherits the workspace backend', value: 'Graphify + facts' },
+        { label: 'Archive', note: 'Hides it and its chats; nothing is deleted', value: '—' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

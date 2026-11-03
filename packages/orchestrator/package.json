@@ -1,0 +1,1 @@
+{"name":"@harness/orchestrator","version":"0.1.0","private":true,"type":"module","dependencies":{"bpmn-engine":"^26.0.5","bpmn-moddle":"^10.3.1","bpmnlint":"^11.15.0"}}

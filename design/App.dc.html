@@ -1,0 +1,1487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Harness prototype</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:transparent}
+.hx{--bg0:#0a0a0a;--bg-deep:#050505;--bg1:#141414;--bg2:#1e1e1e;--bg3:#282828;--line:#323232;--line2:#3c3c3c;--line3:#484848;--dim:#606060;--text:#eeeeee;--text2:#d4d4d4;--text3:#b4b4b4;--muted:#9a9a9a;--muted2:#808080;--link-hover:#8ab8ff;
+--accent-p:#fab283;--accent-p-fill:#fab283;--accent-p-text:#fab283;--accent-p-deep:#7a4f35;--accent-o:#9d7cd8;--accent-o-fill:#9d7cd8;--accent-o-text:#9d7cd8;--on-accent:#0a0a0a;--on-accent-o:#0a0a0a;
+--info:#5c9cf5;--info-text:#5c9cf5;--cyan:#56b6c2;--cyan-text:#56b6c2;--success:#7fd88f;--success-text:#7fd88f;--warning:#f5a742;--warning-text:#f5a742;--error:#e06c75;--error-text:#e06c75;
+--font-ui:Inter,system-ui,sans-serif;--font-display:Inter,system-ui,sans-serif;--display-weight:600;--display-track:-0.02em;--font-label:'JetBrains Mono',monospace;color-scheme:dark}
+.hx[data-theme="claude"]{--bg0:#faf9f5;--bg-deep:#f5f0e8;--bg1:#f5f0e8;--bg2:#efe9de;--bg3:#e8e0d2;--line:#e6dfd8;--line2:#d6cdbf;--line3:#b8ae9f;--dim:#8e8b82;--text:#141413;--text2:#3d3d3a;--text3:#3d3d3a;--muted:#6c6a64;--muted2:#8e8b82;--link-hover:#141413;
+--accent-p:#cc785c;--accent-p-fill:#cc785c;--accent-p-text:#a9583e;--accent-p-deep:#f2d8cc;--accent-o:#5db8a6;--accent-o-fill:#5db8a6;--accent-o-text:#2f7d6d;--on-accent:#ffffff;--on-accent-o:#141413;
+--info:#a9583e;--info-text:#a9583e;--cyan:#5db8a6;--cyan-text:#2f7d6d;--success:#5db872;--success-text:#2f7a43;--warning:#d4a017;--warning-text:#8a6400;--error:#c64545;--error-text:#c64545;
+--font-display:Copernicus,'Tiempos Headline','Cormorant Garamond',Georgia,serif;--display-weight:500;--display-track:-0.01em;--font-label:Inter,system-ui,sans-serif;color-scheme:light}
+
+a{color:var(--info-text)}a:hover{color:var(--link-hover)}
+button{font:inherit;cursor:pointer}
+button,a,input,textarea,select{transition:filter .15s ease,transform .15s ease,box-shadow .25s ease,border-color .25s ease,background-color .25s ease,color .25s ease}
+button:hover,a:hover{filter:brightness(1.18)}
+button:active,a:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent-p) 45%, transparent)}50%{box-shadow:0 0 0 8px transparent}}
+@keyframes flow{to{stroke-dashoffset:-24}}
+@keyframes shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+.rise{animation:rise .4s cubic-bezier(.2,.7,.2,1) both}
+.pulse{animation:pulse 1.4s ease-in-out infinite}
+.glow{animation:glow 1.6s ease-out infinite}
+.flow path{stroke-dasharray:6 6;animation:flow .8s linear infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+textarea{font:inherit}
+</style>
+<style>
+.hx{--ws-accent:var(--accent-p);--ws-accent-text:var(--accent-p-text)}
+.hx[data-accent="org"]{--accent-p:var(--accent-o);--accent-p-fill:var(--accent-o-fill);--accent-p-text:var(--accent-o-text);--on-accent:var(--on-accent-o)}
+.hx[data-accent="teal"]{--accent-p:#5db8a6;--accent-p-fill:#5db8a6;--accent-p-text:#2f7d6d;--on-accent:#141413}
+.hx[data-accent="amber"]{--accent-p:#e8a55a;--accent-p-fill:#e8a55a;--accent-p-text:#8a5a12;--on-accent:#141413}
+.hx[data-accent="blue"]{--accent-p:#5c9cf5;--accent-p-fill:#5c9cf5;--accent-p-text:#2f63b8;--on-accent:#141413}
+.hx[data-accent="green"]{--accent-p:#5db872;--accent-p-fill:#5db872;--accent-p-text:#2f7a43;--on-accent:#141413}
+.hx[data-theme="opencode"][data-accent="teal"]{--accent-p-text:#5db8a6}.hx[data-theme="opencode"][data-accent="amber"]{--accent-p-text:#e8a55a}.hx[data-theme="opencode"][data-accent="blue"]{--accent-p-text:#5c9cf5}.hx[data-theme="opencode"][data-accent="green"]{--accent-p-text:#5db872}
+@keyframes spin{to{transform:rotate(360deg)}}.spin{animation:spin .9s linear infinite}
+.btn{height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--text);font-size:13px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;cursor:pointer;white-space:nowrap}
+.btn-p{border:0;background:var(--accent-p-fill);color:var(--on-accent);font-weight:600}
+.btn-d{border-color:var(--error);color:var(--error-text)}
+.btn[disabled],.chip[disabled],.opt[disabled],.navrow[disabled],.sw[disabled]{opacity:.45;cursor:not-allowed;filter:none}
+.chip{height:28px;padding:0 10px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap}
+.chip[aria-pressed="true"]{border-color:var(--accent-p);background:var(--bg2)}
+.card{border:1px solid var(--line);border-radius:12px;background:var(--bg1)}
+.lbl{font-family:var(--font-label);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.muted{color:var(--muted)}.mono{font-family:'JetBrains Mono',monospace}
+.disp{font-family:var(--font-display);font-weight:var(--display-weight);letter-spacing:var(--display-track)}
+.inp{height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg0);color:var(--text);font-family:inherit;font-size:13px;box-sizing:border-box}
+.inp:focus{outline:none;border-color:var(--accent-p);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent-p) 18%,transparent)}
+.sw{width:36px;height:20px;border-radius:999px;border:0;padding:2px;display:flex;background:var(--line2);justify-content:flex-start;flex:0 0 auto;cursor:pointer}
+.sw[aria-checked="true"]{background:var(--accent-p-fill);justify-content:flex-end}
+.sw>span{width:16px;height:16px;border-radius:50%;background:var(--bg0)}
+.opt{padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text);text-align:left;display:flex;flex-direction:column;gap:2px;cursor:pointer;font-size:14px}
+.opt[aria-pressed="true"]{border-color:var(--accent-p);background:var(--bg2);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent-p) 15%,transparent)}
+.navrow{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:7px;border:0;background:transparent;color:var(--text);font-size:13px;text-align:left;cursor:pointer;width:100%;box-sizing:border-box}
+.navrow:hover{background:var(--bg2);filter:none}
+.navrow[aria-current="page"],.navrow[aria-current="true"],.navrow[aria-current="step"]{background:var(--bg2);font-weight:500;box-shadow:inset 2px 0 0 var(--accent-p)}
+.treerow{display:flex;align-items:center;border-radius:7px}
+.treerow:hover{background:var(--bg2)}
+.treerow[aria-current="page"]{background:var(--bg2);box-shadow:inset 2px 0 0 var(--accent-p)}
+.treemain{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:6px;padding:5px 6px;border:0;background:transparent;color:var(--text);font-size:13px;cursor:pointer}
+.treemain:hover{filter:none}
+.treeact{width:22px;height:22px;border:0;border-radius:5px;background:transparent;color:var(--muted);font-size:12px;cursor:pointer;opacity:0;flex:0 0 auto}
+.treerow:hover .treeact,.treeact:focus-visible{opacity:1}
+.treeact:hover{background:var(--bg3);color:var(--text);filter:none}
+.tile{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg1);color:var(--text);text-align:left;cursor:pointer;font-size:13px}
+.tile:hover{border-color:var(--accent-p);filter:none}
+.link{border:0;background:transparent;padding:0;color:var(--info-text);cursor:pointer;font:inherit}
+.menu{position:absolute;z-index:20;padding:6px;border-radius:12px;border:1px solid var(--line);background:var(--bg1);box-shadow:0 12px 30px rgba(0,0,0,.18);display:flex;flex-direction:column;gap:1px;max-height:360px;overflow-y:auto}
+.scrim{position:absolute;inset:0;z-index:25;background:rgba(10,10,10,.35);display:flex;justify-content:center;align-items:flex-start}
+.tab{padding:8px 12px;border:0;background:transparent;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer}
+.tab[aria-selected="true"]{color:var(--text);box-shadow:inset 0 -2px 0 var(--accent-p)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+<style>
+.rrow{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;border:1px solid transparent;cursor:pointer;width:100%;box-sizing:border-box}
+.rrow:hover{background:var(--bg2);filter:none}
+.rrow[aria-current="true"]{background:var(--bg2);border-color:var(--line)}
+.runchip{display:flex;flex-direction:column;align-items:flex-start;padding:4px 6px;border-radius:6px;border:1px solid transparent;font-size:11px;line-height:1.3;color:var(--text);cursor:pointer;text-align:left;width:100%;overflow:hidden;white-space:nowrap;font-family:inherit}
+.histrow{display:grid;grid-template-columns:12px 110px 1fr 60px;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;background:var(--bg1);border:0;color:var(--text);font-size:12px;cursor:pointer;width:100%;font-family:inherit}
+.pal{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:8px;border:1px solid var(--bg3);background:var(--bg0);color:var(--text);text-align:left;cursor:grab;font-family:inherit}
+.pal:hover{border-color:var(--accent-p);filter:none}
+.palicon{width:26px;height:26px;flex:0 0 auto;box-sizing:border-box;border-color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:12px;background:var(--bg1)}
+.handle{position:absolute;width:18px;height:18px;padding:0;border-radius:50%;border:1.5px solid var(--accent-p);background:var(--bg0);color:var(--accent-p-text);font-size:10px;line-height:1;cursor:pointer;z-index:3}
+div[role="button"]:hover>.handle{opacity:1!important}
+.edgechip{position:absolute;padding:1px 6px;border-radius:6px;border:1px solid transparent;background:var(--bg-deep);color:var(--text2);font-size:10.5px;font-family:'JetBrains Mono',monospace;cursor:pointer;white-space:nowrap;z-index:2}
+.edgechip:hover{border-color:var(--line3);filter:none}
+</style>
+</helmet>
+<div class="hx" data-theme="{{theme}}" data-accent="{{acc}}" style="position: relative; width: 1440px; height: 900px; display: flex; flex-direction: column; background: var(--bg0); color: var(--text); font-family: var(--font-ui); font-size: 14px; line-height: 1.5; overflow: hidden;">
+
+<sc-if value="{{isOnb}}" hint-placeholder-val="{{ true }}">
+  <div style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center; background: var(--bg-deep); padding: 32px;">
+    <div class="card" role="dialog" aria-label="Set up harness" style="width: 1080px; height: 760px; display: flex; overflow: hidden; background: var(--bg0); box-shadow: 0 24px 60px rgba(0,0,0,0.16);">
+      <aside style="flex: 0 0 280px; padding: 28px 22px; background: var(--bg1); border-right: 1px solid var(--bg2); display: flex; flex-direction: column; gap: 18px;">
+        <span class="mono" style="font-weight: 600; font-size: 16px;">harness</span>
+        <ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px;">
+          <sc-for list="{{obSteps}}" as="st" hint-placeholder-count="9">
+            <li><button type="button" onClick="{{st.go}}" disabled="{{st.locked}}" class="navrow" aria-current="{{st.cur}}" style="width: 100%; gap: 12px; padding: 7px 10px;">
+              <span style="width: 22px; height: 22px; border-radius: 50%; border: 2px solid {{st.ring}}; background: {{st.fill}}; color: var(--on-accent); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-sizing: border-box; flex: 0 0 auto; transition: all .3s ease;">{{st.mark}}</span>
+              <span style="display: flex; flex-direction: column; text-align: left;"><span style="font-size: 13px; font-weight: 500; color: {{st.color}};">{{st.label}}</span><span class="muted" style="font-size: 11px;">{{st.note}}</span></span>
+            </button></li>
+          </sc-for>
+        </ol>
+        <span class="muted" style="margin-top: auto; font-size: 12px;">Everything here can be changed later in Settings.</span>
+        <button type="button" class="btn" onClick="{{skipDemo}}" style="justify-content: center;">Skip setup · use demo data</button>
+      </aside>
+
+      <main style="flex: 1 1 auto; min-width: 0; padding: 34px 40px 24px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto;">
+        <sc-if value="{{obWelcome}}" hint-placeholder-val="{{ true }}">
+          <div class="rise" style="display: flex; flex-direction: column; gap: 18px; padding-top: 40px;">
+            <span class="lbl">Welcome</span>
+            <h1 class="disp" style="margin: 0; font-size: 52px; line-height: 1.04;">Your workspaces,<br>your models,<br>your machine.</h1>
+            <p style="margin: 0; max-width: 560px; font-size: 16px; color: var(--text2);">Harness keeps personal and work completely apart. Chats run on opencode, artifacts are made with Open Design, and everything stays on this computer unless you share it.</p>
+            <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; max-width: 720px;">
+              <button type="button" class="opt" onClick="{{tour1}}" aria-pressed="{{tourSel1}}"><b>Separate workspaces</b><span class="muted" style="font-size: 12px;">Own chats, memory, models and connectors each</span></button>
+              <button type="button" class="opt" onClick="{{tour2}}" aria-pressed="{{tourSel2}}"><b>Projects all the way down</b><span class="muted" style="font-size: 12px;">Every chat lives in a project; projects nest</span></button>
+              <button type="button" class="opt" onClick="{{tour3}}" aria-pressed="{{tourSel3}}"><b>Artifacts and loops</b><span class="muted" style="font-size: 12px;">Docs, decks, prototypes; drag-and-drop agent graphs</span></button>
+            </div>
+            <span class="rise muted" style="font-size: 13px; max-width: 640px;">{{tourText}}</span>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{obEngine}}" hint-placeholder-val="{{ false }}">
+          <div class="rise" style="display: flex; flex-direction: column; gap: 14px;">
+            <h1 class="disp" style="margin: 0; font-size: 36px;">Connect opencode</h1>
+            <p style="margin: 0; color: var(--text2);">Every chat here is an opencode session. Let harness start opencode for this workspace, or connect to a server you already run — then the same sessions show here and in the opencode TUI.</p>
+            <div role="radiogroup" aria-label="How to run opencode" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+              <button type="button" class="opt" role="radio" aria-pressed="{{ocManaged}}" onClick="{{pickManaged}}"><b>Start it for me</b><span class="muted" style="font-size: 12px;">Harness runs <span class="mono">opencode serve</span> per workspace on this computer</span></button>
+              <button type="button" class="opt" role="radio" aria-pressed="{{ocRemote}}" onClick="{{pickRemote}}"><b>Connect to a running server</b><span class="muted" style="font-size: 12px;">Local or remote <span class="mono">opencode serve</span>, with its sessions and config</span></button>
+            </div>
+            <sc-if value="{{ocIsManaged}}" hint-placeholder-val="{{ true }}">
+              <div class="card rise" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
+                <span style="display: flex; align-items: center; gap: 12px;"><span class="{{ocCls}}" style="width: 10px; height: 10px; border-radius: 50%; background: {{ocDot}};"></span><span style="flex: 1 1 auto;"><b>opencode</b> · {{ocText}}</span><button type="button" class="btn" onClick="{{recheck}}">Check again</button></span>
+                <div role="radiogroup" aria-label="opencode binary" style="display: flex; gap: 8px; padding-left: 22px;">
+                  <button type="button" class="chip" role="radio" aria-pressed="{{ocSys}}" onClick="{{pickOcSys}}">Use the one on this computer</button>
+                  <button type="button" class="chip" role="radio" aria-pressed="{{ocBundled}}" onClick="{{pickOcBundled}}">Use the bundled version</button>
+                </div>
+                <span class="muted" style="font-size: 12px; padding-left: 22px;">Bound to 127.0.0.1 with a random password. Attach the TUI any time: <span class="mono">opencode attach http://127.0.0.1:4096</span></span>
+              </div>
+            </sc-if>
+            <sc-if value="{{ocIsRemote}}" hint-placeholder-val="{{ false }}">
+              <div class="card rise" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px;">
+                  <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500;">Server URL<input class="inp mono" type="text" value="{{ocUrl}}" onChange="{{onOcUrl}}"></label>
+                  <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500;">Username<input class="inp mono" type="text" value="{{ocUser}}" onChange="{{onOcUser}}"></label>
+                  <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500;">Password<input class="inp mono" type="password" value="{{ocPass}}" onChange="{{onOcPass}}" placeholder="OPENCODE_SERVER_PASSWORD"></label>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <button type="button" class="btn" onClick="{{connectOc}}">{{ocConnLabel}}</button>
+                  <span class="rise" style="font-size: 13px; color: {{ocConnColor}};">{{ocConnMsg}}</span>
+                </div>
+                <span class="muted" style="font-size: 12px;">The password goes to your keychain and is sent as basic auth. For a remote machine use HTTPS or an SSH tunnel.</span>
+              </div>
+            </sc-if>
+            <div class="card" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
+              <span style="display: flex; align-items: center; gap: 12px;"><span class="{{odCls}}" style="width: 10px; height: 10px; border-radius: 50%; background: {{odDot}};"></span><span style="flex: 1 1 auto;"><b>Open Design</b> · {{odText}}</span><button type="button" class="btn" onClick="{{installOd}}" disabled="{{odBusy}}">{{odBtn}}</button></span>
+              <div style="height: 6px; border-radius: 999px; background: var(--bg3); overflow: hidden; margin-left: 22px;"><div style="height: 6px; width: {{odPct}}; background: var(--accent-p); transition: width .3s linear;"></div></div>
+              <span class="muted" style="font-size: 12px; padding-left: 22px;">Adds the artifacts manager: docs, decks, prototypes, design systems, critique and export. <button type="button" class="link" onClick="{{skipOd}}">{{skipOdLabel}}</button></span>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{obSessions}}" hint-placeholder-val="{{ false }}">
+          <div class="rise" style="display: flex; flex-direction: column; gap: 14px;">
+            <h1 class="disp" style="margin: 0; font-size: 36px;">Bring your opencode chats</h1>
+            <p style="margin: 0; color: var(--text2);">{{sessIntro}}</p>
+            <sc-if value="{{sessNone}}" hint-placeholder-val="{{ false }}">
+              <div class="card rise" style="padding: 18px; display: flex; flex-direction: column; gap: 6px;"><b>No earlier sessions</b><span class="muted" style="font-size: 13px;">Chats you start here are new opencode sessions; you can open any of them in the TUI later.</span></div>
+            </sc-if>
+            <div style="display: flex; flex-direction: column; gap: 10px; max-height: 360px; overflow-y: auto;">
+              <sc-for list="{{sessGroups}}" as="g" hint-placeholder-count="3">
+                <div class="card rise" style="padding: 12px 14px; display: flex; flex-direction: column; gap: 6px;">
+                  <span style="display: flex; align-items: center; gap: 10px;"><span class="mono" style="font-size: 12.5px; font-weight: 600;">{{g.dir}}</span><span class="muted" style="font-size: 12px; flex: 1 1 auto;">→ {{g.target}}</span><button type="button" class="sw" role="switch" aria-checked="{{g.on}}" onClick="{{g.toggle}}" aria-label="Import this folder"><span></span></button></span>
+                  <sc-for list="{{g.items}}" as="it" hint-placeholder-count="2">
+                    <button type="button" class="navrow" onClick="{{it.toggle}}" aria-pressed="{{it.on}}" disabled="{{it.dis}}" style="gap: 10px; padding: 5px 8px;"><span style="width: 16px; color: var(--accent-p-text);">{{it.mark}}</span><span style="flex: 1 1 auto; text-align: left;">{{it.title}}</span><span class="mono muted" style="font-size: 11px;">{{it.id}} · {{it.n}} msgs · {{it.when}}</span></button>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+            <sc-if value="{{sessSome}}" hint-placeholder-val="{{ true }}">
+              <label style="display: flex; align-items: center; justify-content: space-between; max-width: 640px; font-size: 13px;"><span>Keep in sync both ways<span class="muted" style="display: block; font-size: 12px;">Sessions started in the TUI appear here; chats started here appear in the TUI.</span></span><button type="button" class="sw" role="switch" aria-checked="{{sessSync}}" onClick="{{toggleSessSync}}" aria-label="Sync sessions"><span></span></button></label>
+              <span style="display: flex; align-items: center; gap: 10px; font-size: 13px;"><b>{{sessCount}}</b><button type="button" class="link" onClick="{{sessAll}}">Select all</button><button type="button" class="link" onClick="{{sessNoneBtn}}">Start fresh</button></span>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{obWorkspace}}" hint-placeholder-val="{{ false }}">
+          <div class="rise" style="display: flex; flex-direction: column; gap: 16px;">
+            <h1 class="disp" style="margin: 0; font-size: 36px;">Your personal workspace</h1>
+            <p style="margin: 0; color: var(--text2);">Your own keys, accounts and files. Nothing here is visible from a work workspace.</p>
+            <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500; max-width: 420px;">Name<input class="inp" type="text" value="{{wsDraft}}" onChange="{{onWsDraft}}"></label>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <span style="font-size: 13px; font-weight: 500;">Accent</span>
+              <div style="display: flex; gap: 10px;">
+                <sc-for list="{{accents}}" as="a" hint-placeholder-count="5">
+                  <button type="button" aria-label="{{a.name}}" aria-pressed="{{a.on}}" onClick="{{a.pick}}" style="width: 34px; height: 34px; border-radius: 50%; border: 0; background: {{a.hex}}; box-shadow: {{a.ring}};"></button>
+                </sc-for>
+              </div>
+            </div>
+            <div class="card" style="padding: 14px 16px; display: flex; align-items: center; gap: 14px; max-width: 520px;">
+              <span style="width: 40px; height: 40px; border-radius: 10px; background: var(--bg3); color: var(--accent-p-text); display: flex; align-items: center; justify-content: center; font-weight: 700;" class="mono">{{wsInitials}}</span>
+              <span style="display: flex; flex-direction: column;"><b>{{wsDraftShown}}</b><span class="mono muted" style="font-size: 12px;">~/.harness/ws/{{wsSlug}}</span></span>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{obModel}}" hint-placeholder-val="{{ false }}">
+          <div class="rise" style="display: flex; flex-direction: column; gap: 14px;">
+            <h1 class="disp" style="margin: 0; font-size: 36px;">Connect a model</h1>
+            <p style="margin: 0; color: var(--text2);">For {{wsDraftShown}}. Keys go to your keychain; config files only hold a reference.</p>
+            <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;">
+              <sc-for list="{{provOpts}}" as="p" hint-placeholder-count="4">
+                <button type="button" class="opt" aria-pressed="{{p.on}}" onClick="{{p.pick}}"><b>{{p.name}}</b><span class="muted" style="font-size: 12px;">{{p.note}}</span></button>
+              </sc-for>
+            </div>
+            <div class="card rise" style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+              <sc-if value="{{provNeedsKey}}" hint-placeholder-val="{{ true }}">
+                <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500;">{{provKeyLabel}}<input class="inp mono" type="password" value="{{keyDraft}}" onChange="{{onKey}}" placeholder="paste your key"></label>
+              </sc-if>
+              <sc-if value="{{provIsCustom}}" hint-placeholder-val="{{ false }}">
+                <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+                  <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500;">Base URL<input class="inp mono" type="text" value="{{urlDraft}}" onChange="{{onUrl}}"></label>
+                  <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500;">Model id<input class="inp mono" type="text" value="{{modelDraft}}" onChange="{{onModelDraft}}"></label>
+                </div>
+              </sc-if>
+              <sc-if value="{{provIsOllama}}" hint-placeholder-val="{{ false }}">
+                <span style="font-size: 13px;">Ollama answers on <span class="mono">localhost:11434</span>. Pick the models to use:</span>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  <sc-for list="{{ollamaModels}}" as="m" hint-placeholder-count="3">
+                    <button type="button" class="chip mono" aria-pressed="{{m.on}}" onClick="{{m.pick}}">{{m.mark}} {{m.name}}</button>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <button type="button" class="btn" onClick="{{testProv}}">{{testLabel}}</button>
+                <span class="rise" style="font-size: 13px; color: {{testColor}};">{{testMsg}}</span>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{obWeb}}" hint-placeholder-val="{{ false }}">
+          <div class="rise" style="display: flex; flex-direction: column; gap: 12px;">
+            <h1 class="disp" style="margin: 0; font-size: 36px;">Web search</h1>
+            <p style="margin: 0; color: var(--text2);">Let the agent look things up for {{wsDraftShown}}. opencode has two tools: <span class="mono">websearch</span> finds pages and <span class="mono">webfetch</span> reads one by URL. You can turn search on or off per chat.</p>
+            <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;">
+              <sc-for list="{{webOpts}}" as="w" hint-placeholder-count="4">
+                <button type="button" class="opt" aria-pressed="{{w.on}}" onClick="{{w.pick}}"><b>{{w.name}}</b><span class="muted" style="font-size: 12px;">{{w.note}}</span></button>
+              </sc-for>
+            </div>
+            <div class="card rise" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
+              <sc-if value="{{webIsMcp}}" hint-placeholder-val="{{ false }}">
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 13px; font-weight: 500;">Provider</span>
+                  <sc-for list="{{webProvs}}" as="w" hint-placeholder-count="3"><button type="button" class="chip" aria-pressed="{{w.on}}" onClick="{{w.pick}}">{{w.name}}</button></sc-for>
+                </div>
+                <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500; max-width: 460px;">{{webProv}} API key<input class="inp mono" type="password" value="{{webKey}}" onChange="{{onWebKey}}" placeholder="paste your key"></label>
+              </sc-if>
+              <sc-if value="{{webIsSearx}}" hint-placeholder-val="{{ false }}">
+                <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500; max-width: 460px;">SearXNG URL<input class="inp mono" type="text" value="{{searxUrl}}" onChange="{{onSearxUrl}}"></label>
+              </sc-if>
+              <label style="display: flex; align-items: center; justify-content: space-between; font-size: 13px;">Read pages by URL (webfetch)<button type="button" class="sw" role="switch" aria-checked="{{webFetch}}" onClick="{{toggleWebFetch}}" aria-label="webfetch"><span></span></button></label>
+              <label style="display: flex; align-items: center; justify-content: space-between; font-size: 13px;">Ask before each search<button type="button" class="sw" role="switch" aria-checked="{{webAsk}}" onClick="{{toggleWebAsk}}" aria-label="Ask before searching"><span></span></button></label>
+              <sc-if value="{{webNotOff}}" hint-placeholder-val="{{ true }}">
+                <div style="display: flex; align-items: center; gap: 10px;"><button type="button" class="btn" onClick="{{testWeb}}">{{webTestLabel}}</button><span class="rise" style="font-size: 13px; color: {{webTestColor}};">{{webTestMsg}}</span></div>
+              </sc-if>
+              <pre class="mono" style="margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--bg2); font-size: 11.5px; line-height: 1.55; white-space: pre-wrap; color: var(--text2);">{{webConfig}}</pre>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{obMemory}}" hint-placeholder-val="{{ false }}">
+          <div class="rise" style="display: flex; flex-direction: column; gap: 14px;">
+            <h1 class="disp" style="margin: 0; font-size: 36px;">How should it remember?</h1>
+            <p style="margin: 0; color: var(--text2);">For {{wsDraftShown}}. Each workspace picks its own memory.</p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <sc-for list="{{memOpts}}" as="m" hint-placeholder-count="3">
+                <button type="button" class="opt" aria-pressed="{{m.on}}" onClick="{{m.pick}}"><b>{{m.name}}</b><span class="muted" style="font-size: 12px;">{{m.note}}</span></button>
+              </sc-for>
+            </div>
+            <sc-if value="{{memIsGraph}}" hint-placeholder-val="{{ true }}">
+              <div class="card rise" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;">
+                <span style="font-size: 13px; font-weight: 600;">Folders Graphify should map</span>
+                <sc-for list="{{gFolders}}" as="f" hint-placeholder-count="2">
+                  <span style="display: flex; align-items: center; gap: 10px;"><span class="mono" style="flex: 1 1 auto; font-size: 12px;">{{f.path}}</span><button type="button" class="btn" onClick="{{f.remove}}" style="height: 26px;">Remove</button></span>
+                </sc-for>
+                <span style="display: flex; gap: 8px;"><input class="inp mono" type="text" value="{{folderDraft}}" onChange="{{onFolderDraft}}" style="flex: 1 1 auto;" aria-label="Folder path"><button type="button" class="btn" onClick="{{addFolder}}">Add folder</button></span>
+                <label style="display: flex; align-items: center; justify-content: space-between; font-size: 13px;">Keep the graph updated as code changes<button type="button" class="sw" role="switch" aria-checked="{{gWatch}}" onClick="{{toggleWatch}}" aria-label="Watch"><span></span></button></label>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{obProject}}" hint-placeholder-val="{{ false }}">
+          <div class="rise" style="display: flex; flex-direction: column; gap: 14px;">
+            <h1 class="disp" style="margin: 0; font-size: 36px;">Your first project</h1>
+            <p style="margin: 0; color: var(--text2);">Chats always belong to a project. A project is a folder; sub-projects are folders inside it. A <b>General</b> project is made for quick chats.</p>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500;">Project name<input class="inp" type="text" value="{{projDraft}}" onChange="{{onProjDraft}}"></label>
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500;">Folder<span style="display: flex; gap: 6px;"><input class="inp mono" type="text" value="{{projFolder}}" onChange="{{onProjFolder}}" style="flex: 1 1 auto;"><button type="button" class="btn" onClick="{{browseFolder}}">Browse</button></span></label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 13px; font-weight: 500;">AGENTS.md template</span>
+              <sc-for list="{{tpls}}" as="t" hint-placeholder-count="4"><button type="button" class="chip" aria-pressed="{{t.on}}" onClick="{{t.pick}}">{{t.name}}</button></sc-for>
+            </div>
+            <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500;">Project instructions · saved as AGENTS.md
+              <textarea class="inp mono" rows="7" onChange="{{onAgents}}" style="height: auto; padding: 10px 12px; font-size: 12px; line-height: 1.6; resize: vertical;" value="{{agentsDraft}}"></textarea>
+            </label>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{obLook}}" hint-placeholder-val="{{ false }}">
+          <div class="rise" style="display: flex; flex-direction: column; gap: 16px;">
+            <h1 class="disp" style="margin: 0; font-size: 36px;">Choose a look</h1>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;">
+              <button type="button" class="opt" aria-pressed="{{isClaude}}" onClick="{{setClaude}}" style="padding: 0; overflow: hidden;">
+                <span style="display: block; height: 130px; background: #faf9f5; position: relative; width: 100%;"><span style="position: absolute; left: 18px; top: 16px; font-family: 'Cormorant Garamond', Georgia, serif; font-size: 30px; color: #141413;">Aa</span><span style="position: absolute; right: 18px; bottom: 18px; width: 70px; height: 26px; border-radius: 6px; background: #cc785c;"></span><span style="position: absolute; left: 18px; bottom: 18px; width: 120px; height: 10px; border-radius: 4px; background: #e8e0d2;"></span></span>
+                <span style="display: block; padding: 10px 14px;"><b>Claude</b> · warm cream, serif headings</span>
+              </button>
+              <button type="button" class="opt" aria-pressed="{{isOpencode}}" onClick="{{setOpencode}}" style="padding: 0; overflow: hidden;">
+                <span style="display: block; height: 130px; background: #0a0a0a; position: relative; width: 100%;"><span style="position: absolute; left: 18px; top: 16px; font-family: 'JetBrains Mono', monospace; font-size: 24px; color: #eeeeee;">Aa</span><span style="position: absolute; right: 18px; bottom: 18px; width: 70px; height: 26px; border-radius: 6px; background: #fab283;"></span><span style="position: absolute; left: 18px; bottom: 18px; width: 120px; height: 10px; border-radius: 4px; background: #282828;"></span></span>
+                <span style="display: block; padding: 10px 14px;"><b>opencode</b> · dark, monospace accents</span>
+              </button>
+            </div>
+            <label style="display: flex; align-items: center; justify-content: space-between; max-width: 520px; font-size: 13px;">Follow system light and dark<button type="button" class="sw" role="switch" aria-checked="{{followSys}}" onClick="{{toggleFollow}}" aria-label="Follow system"><span></span></button></label>
+            <label style="display: flex; align-items: center; justify-content: space-between; max-width: 520px; font-size: 13px;">Reduce motion<button type="button" class="sw" role="switch" aria-checked="{{reduceMotion}}" onClick="{{toggleMotion}}" aria-label="Reduce motion"><span></span></button></label>
+            <div class="card" style="padding: 14px 16px; max-width: 620px; font-size: 13px; display: flex; flex-direction: column; gap: 4px;">
+              <span class="lbl">Summary</span>
+              <sc-for list="{{summary}}" as="x" hint-placeholder-count="5"><span style="display: flex; justify-content: space-between; gap: 12px;"><span class="muted">{{x.k}}</span><span>{{x.v}}</span></span></sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <div style="margin-top: auto; display: flex; align-items: center; gap: 10px; padding-top: 10px;">
+          <div style="flex: 1 1 auto; height: 4px; border-radius: 999px; background: var(--bg3); overflow: hidden;"><div style="height: 4px; width: {{obPct}}; background: var(--accent-p); transition: width .4s ease;"></div></div>
+          <span class="muted" style="font-size: 12px;">{{obHint}}</span>
+          <button type="button" class="btn" onClick="{{obBack}}" disabled="{{obAtStart}}" style="height: 38px;">Back</button>
+          <button type="button" class="btn btn-p" onClick="{{obNext}}" disabled="{{obBlocked}}" style="height: 38px; padding: 0 18px;">{{obNextLabel}}</button>
+        </div>
+      </main>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{isApp}}" hint-placeholder-val="{{ false }}">
+  <div style="height: 2px; background: var(--ws-accent); transition: background-color .4s ease;"></div>
+  <header style="display: flex; align-items: center; gap: 12px; padding: 7px 14px; border-bottom: 1px solid var(--bg2);">
+    <span class="mono" style="font-weight: 600;">harness</span>
+    <nav aria-label="Breadcrumb" style="display: flex; align-items: center; gap: 6px; font-size: 13px; flex: 1 1 auto; min-width: 0;">
+      <sc-for list="{{crumbs}}" as="c" hint-placeholder-count="3">
+        <span class="muted" style="color: var(--dim);">{{c.sep}}</span><button type="button" class="link" onClick="{{c.go}}" style="color: {{c.color}};">{{c.label}}</button>
+      </sc-for>
+    </nav>
+    <button type="button" class="btn" onClick="{{openPalette}}" style="height: 28px; min-width: 240px; justify-content: space-between; color: var(--muted);">Search or jump to… <span class="mono" style="font-size: 11px;">⌘K</span></button>
+    <button type="button" class="chip mono" onClick="{{openEngine}}" style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px;"><span class="{{engCls}}" style="width: 6px; height: 6px; border-radius: 50%; background: {{engDot}};"></span>{{engLabel}}</button>
+    <button type="button" class="chip" onClick="{{toggleTheme}}" aria-label="Switch theme">◐ {{themeName}}</button>
+  </header>
+
+  <div style="flex: 1 1 auto; display: flex; min-height: 0;">
+    <nav aria-label="Workspaces" style="flex: 0 0 60px; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 12px 0; border-right: 1px solid var(--bg2);">
+      <sc-for list="{{rail}}" as="w" hint-placeholder-count="2">
+        <button type="button" aria-label="{{w.name}} workspace" onClick="{{w.pick}}" title="{{w.name}}" style="width: 40px; height: 40px; border-radius: 10px; border: 0; background: var(--bg2); color: {{w.color}}; font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 12px; box-shadow: 0 0 0 2px {{w.ring}};">{{w.initials}}</button>
+      </sc-for>
+      <button type="button" aria-label="Add workspace" onClick="{{openNewWs}}" style="width: 40px; height: 40px; border-radius: 10px; border: 1px dashed var(--line3); background: transparent; color: var(--muted); font-size: 18px;">+</button>
+      <span style="flex: 1 1 auto;"></span>
+      <sc-for list="{{railNav}}" as="n" hint-placeholder-count="4">
+        <button type="button" aria-label="{{n.label}}" title="{{n.label}}" onClick="{{n.go}}" style="width: 40px; height: 36px; border-radius: 9px; border: 0; background: {{n.bg}}; color: var(--text2); font-size: 15px;">{{n.icon}}</button>
+      </sc-for>
+    </nav>
+
+    <aside aria-label="Projects" style="flex: 0 0 272px; display: flex; flex-direction: column; gap: 10px; padding: 12px; background: var(--bg1); border-right: 1px solid var(--bg2); min-height: 0;">
+      <button type="button" class="navrow" onClick="{{openPalette}}" style="padding: 8px 10px; background: var(--bg2);">
+        <span class="mono" style="width: 28px; height: 28px; border-radius: 7px; background: var(--bg3); color: var(--ws-accent-text); font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center;">{{wsInit}}</span>
+        <span style="flex: 1 1 auto; display: flex; flex-direction: column; text-align: left;"><b style="font-size: 13px;">{{wsName}}</b><span class="muted" style="font-size: 11px;">{{wsKind}}</span></span>
+        <span class="muted">⇅</span>
+      </button>
+      <button type="button" class="btn btn-p" onClick="{{newChat}}" style="justify-content: center;">+ New chat in {{curProjName}}</button>
+      <label style="display: flex; align-items: center; gap: 8px; padding: 0 10px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg0);">
+        <span class="muted">⌕</span><span class="sr">Filter projects and chats</span>
+        <input type="search" value="{{treeQ}}" onChange="{{onTreeQ}}" placeholder="Filter projects and chats" style="flex: 1 1 auto; min-width: 0; border: 0; outline: none; background: transparent; color: var(--text); font: inherit; font-size: 13px;">
+      </label>
+      <div style="display: flex; flex-direction: column; gap: 1px;">
+        <sc-for list="{{sideNav}}" as="n" hint-placeholder-count="5">
+          <button type="button" class="navrow" aria-current="{{n.cur}}" onClick="{{n.go}}"><span style="width: 18px; text-align: center; color: var(--muted);">{{n.icon}}</span>{{n.label}}<span class="muted" style="margin-left: auto; font-size: 11px;">{{n.badge}}</span></button>
+        </sc-for>
+      </div>
+      <span class="lbl" style="display: flex; align-items: center; padding: 4px 4px 0;">Projects<button type="button" class="link" onClick="{{newTopProject}}" style="margin-left: auto; text-transform: none; letter-spacing: 0; font-family: var(--font-ui); font-size: 12px;">+ project</button></span>
+      <div style="flex: 1 1 auto; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; min-height: 0;">
+        <sc-for list="{{tree}}" as="t" hint-placeholder-count="10">
+          <sc-if value="{{t.isRow}}" hint-placeholder-val="{{ true }}">
+            <div class="treerow" aria-current="{{t.cur}}" style="padding-left: {{t.pad}};">
+              <button type="button" class="treemain" onClick="{{t.open}}">
+                <span style="width: 12px; color: var(--muted); font-size: 10px; display: inline-block; transform: {{t.rot}}; transition: transform .2s ease;">{{t.caret}}</span>
+                <span style="color: {{t.iconColor}}; font-size: 12px; width: 14px; text-align: center;">{{t.icon}}</span>
+                <span style="flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left;">{{t.label}}</span>
+                <span class="muted mono" style="font-size: 10.5px;">{{t.meta}}</span>
+              </button>
+              <sc-if value="{{t.isProject}}" hint-placeholder-val="{{ true }}">
+                <button type="button" class="treeact" aria-label="New chat in {{t.label}}" title="New chat here" onClick="{{t.addChat}}">✎</button>
+                <button type="button" class="treeact" aria-label="New sub-project in {{t.label}}" title="New sub-project" onClick="{{t.addSub}}">+</button>
+              </sc-if>
+            </div>
+          </sc-if>
+          <sc-if value="{{t.isInput}}" hint-placeholder-val="{{ false }}">
+            <div class="rise" style="display: flex; gap: 6px; padding: 4px 4px 4px {{t.pad}};">
+              <input class="inp" type="text" value="{{subDraft}}" onChange="{{onSubDraft}}" placeholder="{{t.placeholder}}" style="height: 30px; flex: 1 1 auto; min-width: 0;" aria-label="New project name">
+              <button type="button" class="btn btn-p" onClick="{{commitSub}}" style="height: 30px; padding: 0 10px;">Add</button>
+              <button type="button" class="btn" onClick="{{cancelSub}}" style="height: 30px; padding: 0 8px;" aria-label="Cancel">✕</button>
+            </div>
+          </sc-if>
+        </sc-for>
+        <sc-if value="{{treeEmpty}}" hint-placeholder-val="{{ false }}"><span class="muted" style="font-size: 12px; padding: 8px;">Nothing matches “{{treeQ}}”.</span></sc-if>
+      </div>
+    </aside>
+
+    <main style="flex: 1 1 auto; min-width: 0; display: flex; min-height: 0; position: relative;">
+
+      <sc-if value="{{vHome}}" hint-placeholder-val="{{ true }}">
+        <div style="flex: 1 1 auto; overflow-y: auto; display: flex; justify-content: center;">
+          <div style="width: 100%; max-width: 860px; padding: 56px 32px 32px; display: flex; flex-direction: column; gap: 26px;">
+            <h1 class="disp rise" style="margin: 0; text-align: center; font-size: 42px; line-height: 1.1;">{{greeting}}</h1>
+            <div class="card rise" style="position: relative; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 12px; animation-delay: .06s;">
+              <span class="sr">Message</span>
+              <textarea rows="3" aria-label="Message" placeholder="{{homePlaceholder}}" onChange="{{onDraft}}" style="resize: none; border: 0; outline: none; background: transparent; color: var(--text); font: inherit; font-size: 16px;" value="{{draft}}"></textarea>
+              <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+                <button type="button" class="chip" onClick="{{togglePicker}}" aria-expanded="{{pickerOpen}}" style="border-color: var(--accent-p);">▤ in {{composeProjPath}} ▾</button>
+                <sc-for list="{{modes}}" as="m" hint-placeholder-count="6"><button type="button" class="chip" aria-pressed="{{m.on}}" onClick="{{m.pick}}">{{m.label}}</button></sc-for>
+                <button type="button" class="chip" aria-pressed="{{homeWebOn}}" onClick="{{toggleHomeWeb}}">🌐 Web {{homeWebLabel}}</button>
+                <span style="flex: 1 1 auto;"></span>
+                <button type="button" class="chip mono" onClick="{{toggleModel}}" style="font-size: 11px;">◆ {{curAgentShort}} · {{curModel}} ▾</button>
+                <button type="button" class="btn" onClick="{{attach}}" aria-label="Attach file" style="width: 34px; padding: 0; justify-content: center;">⎘</button>
+                <button type="button" class="btn btn-p" onClick="{{send}}" aria-label="Send" style="width: 34px; padding: 0; justify-content: center;">↑</button>
+              </div>
+              <sc-if value="{{showPicker}}" hint-placeholder-val="{{ false }}">
+                <div class="menu rise" role="listbox" aria-label="Project" style="left: 14px; top: 100%; width: 320px;">
+                  <span class="muted" style="font-size: 11px; padding: 4px 8px;">Every chat needs a project</span>
+                  <sc-for list="{{projPick}}" as="p" hint-placeholder-count="6"><button type="button" class="navrow" role="option" aria-current="{{p.cur}}" onClick="{{p.pick}}" style="padding-left: {{p.pad}};">▤ {{p.label}}</button></sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{showModel}}" hint-placeholder-val="{{ false }}">
+                <div class="menu rise" role="listbox" aria-label="Agent and model" style="right: 60px; top: 100%; width: 320px;">
+                  <span class="lbl" style="padding: 4px 8px;">Agent</span>
+                  <sc-for list="{{agentList}}" as="a" hint-placeholder-count="2"><button type="button" class="navrow" role="option" aria-current="{{a.cur}}" onClick="{{a.pick}}" style="font-size: 12.5px;">◆ {{a.name}}<span class="muted mono" style="margin-left: auto; font-size: 10.5px;">{{a.via}}</span></button></sc-for>
+                  <span class="lbl" style="padding: 8px 8px 4px;">Model</span>
+                  <sc-for list="{{modelList}}" as="m" hint-placeholder-count="4"><button type="button" class="navrow mono" role="option" aria-current="{{m.cur}}" onClick="{{m.pick}}" style="font-size: 12px;">{{m.id}}</button></sc-for>
+                </div>
+              </sc-if>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
+              <sc-for list="{{suggest}}" as="s" hint-placeholder-count="3"><button type="button" class="chip" onClick="{{s.use}}">{{s.text}}</button></sc-for>
+            </div>
+            <div class="rise" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; animation-delay: .12s;">
+              <div style="display: flex; flex-direction: column; gap: 8px;"><span class="lbl">Needs you</span>
+                <sc-for list="{{needs}}" as="n" hint-placeholder-count="2"><button type="button" class="tile" onClick="{{n.go}}"><b>{{n.title}}</b><span class="muted" style="font-size: 12px;">{{n.sub}}</span></button></sc-for>
+                <sc-if value="{{needsEmpty}}" hint-placeholder-val="{{ false }}"><span class="muted" style="font-size: 12px;">Nothing waiting on you.</span></sc-if>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px;"><span class="lbl">Continue</span>
+                <sc-for list="{{recent}}" as="n" hint-placeholder-count="2"><button type="button" class="tile" onClick="{{n.go}}"><b>{{n.title}}</b><span class="muted" style="font-size: 12px;">{{n.sub}}</span></button></sc-for>
+                <sc-if value="{{recentEmpty}}" hint-placeholder-val="{{ false }}"><span class="muted" style="font-size: 12px;">Your chats will show up here.</span></sc-if>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px;"><span class="lbl">Coming up</span>
+                <sc-for list="{{upcoming}}" as="n" hint-placeholder-count="2"><button type="button" class="tile" onClick="{{n.go}}"><b>{{n.title}}</b><span class="muted" style="font-size: 12px;">{{n.sub}}</span></button></sc-for>
+                <button type="button" class="tile" onClick="{{goRoutines}}" style="border-style: dashed;"><span class="muted" style="font-size: 12px;">+ Make something run on a schedule</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{vChat}}" hint-placeholder-val="{{ false }}">
+        <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;">
+          <div style="display: flex; align-items: center; gap: 10px; padding: 10px 20px; border-bottom: 1px solid var(--bg2); position: relative;">
+            <sc-if value="{{notRenaming}}" hint-placeholder-val="{{ true }}"><b style="font-size: 14px;">{{chat.title}}</b></sc-if>
+            <sc-if value="{{renaming}}" hint-placeholder-val="{{ false }}"><input class="inp" type="text" value="{{renameDraft}}" onChange="{{onRename}}" style="height: 30px; width: 320px;" aria-label="Chat title"><button type="button" class="btn btn-p" onClick="{{saveRename}}" style="height: 30px;">Save</button></sc-if>
+            <button type="button" class="chip" onClick="{{goChatProject}}">▤ {{chat.projPath}}</button>
+            <button type="button" class="chip mono" onClick="{{copyAttach}}" title="opencode session — copy the TUI command" style="font-size: 11px;">⌘ {{chat.sid}}{{chat.importedTag}}</button>
+            <span style="flex: 1 1 auto;"></span>
+            <button type="button" class="btn" onClick="{{toggleChatMenu}}" aria-expanded="{{chatMenuOpen}}" aria-label="Chat options" style="height: 30px;">⋯</button>
+            <sc-if value="{{showChatMenu}}" hint-placeholder-val="{{ false }}">
+              <div class="menu rise" style="right: 20px; top: 100%; width: 260px;">
+                <button type="button" class="navrow" onClick="{{startRename}}">Rename</button>
+                <button type="button" class="navrow" onClick="{{copyAttach}}">Open in opencode TUI</button>
+                <button type="button" class="navrow" onClick="{{forkSession}}">Fork session</button>
+                <span class="muted" style="font-size: 11px; padding: 6px 8px 2px;">Move to project</span>
+                <sc-for list="{{moveTargets}}" as="p" hint-placeholder-count="4"><button type="button" class="navrow" aria-current="{{p.cur}}" onClick="{{p.pick}}" style="padding-left: {{p.pad}};">▤ {{p.label}}</button></sc-for>
+                <button type="button" class="navrow" onClick="{{askDeleteChat}}" style="color: var(--error-text);">Delete chat…</button>
+              </div>
+            </sc-if>
+          </div>
+          <div style="flex: 1 1 auto; overflow-y: auto; padding: 24px 0;">
+            <div style="max-width: 760px; margin: 0 auto; padding: 0 28px; display: flex; flex-direction: column; gap: 18px;">
+              <sc-for list="{{msgs}}" as="m" hint-placeholder-count="3">
+                <sc-if value="{{m.isUser}}" hint-placeholder-val="{{ true }}">
+                  <div class="rise" style="align-self: flex-end; max-width: 80%; padding: 11px 14px; border-radius: 14px; background: var(--bg2); white-space: pre-wrap;">{{m.text}}</div>
+                </sc-if>
+                <sc-if value="{{m.isBot}}" hint-placeholder-val="{{ false }}">
+                  <div class="rise" style="display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; flex-direction: column; gap: 3px;">
+                      <sc-for list="{{m.tools}}" as="tl" hint-placeholder-count="2"><button type="button" class="link mono" onClick="{{tl.toggle}}" style="font-size: 12px; color: var(--muted); text-align: left;"><span style="color: var(--success-text);">✓</span> {{tl.text}} <span style="color: var(--dim);">{{tl.caret}}</span></button><sc-if value="{{tl.open}}" hint-placeholder-val="{{ false }}"><span class="mono rise" style="font-size: 11.5px; color: var(--text2); padding: 4px 0 4px 18px;">{{tl.detail}}</span></sc-if></sc-for>
+                    </div>
+                    <div style="white-space: pre-wrap;">{{m.text}}</div>
+                    <sc-if value="{{m.hasArt}}" hint-placeholder-val="{{ false }}">
+                      <button type="button" class="tile" onClick="{{m.openArt}}" style="flex-direction: row; align-items: center; gap: 12px; max-width: 440px;">
+                        <span class="mono" style="font-size: 10.5px; padding: 3px 6px; border-radius: 4px; background: var(--bg3); color: var(--accent-p-text);">{{m.artType}}</span>
+                        <span style="flex: 1 1 auto; display: flex; flex-direction: column; text-align: left;"><b style="font-size: 13px;">{{m.artTitle}}</b><span class="muted" style="font-size: 12px;">{{m.artMeta}}</span></span>
+                        <span style="color: var(--accent-p-text); font-size: 12px;">Open</span>
+                      </button>
+                    </sc-if>
+                    <div style="display: flex; gap: 6px;">
+                      <button type="button" class="chip" onClick="{{m.copy}}" style="height: 24px; font-size: 11px;">Copy</button>
+                      <button type="button" class="chip" onClick="{{m.retry}}" style="height: 24px; font-size: 11px;">Retry</button>
+                      <button type="button" class="chip" onClick="{{m.remember}}" style="height: 24px; font-size: 11px;">Remember this</button>
+                    </div>
+                  </div>
+                </sc-if>
+              </sc-for>
+              <sc-if value="{{streaming}}" hint-placeholder-val="{{ false }}">
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <sc-for list="{{streamTools}}" as="tl" hint-placeholder-count="2"><span class="mono rise" style="font-size: 12px; color: var(--muted);"><span style="color: {{tl.color}};">{{tl.mark}}</span> {{tl.text}}</span></sc-for>
+                  <div style="white-space: pre-wrap;">{{streamText}}<span class="pulse" style="display: inline-block; width: 8px; height: 16px; vertical-align: -3px; background: var(--accent-p); margin-left: 2px;"></span></div>
+                </div>
+              </sc-if>
+              <sc-if value="{{chatEmpty}}" hint-placeholder-val="{{ false }}"><span class="muted" style="text-align: center; padding-top: 80px;">New chat in {{chat.projPath}}. Ask anything — it starts with this project’s instructions and memory.</span></sc-if>
+            </div>
+          </div>
+          <div style="padding: 0 28px 18px; max-width: 760px; width: 100%; margin: 0 auto; box-sizing: border-box; position: relative;">
+            <div class="card" style="border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;">
+              <textarea rows="2" aria-label="Message" placeholder="{{chatPlaceholder}}" onChange="{{onDraft}}" style="resize: none; border: 0; outline: none; background: transparent; color: var(--text); font: inherit;" value="{{draft}}"></textarea>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <button type="button" class="btn" onClick="{{attach}}" aria-label="Attach file" style="width: 32px; padding: 0; justify-content: center;">⎘</button>
+                <button type="button" class="chip mono" onClick="{{toggleModel}}" style="font-size: 11px;">◆ {{curAgentShort}} · {{curModel}} ▾</button>
+                <button type="button" class="chip" onClick="{{goMemory}}" style="font-size: 11px;">◎ {{memLabel}}</button>
+                <button type="button" class="chip" onClick="{{goConnectors}}" style="font-size: 11px;">⌁ {{connCount}} connectors</button>
+                <button type="button" class="chip" aria-pressed="{{chatWebOn}}" onClick="{{toggleChatWeb}}" style="font-size: 11px;">🌐 Web {{chatWebLabel}}</button>
+                <span style="flex: 1 1 auto;"></span>
+                <sc-if value="{{streaming}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-d" onClick="{{stop}}" style="height: 32px;">■ Stop</button></sc-if>
+                <sc-if value="{{notStreaming}}" hint-placeholder-val="{{ true }}"><button type="button" class="btn btn-p" onClick="{{send}}" aria-label="Send" style="width: 32px; padding: 0; justify-content: center;">↑</button></sc-if>
+              </div>
+            </div>
+            <sc-if value="{{showModelChat}}" hint-placeholder-val="{{ false }}">
+              <div class="menu rise" role="listbox" aria-label="Agent and model" style="left: 70px; bottom: 100%; width: 320px;">
+                <span class="lbl" style="padding: 4px 8px;">Agent</span>
+                <sc-for list="{{agentList}}" as="a" hint-placeholder-count="2"><button type="button" class="navrow" role="option" aria-current="{{a.cur}}" onClick="{{a.pick}}" style="font-size: 12.5px;">◆ {{a.name}}<span class="muted mono" style="margin-left: auto; font-size: 10.5px;">{{a.via}}</span></button></sc-for>
+                <span class="lbl" style="padding: 8px 8px 4px;">Model</span>
+                <sc-for list="{{modelList}}" as="m" hint-placeholder-count="4"><button type="button" class="navrow mono" role="option" aria-current="{{m.cur}}" onClick="{{m.pick}}" style="font-size: 12px;">{{m.id}}</button></sc-for>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{vArtifacts}}" hint-placeholder-val="{{ false }}">
+        <div style="flex: 1 1 auto; min-width: 0; overflow-y: auto; padding: 26px 30px; display: flex; flex-direction: column; gap: 16px;">
+          <div style="display: flex; align-items: center; gap: 12px;"><h1 class="disp" style="margin: 0; font-size: 30px;">Artifacts</h1><span class="muted" style="font-size: 13px;">{{artCount}} in {{wsName}}</span><span style="flex: 1 1 auto;"></span><button type="button" class="btn btn-p" onClick="{{newArtifact}}">+ New artifact</button></div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;"><sc-for list="{{artFilters}}" as="f" hint-placeholder-count="6"><button type="button" class="chip" aria-pressed="{{f.on}}" onClick="{{f.pick}}">{{f.label}}</button></sc-for></div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;"><span class="muted" style="font-size: 12px;">Project</span><sc-for list="{{artScopes}}" as="f" hint-placeholder-count="4"><button type="button" class="chip" aria-pressed="{{f.on}}" onClick="{{f.pick}}" style="font-size: 12px;">{{f.label}}</button></sc-for></div>
+          <span class="muted" style="font-size: 12px;">Every artifact belongs to the project of the chat it came from, so it also shows under that project — or sub-project — in the sidebar. Moving the chat moves its artifacts.</span>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;">
+            <sc-for list="{{artList}}" as="a" hint-placeholder-count="3">
+              <button type="button" class="tile rise" onClick="{{a.open}}" style="padding: 0; overflow: hidden;">
+                <span style="display: block; height: 110px; background: var(--bg2); position: relative; width: 100%;"><span class="mono" style="position: absolute; left: 12px; top: 12px; font-size: 10.5px; padding: 3px 6px; border-radius: 4px; background: var(--bg0); color: var(--accent-p-text);">{{a.type}}</span><span class="disp" style="position: absolute; left: 12px; bottom: 10px; font-size: 20px;">{{a.title}}</span></span>
+                <span style="display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; font-size: 12px; text-align: left;"><span style="display: flex; justify-content: space-between; gap: 8px;"><span style="color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{a.proj}}</span><span class="muted">v{{a.version}}</span></span><span class="muted" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{a.from}}</span></span>
+              </button>
+            </sc-for>
+          </div>
+          <sc-if value="{{artEmpty}}" hint-placeholder-val="{{ false }}"><div class="card" style="padding: 30px; text-align: center; color: var(--muted);">No artifacts yet. Ask for a doc, deck or prototype in any chat, or start one here.</div></sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{vProject}}" hint-placeholder-val="{{ false }}">
+        <div style="flex: 1 1 auto; min-width: 0; overflow-y: auto; padding: 24px 32px; display: flex; flex-direction: column; gap: 16px;">
+          <div class="rise" style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+            <span style="width: 44px; height: 44px; border-radius: 10px; background: var(--bg2); display: flex; align-items: center; justify-content: center; color: var(--ws-accent-text); font-size: 20px;">▤</span>
+            <span style="flex: 1 1 260px; display: flex; flex-direction: column;">
+              <sc-if value="{{proj.hasParent}}" hint-placeholder-val="{{ false }}"><button type="button" class="link" onClick="{{proj.goParent}}" style="font-size: 12px; text-align: left;">↑ Sub-project of {{proj.parentName}}</button></sc-if>
+              <h1 class="disp" style="margin: 0; font-size: 30px;">{{proj.name}}</h1>
+              <span class="mono muted" style="font-size: 12px;">{{proj.folder}} · {{proj.stats}}</span>
+            </span>
+            <button type="button" class="btn" onClick="{{proj.addSub}}">+ Sub-project</button>
+            <button type="button" class="btn btn-p" onClick="{{proj.newChat}}">+ New chat here</button>
+          </div>
+          <div role="tablist" style="display: flex; gap: 4px; border-bottom: 1px solid var(--bg2);">
+            <sc-for list="{{projTabs}}" as="b" hint-placeholder-count="6"><button type="button" role="tab" aria-selected="{{b.sel}}" class="tab" onClick="{{b.pick}}">{{b.label}}</button></sc-for>
+          </div>
+          <sc-if value="{{pt.chats}}" hint-placeholder-val="{{ true }}">
+            <div class="rise" style="display: flex; flex-direction: column; gap: 14px;">
+              <sc-if value="{{proj.hasSubs}}" hint-placeholder-val="{{ false }}"><div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;"><sc-for list="{{proj.subs}}" as="s" hint-placeholder-count="2"><button type="button" class="tile" onClick="{{s.open}}"><b>▤ {{s.name}}</b><span class="muted" style="font-size: 12px;">{{s.meta}}</span></button></sc-for></div></sc-if>
+              <sc-for list="{{proj.chats}}" as="c" hint-placeholder-count="3"><button type="button" class="tile" onClick="{{c.open}}" style="flex-direction: row; justify-content: space-between;"><span style="display: flex; flex-direction: column; text-align: left;"><b style="font-size: 13px;">{{c.title}}</b><span class="muted" style="font-size: 12px;">{{c.where}}</span></span><span class="muted" style="font-size: 12px;">{{c.n}} messages</span></button></sc-for>
+              <sc-if value="{{proj.noChats}}" hint-placeholder-val="{{ false }}"><span class="muted">No chats here yet.</span></sc-if>
+            </div>
+          </sc-if>
+          <sc-if value="{{pt.arts}}" hint-placeholder-val="{{ false }}">
+            <div class="rise" style="display: flex; flex-direction: column; gap: 10px;">
+              <span class="muted" style="font-size: 13px;">Artifacts made in this project’s chats and in its sub-projects. Each one stays with the chat it came from.</span>
+              <sc-for list="{{projArts}}" as="a" hint-placeholder-count="3"><button type="button" class="tile" onClick="{{a.open}}" style="flex-direction: row; align-items: center; gap: 12px;"><span style="font-size: 18px; color: var(--accent-p-text); width: 22px; text-align: center;">{{a.icon}}</span><span style="flex: 1 1 auto; display: flex; flex-direction: column; text-align: left;"><b style="font-size: 13px;">{{a.title}}</b><span class="muted" style="font-size: 12px;">{{a.where}} · {{a.from}}</span></span><span class="mono muted" style="font-size: 11px;">{{a.type}}</span></button></sc-for>
+              <sc-if value="{{projArtsEmpty}}" hint-placeholder-val="{{ false }}"><span class="muted">No artifacts here yet. Ask for a doc, deck, prototype or sheet in one of this project’s chats.</span></sc-if>
+            </div>
+          </sc-if>
+          <sc-if value="{{pt.instr}}" hint-placeholder-val="{{ false }}">
+            <div class="rise" style="display: flex; flex-direction: column; gap: 10px;">
+              <span class="muted" style="font-size: 13px;">Instructions inherit down the tree; the narrowest layer wins.</span>
+              <sc-for list="{{proj.layers}}" as="l" hint-placeholder-count="3"><button type="button" class="tile" onClick="{{l.open}}" style="margin-left: {{l.indent}};"><span style="display: flex; justify-content: space-between; width: 100%;"><b style="font-size: 13px;">{{l.name}}</b><span class="mono muted" style="font-size: 11px;">{{l.file}}</span></span><span style="font-size: 12px; color: var(--text2); white-space: pre-line; text-align: left;">{{l.text}}</span></button></sc-for>
+              <label style="display: flex; flex-direction: column; gap: 6px; margin-left: {{proj.thisIndent}};"><span style="display: flex; justify-content: space-between;"><b style="font-size: 13px;">{{proj.name}} · this project</b><span class="mono muted" style="font-size: 11px;">{{proj.folder}}/AGENTS.md</span></span>
+                <textarea class="inp mono" rows="8" onChange="{{onInstr}}" style="height: auto; padding: 10px 12px; font-size: 12px; line-height: 1.6;" value="{{instrDraft}}"></textarea></label>
+              <span style="display: flex; gap: 8px; margin-left: {{proj.thisIndent}};"><button type="button" class="btn btn-p" onClick="{{saveInstr}}">Save AGENTS.md</button><button type="button" class="btn" onClick="{{resetInstr}}">Revert</button></span>
+            </div>
+          </sc-if>
+          <sc-if value="{{pt.mem}}" hint-placeholder-val="{{ false }}">
+            <div class="rise" style="display: flex; flex-direction: column; gap: 10px;">
+              <span style="display: flex; align-items: center; gap: 10px;"><span class="muted" style="font-size: 13px;">Backend: {{memLabel}}</span><button type="button" class="link" onClick="{{goMemory}}" style="font-size: 12px;">Open memory</button></span>
+              <sc-for list="{{proj.facts}}" as="f" hint-placeholder-count="3"><div class="card" style="display: flex; align-items: center; gap: 10px; padding: 9px 12px; font-size: 13px;"><span style="flex: 1 1 auto;">{{f.text}}</span><span class="mono muted" style="font-size: 11px;">{{f.scope}}</span><button type="button" class="btn" onClick="{{f.remove}}" style="height: 26px;" aria-label="Forget">Forget</button></div></sc-for>
+              <sc-if value="{{proj.noFacts}}" hint-placeholder-val="{{ false }}"><span class="muted">No facts saved for this project yet.</span></sc-if>
+              <span style="display: flex; gap: 8px;"><input class="inp" type="text" value="{{factDraft}}" onChange="{{onFactDraft}}" placeholder="Add a fact for this project" style="flex: 1 1 auto;" aria-label="New fact"><button type="button" class="btn btn-p" onClick="{{addFact}}">Save fact</button></span>
+            </div>
+          </sc-if>
+          <sc-if value="{{pt.files}}" hint-placeholder-val="{{ false }}">
+            <div class="rise" style="display: flex; flex-direction: column; gap: 2px;">
+              <sc-for list="{{proj.files}}" as="f" hint-placeholder-count="6"><button type="button" class="navrow mono" aria-current="{{f.cur}}" onClick="{{f.pick}}" style="padding-left: {{f.pad}}; font-size: 12.5px;"><span style="color: {{f.color}};">{{f.glyph}}</span> {{f.name}}<span style="margin-left: auto; font-family: var(--font-ui); font-size: 11px; color: var(--accent-p-text);">{{f.tag}}</span></button></sc-for>
+              <span class="muted" style="font-size: 12px; padding-top: 6px;">{{fileNote}}</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{pt.loops}}" hint-placeholder-val="{{ false }}">
+            <div class="rise" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+              <button type="button" class="tile" onClick="{{goGraph}}"><b>Open the graph editor</b><span class="muted" style="font-size: 12px;">Build a loop for {{proj.name}} from blocks</span></button>
+              <button type="button" class="tile" onClick="{{goRoutines}}"><b>Schedule something</b><span class="muted" style="font-size: 12px;">Run a prompt or graph on a schedule</span></button>
+            </div>
+          </sc-if>
+          <sc-if value="{{pt.set}}" hint-placeholder-val="{{ false }}">
+            <div class="rise" style="display: flex; flex-direction: column; gap: 12px; max-width: 620px;">
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500;">Name<span style="display: flex; gap: 8px;"><input class="inp" type="text" value="{{projNameDraft}}" onChange="{{onProjName}}" style="flex: 1 1 auto;"><button type="button" class="btn" onClick="{{saveProjName}}">Rename</button></span></label>
+              <span style="font-size: 13px; font-weight: 500;">Parent project</span>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;"><sc-for list="{{parentOpts}}" as="p" hint-placeholder-count="4"><button type="button" class="chip" aria-pressed="{{p.on}}" onClick="{{p.pick}}" disabled="{{p.dis}}">{{p.label}}</button></sc-for></div>
+              <span style="font-size: 13px; font-weight: 500;">Default model</span>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;"><sc-for list="{{projModels}}" as="m" hint-placeholder-count="3"><button type="button" class="chip mono" aria-pressed="{{m.on}}" onClick="{{m.pick}}" style="font-size: 11px;">{{m.id}}</button></sc-for></div>
+              <label style="display: flex; align-items: center; justify-content: space-between; font-size: 13px;">Inherit parent instructions<button type="button" class="sw" role="switch" aria-checked="{{proj.inherit}}" onClick="{{toggleInherit}}" aria-label="Inherit"><span></span></button></label>
+              <span style="display: flex; gap: 8px; padding-top: 8px; border-top: 1px solid var(--bg3);"><button type="button" class="btn btn-d" onClick="{{askArchive}}" disabled="{{proj.isGeneral}}">Archive project…</button><span class="muted" style="font-size: 12px; align-self: center;">{{proj.archiveNote}}</span></span>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{vSettings}}" hint-placeholder-val="{{ false }}">
+        <div style="flex: 1 1 auto; min-width: 0; display: flex;">
+          <div style="flex: 0 0 220px; padding: 16px 10px; border-right: 1px solid var(--bg2); display: flex; flex-direction: column; gap: 1px; overflow-y: auto;">
+            <sc-for list="{{setNav}}" as="i" hint-placeholder-count="10"><button type="button" class="navrow" aria-current="{{i.cur}}" onClick="{{i.pick}}">{{i.label}}<span class="muted" style="margin-left: auto; font-size: 11px;">{{i.badge}}</span></button></sc-for>
+          </div>
+          <div style="flex: 1 1 auto; min-width: 0; overflow-y: auto; padding: 26px 34px;">
+            <div class="rise" style="max-width: 820px; display: flex; flex-direction: column; gap: 18px;">
+              <div><h1 class="disp" style="margin: 0; font-size: 30px;">{{sp.title}}</h1><span class="muted">{{sp.lead}}</span></div>
+              <sc-if value="{{sp.locked}}" hint-placeholder-val="{{ false }}"><div class="card" style="padding: 10px 14px; border-color: var(--accent-o); font-size: 13px;">🔒 Parts of this page are set by your organization’s policy.</div></sc-if>
+              <sc-for list="{{sp.rows}}" as="r" hint-placeholder-count="5">
+                <div class="card" style="display: flex; align-items: center; gap: 14px; padding: 12px 16px;">
+                  <span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;"><span style="font-size: 13px; font-weight: 500;">{{r.label}}</span><span class="muted" style="font-size: 12px;">{{r.note}}</span></span>
+                  <sc-if value="{{r.isToggle}}" hint-placeholder-val="{{ false }}"><button type="button" class="sw" role="switch" aria-checked="{{r.on}}" aria-label="{{r.label}}" onClick="{{r.act}}" disabled="{{r.dis}}"><span></span></button></sc-if>
+                  <sc-if value="{{r.isChoice}}" hint-placeholder-val="{{ false }}"><span style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;"><sc-for list="{{r.choices}}" as="c" hint-placeholder-count="3"><button type="button" class="chip" aria-pressed="{{c.on}}" onClick="{{c.pick}}" disabled="{{r.dis}}">{{c.label}}</button></sc-for></span></sc-if>
+                  <sc-if value="{{r.isButton}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn {{r.cls}}" onClick="{{r.act}}" disabled="{{r.dis}}">{{r.btn}}</button></sc-if>
+                  <sc-if value="{{r.isInput}}" hint-placeholder-val="{{ false }}"><span style="display: flex; gap: 6px;"><input class="inp" type="text" value="{{r.value}}" onChange="{{r.onInput}}" disabled="{{r.dis}}" style="width: 260px;" aria-label="{{r.label}}"><button type="button" class="btn" onClick="{{r.act}}" disabled="{{r.dis}}">{{r.btn}}</button></span></sc-if>
+                  <sc-if value="{{r.isText}}" hint-placeholder-val="{{ true }}"><span class="mono" style="font-size: 12px; color: var(--text2);">{{r.value}}</span></sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <div style="flex: 1 1 auto; min-width: 0; display: {{dGraph}};"><dc-import name="GraphEditor" embedded="{{yes}}" theme="{{theme}}" on-nav="{{nav}}" hint-size="100%,100%"></dc-import></div>
+      <div style="flex: 1 1 auto; min-width: 0; display: {{dRoutines}};"><dc-import name="Routines" embedded="{{yes}}" theme="{{theme}}" on-nav="{{nav}}" on-toast="{{toastFn}}" hint-size="100%,100%"></dc-import></div>
+      <div style="flex: 1 1 auto; min-width: 0; display: {{dComputers}};"><dc-import name="Computers" embedded="{{yes}}" theme="{{theme}}" on-toast="{{toastFn}}" hint-size="100%,100%"></dc-import></div>
+      <div style="flex: 1 1 auto; min-width: 0; display: {{dMemory}};"><dc-import name="Memory" embedded="{{yes}}" theme="{{theme}}" ws="{{memWs}}" on-toast="{{toastFn}}" hint-size="100%,100%"></dc-import></div>
+      <sc-if value="{{vBrief}}" hint-placeholder-val="{{ false }}"><div style="flex: 1 1 auto; min-width: 0; overflow: auto;"><dc-import name="CreateBrief" embedded="{{yes}}" theme="{{theme}}" project="{{curProjName}}" on-generate="{{goGenerate}}" on-cancel="{{goArtifacts}}" hint-size="100%,100%"></dc-import></div></sc-if>
+      <sc-if value="{{vGenerate}}" hint-placeholder-val="{{ false }}"><div style="flex: 1 1 auto; min-width: 0; overflow: auto;"><dc-import name="Generate" embedded="{{yes}}" theme="{{theme}}" project="{{curProjName}}" on-save="{{saveGenerated}}" on-handoff="{{handoff}}" hint-size="100%,100%"></dc-import></div></sc-if>
+
+      <sc-if value="{{artOpen}}" hint-placeholder-val="{{ false }}">
+        <section aria-label="Artifact" class="rise" style="flex: 0 0 520px; display: flex; flex-direction: column; background: var(--bg1); border-left: 1px solid var(--bg2); min-height: 0; position: relative;">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--bg2);">
+            <span class="mono" style="font-size: 10.5px; padding: 2px 6px; border-radius: 4px; background: var(--bg3); color: var(--accent-p-text);">{{art.type}}</span>
+            <span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;"><b style="font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{art.title}}</b><span style="display: flex; gap: 6px; font-size: 11px; white-space: nowrap; overflow: hidden;"><button type="button" class="link" onClick="{{art.goProj}}" style="font-size: 11px;">▤ {{art.projPath}}</button><sc-if value="{{art.hasChat}}" hint-placeholder-val="{{ true }}"><button type="button" class="link" onClick="{{art.goChat}}" style="font-size: 11px; color: var(--muted);">· from 💬 {{art.chatTitle}}</button></sc-if></span></span>
+            <button type="button" class="chip mono" onClick="{{cycleVersion}}" style="font-size: 11px;">v{{art.viewV}} of {{art.version}}</button>
+            <button type="button" class="btn" onClick="{{shareArt}}" style="height: 28px;">Share</button>
+            <button type="button" class="btn btn-p" onClick="{{toggleExport}}" aria-expanded="{{exportOpen}}" style="height: 28px;">Export ▾</button>
+            <button type="button" class="btn" onClick="{{closeArt}}" aria-label="Close artifact" style="height: 28px; width: 28px; padding: 0; justify-content: center;">✕</button>
+          </div>
+          <sc-if value="{{showExport}}" hint-placeholder-val="{{ false }}">
+            <div class="menu rise" style="right: 48px; top: 46px; width: 220px;"><sc-for list="{{exportList}}" as="e" hint-placeholder-count="4"><button type="button" class="navrow" onClick="{{e.go}}">{{e.label}}<span class="mono muted" style="margin-left: auto; font-size: 11px;">{{e.ext}}</span></button></sc-for></div>
+          </sc-if>
+          <div style="flex: 1 1 auto; overflow-y: auto; padding: 16px;">
+            <sc-if value="{{art.isDeck}}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="aspect-ratio: 16 / 9; border-radius: 10px; background: var(--bg0); border: 1px solid var(--line); padding: 26px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;" class="rise">
+                  <span class="mono muted" style="font-size: 11px;">{{art.slideNo}}</span>
+                  <span class="disp" style="font-size: 28px; line-height: 1.15; color: var(--text);">{{art.slideTitle}}</span>
+                  <span class="muted" style="font-size: 13px;">{{art.slideSub}}</span>
+                </div>
+                <div style="display: flex; gap: 6px; align-items: center;"><button type="button" class="btn" onClick="{{prevSlide}}" aria-label="Previous slide" style="height: 28px;">←</button>
+                  <sc-for list="{{art.thumbs}}" as="t" hint-placeholder-count="6"><button type="button" aria-label="Slide {{t.n}}" onClick="{{t.pick}}" style="flex: 1 1 0; aspect-ratio: 16 / 9; border-radius: 4px; border: 1px solid {{t.border}}; background: var(--bg0); font-size: 10px; color: var(--muted);">{{t.n}}</button></sc-for>
+                  <button type="button" class="btn" onClick="{{nextSlide}}" aria-label="Next slide" style="height: 28px;">→</button></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{art.isDoc}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13px;">
+                <h2 class="disp" style="margin: 0; font-size: 22px;">{{art.title}}</h2>
+                <sc-for list="{{art.lines}}" as="l" hint-placeholder-count="5"><span style="font-weight: {{l.w}}; color: {{l.c}}; font-size: {{l.s}};">{{l.t}}</span></sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{art.isProto}}" hint-placeholder-val="{{ false }}">
+              <div style="border-radius: 10px; border: 1px solid var(--line); background: var(--bg0); padding: 22px; display: flex; flex-direction: column; gap: 12px;">
+                <span class="mono" style="font-weight: 600; color: var(--accent-p-text);">{{art.brand}}</span>
+                <span class="disp" style="font-size: 26px; line-height: 1.1;">{{art.slideTitle}}</span>
+                <span class="muted" style="font-size: 13px;">{{art.slideSub}}</span>
+                <button type="button" class="btn btn-p" onClick="{{protoClick}}" style="align-self: flex-start;">{{art.cta}}</button>
+                <span class="rise muted" style="font-size: 12px;">{{protoMsg}}</span>
+              </div>
+            </sc-if>
+            <sc-if value="{{art.isSheet}}" hint-placeholder-val="{{ false }}">
+              <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; font-size: 12px;">
+                <sc-for list="{{art.cells}}" as="c" hint-placeholder-count="9"><span style="padding: 7px 10px; border-bottom: 1px solid var(--bg3); background: {{c.bg}}; font-weight: {{c.w}};">{{c.t}}</span></sc-for>
+              </div>
+            </sc-if>
+          </div>
+          <div style="padding: 10px 14px; border-top: 1px solid var(--bg2); display: flex; gap: 8px;">
+            <input class="inp" type="text" value="{{artAsk}}" onChange="{{onArtAsk}}" placeholder="Ask for a change to this artifact" style="flex: 1 1 auto;" aria-label="Change request">
+            <button type="button" class="btn btn-p" onClick="{{reviseArt}}">Apply</button>
+          </div>
+        </section>
+      </sc-if>
+    </main>
+  </div>
+
+  <sc-if value="{{paletteOpen}}" hint-placeholder-val="{{ false }}">
+    <div class="scrim" onClick="{{closePalette}}">
+      <div class="card rise" role="dialog" aria-label="Search and jump" onClick="{{stopProp}}" style="width: 640px; margin-top: 90px; overflow: hidden; background: var(--bg1); box-shadow: 0 24px 60px rgba(0,0,0,0.25);">
+        <input type="search" value="{{palQ}}" onChange="{{onPalQ}}" onKeyDown="{{palKey}}" role="combobox" aria-expanded="true" placeholder="Search workspaces, projects, chats, screens…" aria-label="Search" style="width: 100%; box-sizing: border-box; padding: 16px 18px; border: 0; border-bottom: 1px solid var(--bg2); outline: none; background: transparent; color: var(--text); font: inherit; font-size: 15px;">
+        <div style="max-height: 440px; overflow-y: auto; padding: 6px;">
+          <sc-for list="{{palGroups}}" as="g" hint-placeholder-count="4">
+            <div role="group" aria-label="{{g.name}}" style="display: flex; flex-direction: column;">
+              <span class="lbl" style="padding: 8px 12px 4px;">{{g.name}}</span>
+              <sc-for list="{{g.items}}" as="p" hint-placeholder-count="3"><button type="button" class="navrow" role="option" aria-current="{{p.cur}}" onClick="{{p.go}}" style="padding: 8px 12px;"><span style="flex: 1 1 auto; text-align: left;">{{p.label}}</span><span class="muted" style="font-size: 12px;">{{p.meta}}</span></button></sc-for>
+            </div>
+          </sc-for>
+          <sc-if value="{{palEmpty}}" hint-placeholder-val="{{ false }}"><span class="muted" style="display: block; padding: 14px;">No results for “{{palQ}}”.</span></sc-if>
+        </div>
+        <div class="mono muted" style="display: flex; gap: 14px; padding: 8px 14px; border-top: 1px solid var(--bg2); font-size: 11px;"><span>↑↓ move</span><span>↵ open</span><span>esc close</span><span style="margin-left: auto;">{{palCount}}</span></div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{nwOpen}}" hint-placeholder-val="{{ false }}">
+    <div class="scrim">
+      <div class="card rise" role="dialog" aria-label="New workspace" style="width: 560px; margin-top: 120px; padding: 22px; display: flex; flex-direction: column; gap: 14px; background: var(--bg1);">
+        <h2 class="disp" style="margin: 0; font-size: 24px;">New workspace</h2>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;"><sc-for list="{{nwTypes}}" as="t" hint-placeholder-count="3"><button type="button" class="opt" aria-pressed="{{t.on}}" onClick="{{t.pick}}" style="padding: 10px 12px;"><b style="font-size: 13px;">{{t.label}}</b><span class="muted" style="font-size: 11px;">{{t.note}}</span></button></sc-for></div>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500;">Name<input class="inp" type="text" value="{{nwName}}" onChange="{{onNwName}}"></label>
+        <span class="muted" style="font-size: 12px;">Gets its own opencode server, Open Design daemon, memory and a General project. Nothing is copied from other workspaces.</span>
+        <div style="display: flex; gap: 8px; justify-content: flex-end;"><button type="button" class="btn" onClick="{{closeNewWs}}">Cancel</button><button type="button" class="btn btn-p" onClick="{{createWs}}">{{nwBtn}}</button></div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{cpOpen}}" hint-placeholder-val="{{ false }}">
+    <div class="scrim">
+      <div class="card rise" role="dialog" aria-label="Add custom provider" style="width: 860px; margin-top: 70px; display: flex; overflow: hidden; background: var(--bg1);">
+        <div style="flex: 1 1 auto; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+          <h2 class="disp" style="margin: 0; font-size: 24px;">Add custom provider</h2>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+            <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 500;">Provider ID<input class="inp mono" type="text" value="{{cp.id}}" onChange="{{cpOnId}}"></label>
+            <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 500;">Display name<input class="inp" type="text" value="{{cp.name}}" onChange="{{cpOnName}}"></label>
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;"><span class="muted" style="font-size: 12px;">Start from</span><sc-for list="{{cpPresets}}" as="p" hint-placeholder-count="3"><button type="button" class="chip" onClick="{{p.pick}}" style="font-size: 11px;">{{p.label}}</button></sc-for></div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;"><sc-for list="{{cpPkgs}}" as="p" hint-placeholder-count="3"><button type="button" class="chip mono" aria-pressed="{{p.on}}" onClick="{{p.pick}}" style="font-size: 11px;">{{p.label}}</button></sc-for></div>
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 500;">Base URL<input class="inp mono" type="text" value="{{cp.url}}" onChange="{{cpOnUrl}}"></label>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+            <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 500;">Key from env var<input class="inp mono" type="text" value="{{cp.env}}" onChange="{{cpOnEnv}}"></label>
+            <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 500;">Model id<input class="inp mono" type="text" value="{{cp.model}}" onChange="{{cpOnModel}}"></label>
+          </div>
+          <span class="rise" style="font-size: 13px; color: {{cp.testColor}};">{{cp.testMsg}}</span>
+          <div style="display: flex; gap: 8px; margin-top: auto;"><button type="button" class="btn" onClick="{{cpTest}}">Test connection</button><span style="flex: 1 1 auto;"></span><button type="button" class="btn" onClick="{{cpClose}}">Cancel</button><button type="button" class="btn btn-p" onClick="{{cpSave}}">Save provider</button></div>
+        </div>
+        <div style="flex: 0 0 340px; padding: 20px; background: var(--bg0); border-left: 1px solid var(--bg2); display: flex; flex-direction: column; gap: 8px;">
+          <span class="mono muted" style="font-size: 11px;">{{wsFolder}}/opencode.json</span>
+          <pre class="mono" style="margin: 0; font-size: 11.5px; line-height: 1.65; color: var(--text2); white-space: pre-wrap;">{{cpJson}}</pre>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{confirmOpen}}" hint-placeholder-val="{{ false }}">
+    <div class="scrim">
+      <div class="card rise" role="alertdialog" aria-label="{{confirm.title}}" style="width: 440px; margin-top: 180px; padding: 22px; display: flex; flex-direction: column; gap: 12px; background: var(--bg1);">
+        <h2 class="disp" style="margin: 0; font-size: 22px;">{{confirm.title}}</h2>
+        <span style="font-size: 13px; color: var(--text2);">{{confirm.body}}</span>
+        <div style="display: flex; gap: 8px; justify-content: flex-end;"><button type="button" class="btn" onClick="{{confirmNo}}">Cancel</button><button type="button" class="btn btn-d" onClick="{{confirmYes}}">{{confirm.ok}}</button></div>
+      </div>
+    </div>
+  </sc-if>
+
+  <div aria-live="polite" style="position: absolute; right: 18px; bottom: 18px; display: flex; flex-direction: column; gap: 8px; z-index: 30;">
+    <sc-for list="{{toasts}}" as="t" hint-placeholder-count="1"><div class="card rise" style="padding: 10px 14px; font-size: 13px; background: var(--bg1); box-shadow: 0 10px 30px rgba(0,0,0,0.15); display: flex; gap: 10px; align-items: center;"><span style="color: var(--success-text);">✓</span>{{t.text}}<button type="button" class="link" onClick="{{t.close}}" aria-label="Dismiss" style="margin-left: 8px; color: var(--muted);">✕</button></div></sc-for>
+  </div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["claude","opencode"],"default":"claude"},"start":{"editor":"enum","options":["onboarding","app"],"default":"onboarding"},"$preview":{"width":1440,"height":900}}'>
+let SEQ = 100;
+const uid = (p) => p + '_' + (++SEQ);
+const PRESET = {
+  anthropic: { id: 'anthropic', name: 'Anthropic', note: 'own key in keychain', models: ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'] },
+  openrouter: { id: 'openrouter', name: 'OpenRouter', note: 'own key in keychain', models: ['qwen/qwen3-coder', 'mistralai/mistral-large'] },
+  ollama: { id: 'ollama', name: 'Ollama', note: 'local · this computer', models: ['qwen3-coder', 'llama3.3'] },
+  custom: { id: 'custom', name: 'My endpoint', note: 'openai-compatible', models: ['my-model'] }
+};
+const ACCENTS = [['default', 'Theme default', 'var(--accent-p)'], ['teal', 'Teal', '#5db8a6'], ['amber', 'Amber', '#e8a55a'], ['blue', 'Blue', '#5c9cf5'], ['green', 'Green', '#5db872']];
+const TPLS = {
+  Software: (n) => '# ' + n + '\n- Explain the plan before large edits.\n- Run the tests before calling a change done.\n- Keep commits small and described.',
+  Research: (n) => '# ' + n + '\n- Cite every source you use.\n- Separate what is known from what is guessed.\n- Summaries first, details after.',
+  Writing: (n) => '# ' + n + '\n- Plain words, short sentences.\n- Keep my voice; do not add hype.\n- Ask before cutting whole sections.',
+  Blank: (n) => '# ' + n + '\n'
+};
+const P = (id, name, parent, folder, instr) => ({ id, name, parent, folder, instr: instr || '', inherit: true, model: '' });
+const C = (id, project, title, msgs, sid) => ({ id, project, title, msgs: msgs || [], t: SEQ++, sid: sid || ('ses_' + Math.random().toString(36).slice(2, 8)) });
+const OC_SESS = [{ id: 'ses_7kq2', title: 'Fix STL import scaling', dir: '~/code/castform', n: 14, when: '2 days ago' }, { id: 'ses_7kp9', title: 'Add mold preview shader', dir: '~/code/castform', n: 31, when: 'last week' }, { id: 'ses_7jx1', title: 'Wall thickness solver tests', dir: '~/code/castform/sim', n: 9, when: 'yesterday' }, { id: 'ses_7hm4', title: 'Refactor pour simulation', dir: '~/code/castform/sim', n: 22, when: '3 weeks ago' }, { id: 'ses_7gq8', title: 'Neovim config cleanup', dir: '~/dotfiles', n: 6, when: 'last month' }, { id: 'ses_7fz3', title: 'Release script', dir: '~/dotfiles', n: 4, when: 'last month' }];
+const WEBP = { Tavily: ['tavily-mcp', 'TAVILY_API_KEY'], Brave: ['@brave/brave-search-mcp-server', 'BRAVE_API_KEY'], Firecrawl: ['firecrawl-mcp', 'FIRECRAWL_API_KEY'] };
+function webConfigText(mode, prov, url, fetch, ask) {
+  const perm = '"permission": { "websearch": "' + (mode === 'off' ? 'deny' : (ask ? 'ask' : 'allow')) + '", "webfetch": "' + (fetch ? (ask ? 'ask' : 'allow') : 'deny') + '" }';
+  if (mode === 'exa') return '# env of this workspace\'s opencode serve\nOPENCODE_ENABLE_EXA=true\n\n// opencode.json\n' + perm;
+  if (mode === 'mcp') { const w = WEBP[prov] || WEBP.Tavily; return '// opencode.json\n"mcp": { "' + prov.toLowerCase() + '": { "type": "local", "command": ["npx", "-y", "' + w.at(0) + '"],\n  "environment": { "' + w.at(1) + '": "{env:' + w.at(1) + '}" } } },\n' + perm.replace('websearch', prov.toLowerCase() + '_*'); }
+  if (mode === 'searxng') return '// opencode.json\n"mcp": { "searxng": { "type": "local", "command": ["npx", "-y", "mcp-searxng"],\n  "environment": { "SEARXNG_URL": "' + url + '" } } },\n' + perm.replace('websearch', 'searxng_*');
+  return '// opencode.json\n' + perm;
+}
+const A = (id, project, type, title, version, chat) => ({ id, project, type, title, version: version || 1, chat: chat || null });
+const ART_ICON = { Doc: '▧', Deck: '◧', Prototype: '◫', Sheet: '▦' };
+function mkWs(id, name, kind, init) {
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'workspace';
+  return { id, name, kind, init, slug, projects: [P('gen_' + id, 'General', null, '~/.harness/ws/' + slug + '/general', '')], chats: [], artifacts: [], facts: [], providers: [], connectors: [], members: [], defModel: '', mem: 'both', locked: kind === 'org', toggles: {}, design: 'Claude Warm Editorial', oc: { mode: 'managed', url: '' }, defAgent: 'opencode', agents: kind === 'org' ? [{ id: 'opencode', name: 'opencode', via: 'opencode serve', on: true, builtin: true }] : [{ id: 'opencode', name: 'opencode', via: 'opencode serve', on: true, builtin: true }, { id: 'claude', name: 'Claude Code', via: 'ACP adapter', cmd: '[ADAPTER COMMAND]', on: false }, { id: 'gemini', name: 'Gemini CLI', via: 'ACP', cmd: '[GEMINI ACP COMMAND]', on: false }], web: { mode: kind === 'org' ? 'searxng' : 'exa', prov: 'Tavily', url: kind === 'org' ? 'https://search.[ORG-HOST]' : 'http://localhost:8888', fetch: true, ask: false, locked: kind === 'org' } };
+}
+function demoPersonal(name) {
+  const w = mkWs('p', name || 'Personal', 'personal', 'P');
+  w.projects.push(P('cf', 'Castform', null, '~/code/castform', '# Castform\n- Units are millimetres everywhere.\n- Run pnpm test before calling a change done.'));
+  w.projects.push(P('sim', 'Simulation engine', 'cf', '~/code/castform/sim', '# Simulation engine\n- Keep /sim free of UI imports.\n- Seed any randomness.'));
+  w.projects.push(P('solver', 'Solver', 'sim', '~/code/castform/sim/solver', ''));
+  w.projects.push(P('mkt', 'Marketing site', 'cf', '~/code/castform/site', ''));
+  w.projects.push(P('eq', 'Equivaleat', null, '~/code/equivaleat', '# Equivaleat\n- Never give medical advice.'));
+  w.chats.push(C('c1', 'cf', 'Castform teaser deck', [{ role: 'user', text: 'Turn the Castform notes into a 6-slide teaser deck.' }, { role: 'bot', text: 'Built the deck from your notes. Roadmap dates are placeholders for you to fill in.', tools: ['read castform-notes.md', 'memory · 3 facts', 'open design · deck created'], art: 'a1' }]));
+  w.chats.push(C('c2', 'sim', 'Mold wall-thickness math', [{ role: 'user', text: 'What is the minimum wall for a 120 mm mold?' }, { role: 'bot', text: 'For Mold Star 30 at that size, 8 mm is a safe floor; thinner walls flex when you pour. I wrote the working into a short doc.', tools: ['memory · default wall 8 mm', 'open design · doc created'], art: 'a4' }]));
+  w.chats.push(C('c3', 'gen_p', 'Weekend trip budget', [{ role: 'user', text: 'Make a budget sheet for a weekend in Girona.' }, { role: 'bot', text: 'Here is a starting sheet with placeholders for prices.', tools: ['open design · sheet created'], art: 'a3' }]));
+  w.artifacts.push(A('a1', 'cf', 'Deck', 'Castform — teaser', 2, 'c1'), A('a2', 'eq', 'Doc', 'Equivaleat onboarding copy', 1), A('a3', 'gen_p', 'Sheet', 'Weekend trip budget', 1, 'c3'), A('a4', 'sim', 'Doc', 'Wall thickness by mold size', 1, 'c2'));
+  w.facts.push({ id: 'f1', text: 'Default mold wall is 8 mm for FDM masters.', scope: 'sim' }, { id: 'f2', text: 'Investor deck stays under 6 slides.', scope: 'cf' }, { id: 'f3', text: 'Prefers short, direct answers.', scope: 'ws' });
+  w.providers.push(Object.assign({ default: true }, PRESET.anthropic), Object.assign({}, PRESET.ollama));
+  w.defModel = 'anthropic/claude-opus-5-5';
+  w.connectors.push({ id: 'gmail', name: 'Gmail', kind: 'connector', on: true }, { id: 'drive', name: 'Google Drive', kind: 'connector', on: true }, { id: 'hf', name: 'Hugging Face', kind: 'MCP · http', on: true }, { id: 'blender', name: 'Blender', kind: 'MCP · stdio · this computer', on: false }, { id: 'pw', name: 'Playwright (browser)', kind: 'MCP · stdio · npx @playwright/mcp', on: true });
+  w.agents = w.agents.map((a) => (a.id === 'claude' ? Object.assign({}, a, { on: true }) : a));
+  return w;
+}
+function demoOrg() {
+  const w = mkWs('o', 'BSC AI Factory', 'org', 'AF');
+  w.projects.push(P('caim', 'CAIM', null, '~/work/caim', '# CAIM\n- Never print secrets from realm exports.'));
+  w.projects.push(P('fed', 'Federation', 'caim', '~/work/caim/federation', ''));
+  w.projects.push(P('realm', 'Realm ops', 'caim', '~/work/caim/realm-ops', ''));
+  w.projects.push(P('dp', 'Data Portal + ORVM', null, '~/work/data-portal', ''));
+  w.chats.push(C('oc1', 'caim', 'IdP onboarding runbook', [{ role: 'user', text: 'Draft the runbook for onboarding a new IdP through MyAccessID into CAIM.' }, { role: 'bot', text: 'Here is the runbook. Two attribute mappers differ between staging and prod; flagged in section 3.', tools: ['keycloak-admin · get_realm_mappers', 'memory · org · 5 facts', 'open design · doc v3'], art: 'oa1' }]));
+  w.artifacts.push(A('oa1', 'caim', 'Doc', 'MyAccessID IdP onboarding', 3, 'oc1'));
+  w.providers.push({ id: 'ai-factory', name: 'AI Factory gateway', note: 'LiteLLM proxy (MIT edition) · org-run · routes to on-prem inference', models: ['llama-4-maverick', 'qwen3-coder'], default: true, locked: true }, { id: 'azure', name: 'Azure OpenAI', note: 'west europe · org-managed', models: ['[DEPLOYMENT]'], locked: true });
+  w.defModel = 'ai-factory/llama-4-maverick';
+  w.connectors.push({ id: 'kc', name: 'Keycloak admin (CAIM)', kind: 'MCP · http', on: true, locked: true }, { id: 'gl', name: 'GitLab', kind: 'MCP · http', on: true });
+  w.members.push({ name: 'You', role: 'Admin' }, { name: '[Member]', role: 'Member' }, { name: '[Member]', role: 'Viewer' });
+  return w;
+}
+const DECK = [['Castform', 'See the mold before you pour it.'], ['Pouring blind is expensive', 'Failed molds waste silicone and days.'], ['Simulate the wall', 'Load an STL, pick a mold, see thin spots.'], ['Live demo', '[DEMO VIDEO]'], ['Roadmap', '[DATES TO CONFIRM]'], ['The ask', '[AMOUNT] to reach the public beta']];
+function replyFor(text, mode, proj, ws, artOpen, web) {
+  const t = text.toLowerCase();
+  let type = null;
+  if (mode === 'deck' || /deck|slides|presentation|pitch/.test(t)) type = 'Deck';
+  else if (mode === 'doc' || /\bdoc\b|document|report|runbook|brief|memo|plan/.test(t)) type = 'Doc';
+  else if (mode === 'proto' || /landing|prototype|screen|page|mockup/.test(t)) type = 'Prototype';
+  else if (/sheet|budget|table|tracker/.test(t)) type = 'Sheet';
+  const facts = ws.facts.filter((f) => f.scope === proj.id || f.scope === 'ws').length;
+  const tools = ['memory · ' + facts + ' facts for ' + proj.name, 'opencode · session in ' + proj.folder];
+  const wantsWeb = mode === 'research' || /research|find|search|latest|news|current/.test(t);
+  if (wantsWeb && web) tools.unshift({ exa: 'websearch · Exa · 8 results', mcp: (ws.web.prov || 'Tavily').toLowerCase() + '_search · 8 results', searxng: 'searxng_search · 8 results' }[ws.web.mode] || 'websearch · 8 results', 'webfetch · 3 pages read');
+  if (wantsWeb && !web) return { tools, text: 'Web search is off for this chat, so this answer uses only ' + proj.name + '’s files and memory. Turn on 🌐 Web below the message box to let me look it up.' };
+  if (artOpen) return { tools: tools.concat(['open design · new version']), text: 'Done — I applied that change and saved a new version.', revise: true };
+  if (type) {
+    tools.push('open design · ' + type.toLowerCase() + ' created');
+    const title = text.replace(/^(make|create|draft|write|build)\s+(me\s+)?(a|an|the)?\s*/i, '').slice(0, 48) || (type + ' for ' + proj.name);
+    return { tools, type, title: title.charAt(0).toUpperCase() + title.slice(1), text: 'Here is a first version of the ' + type.toLowerCase() + '. It follows ' + proj.name + '’s instructions and the ' + ws.design + ' design system. Placeholders are marked in brackets.' };
+  }
+  return { tools, text: 'Here is my take on “' + text.slice(0, 80) + '”.\n\nI started from ' + proj.name + '’s instructions and ' + facts + ' saved facts. Tell me if you want this turned into a doc, a deck or a loop.' };
+}
+class Component extends DCLogic {
+  componentDidMount() { this.ocTimer = setTimeout(() => this.setState({ ocState: 'found' }), 1400); }
+  componentWillUnmount() { [this.ocTimer, this.odTimer, this.ocConnTimer, this.webTimer, this.streamTimer, this.testTimer, this.engTimer].forEach((t) => { clearTimeout(t); clearInterval(t); }); (this.toastTimers || []).forEach((t) => clearTimeout(t)); }
+  S() { return this.state || {}; }
+  ws() { const s = this.S(); return (s.wss || []).find((w) => w.id === s.wsId) || (s.wss || [])[0]; }
+  upd(fn) { this.setState((prev) => ({ wss: ((prev && prev.wss) || []).map((w) => (w.id === prev.wsId ? fn(Object.assign({}, w)) || w : w)) })); }
+  toast(text) {
+    const id = uid('t');
+    this.setState((prev) => ({ toasts: ((prev && prev.toasts) || []).concat([{ id, text }]).slice(-3) }));
+    this.toastTimers = (this.toastTimers || []).concat([setTimeout(() => this.setState({ toasts: (this.S().toasts || []).filter((x) => x.id !== id) }), 2800)]);
+    this.audit(text);
+  }
+  audit(text) { const d = new Date(); const hh = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); this.setState((prev) => ({ events: [{ when: hh, text }].concat((prev && prev.events) || []).slice(0, 30) })); }
+  go(view, extra) { this.setState(Object.assign({ view, palOpen: false, picker: false, modelOpen: false, chatMenu: false }, extra || {})); }
+  path(ws, pid) { const out = []; let p = ws.projects.find((x) => x.id === pid); let g = 0; while (p && g < 10) { out.unshift(p); p = ws.projects.find((x) => x.id === p.parent); g++; } return out; }
+  pathName(ws, pid) { return this.path(ws, pid).map((p) => p.name).join(' › '); }
+  models(ws) { const out = []; ws.providers.forEach((p) => p.models.forEach((m) => out.push(p.id + '/' + m))); return out; }
+  finishOnb(demo) {
+    const s = this.S();
+    let personal;
+    if (demo) personal = demoPersonal('Personal');
+    else {
+      const wsN = (s.wsDraft == null ? 'Personal' : s.wsDraft).trim() || 'Personal'; const pN = (s.projDraft == null ? 'Castform' : s.projDraft).trim() || 'My project'; const pF = s.projFolder == null ? '~/code/castform' : s.projFolder; personal = mkWs('p', wsN, 'personal', wsN.charAt(0).toUpperCase());
+      const hasOc0 = (s.ocMode || 'managed') === 'remote' ? s.ocConn === 'ok' : s.ocState === 'found';
+      const provK = s.prov || (hasOc0 ? 'existing' : 'anthropic');
+      if (provK === 'existing') { personal.providers.push(Object.assign({ default: true }, PRESET.anthropic, { note: 'from your opencode.json' }), Object.assign({}, PRESET.ollama, { note: 'from your opencode.json' })); }
+      const pv = provK === 'existing' ? personal.providers[0] : Object.assign({ default: true }, PRESET[provK]);
+      if (provK === 'existing') { /* already added */ } else if (provK === 'custom') { pv.models = [s.modelDraft || 'my-model']; }
+      if (provK === 'ollama') { pv.models = Object.keys(s.ollamaSel || { 'qwen3-coder': true }).filter((k) => (s.ollamaSel || { 'qwen3-coder': true })[k]); if (!pv.models.length) pv.models = ['qwen3-coder']; }
+      if (provK !== 'existing') personal.providers.push(pv);
+      personal.defModel = pv.id + '/' + pv.models[0];
+      personal.mem = s.mem || 'both';
+      const pid = uid('proj');
+      personal.projects.push(P(pid, pN, null, pF, s.agentsDraft != null ? s.agentsDraft : TPLS[s.tpl || 'Software'](pN)));
+      personal.chats.push(C(uid('c'), 'gen_p', 'Welcome to harness', [{ role: 'bot', text: 'Hi! Every chat lives in a project — this one is in General. Try: “make a 5-slide deck about ' + pN + '”, or open the + next to a project to add a sub-project.', tools: ['setup complete'] }]));
+    }
+    if (!demo) {
+      const hasOc = (s.ocMode || 'managed') === 'remote' ? s.ocConn === 'ok' : s.ocState === 'found';
+      const pick = hasOc ? OC_SESS.filter((x) => !(s.dirOff || {})[x.dir] && !(s.sessOff || {})[x.id]) : [];
+      const dirs = Array.from(new Set(pick.map((x) => x.dir))).sort((a, b) => a.length - b.length);
+      const byDir = {}; const userP = personal.projects.at(-1); byDir[userP.folder] = userP.id;
+      dirs.forEach((d) => {
+        if (byDir[d]) return;
+        const parentDir = Object.keys(byDir).filter((k) => d.indexOf(k + '/') === 0).sort((a, b) => b.length - a.length).at(0);
+        const seg = d.split('/').at(-1); const id = uid('proj');
+        personal.projects.push(P(id, seg.charAt(0).toUpperCase() + seg.slice(1), parentDir ? byDir[parentDir] : null, d, ''));
+        byDir[d] = id;
+      });
+      pick.forEach((x) => { const c = C(uid('c'), byDir[x.dir], x.title, [{ role: 'user', text: x.title }, { role: 'bot', text: 'Imported from opencode with its full history (' + x.n + ' messages). Carry on here or in the TUI — both write to the same session.', tools: ['opencode · session ' + x.id + ' · ' + x.dir] }], x.id); c.imported = true; personal.chats.push(c); });
+      personal.oc = { mode: s.ocMode || 'managed', url: (s.ocMode || 'managed') === 'remote' ? (s.ocUrl || 'http://127.0.0.1:4096') : '', sync: s.sessSync !== false };
+      personal.web = { mode: s.webMode || 'exa', prov: s.webProv || 'Tavily', url: s.searxUrl || 'http://localhost:8888', fetch: s.webFetch !== false, ask: !!s.webAsk, locked: false };
+    }
+    const wss = [personal];
+    if (demo) wss.push(demoOrg());
+    this.setState({ phase: 'app', wss, wsId: 'p', view: 'home', projId: demo ? 'cf' : (personal.projects[1] || personal.projects[0]).id, open: { cf: true, sim: true, caim: true } });
+    setTimeout(() => this.toast(demo ? 'Demo data loaded' : 'Setup done — welcome to harness'), 50);
+  }
+  startStream(chatId, text, mode) {
+    const s = this.S(); const ws = this.ws();
+    const chat = ws.chats.find((c) => c.id === chatId);
+    const proj = ws.projects.find((p) => p.id === chat.project) || ws.projects[0];
+    const r = replyFor(text, mode, proj, ws, !!s.artId, chat.web == null ? ws.web.mode !== 'off' : chat.web);
+    const ag = (ws.agents || []).find((a) => a.id === (chat.agent || ws.defAgent || 'opencode'));
+    if (ag && ag.id !== 'opencode') r.tools = r.tools.map((t) => (t.indexOf('opencode · session') === 0 ? 'acp · ' + ag.name + ' · session/prompt in ' + proj.folder : t));
+    clearInterval(this.streamTimer);
+    this.setState({ stream: { chatId, r, tools: 0, shown: 0 }, draft: '' });
+    let tick = 0;
+    this.streamTimer = setInterval(() => {
+      const st = this.S().stream;
+      if (!st) { clearInterval(this.streamTimer); return; }
+      tick++;
+      if (st.tools < st.r.tools.length) { if (tick % 8 === 0) this.setState({ stream: Object.assign({}, st, { tools: st.tools + 1 }) }); return; }
+      if (st.shown < st.r.text.length) { this.setState({ stream: Object.assign({}, st, { shown: Math.min(st.r.text.length, st.shown + 6) }) }); return; }
+      this.finishStream(false);
+    }, 35);
+  }
+  finishStream(stopped) {
+    clearInterval(this.streamTimer);
+    const st = this.S().stream; if (!st) return;
+    const r = st.r;
+    let artId = null; const s = this.S();
+    this.upd((w) => {
+      w.chats = w.chats.map((c) => (c.id === st.chatId ? Object.assign({}, c, { t: SEQ++, msgs: c.msgs.concat([{ role: 'bot', text: stopped ? r.text.slice(0, st.shown) + ' …(stopped)' : r.text, tools: r.tools, art: null }]) }) : c));
+      if (!stopped && r.revise && s.artId) { w.artifacts = w.artifacts.map((a) => (a.id === s.artId ? Object.assign({}, a, { version: a.version + 1 }) : a)); }
+      if (!stopped && r.type) {
+        artId = uid('a');
+        const chat = w.chats.find((c) => c.id === st.chatId);
+        w.artifacts = w.artifacts.concat([A(artId, chat.project, r.type, r.title, 1, chat.id)]);
+        w.chats = w.chats.map((c) => (c.id === st.chatId ? Object.assign({}, c, { msgs: c.msgs.map((m, i) => (i === c.msgs.length - 1 ? Object.assign({}, m, { art: artId }) : m)) }) : c));
+      }
+      return w;
+    });
+    this.setState({ stream: null });
+    if (artId) { this.setState({ artId, artV: 0, slide: 0 }); this.toast(r.type + ' created · ' + r.title); }
+    else if (r.revise && !stopped) this.toast('New version saved');
+  }
+  send() {
+    const s = this.S(); const ws = this.ws();
+    const text = (s.draft || '').trim();
+    if (!text) { this.toast('Type a message first'); return; }
+    if (s.stream) return;
+    if (s.mode === 'loop' && s.view === 'home') { this.go('graph'); this.toast('Opened the graph editor for this loop'); return; }
+    let chatId = s.chatId;
+    if (s.view !== 'chat' || !chatId) {
+      chatId = uid('c');
+      const pid = s.composeProj || s.projId || ws.projects[0].id;
+      this.upd((w) => { const nc = C(chatId, pid, text.slice(0, 44), []); nc.agent = s.homeAgent || w.defAgent || 'opencode'; nc.web = s.homeWeb == null ? w.web.mode !== 'off' : s.homeWeb; w.chats = w.chats.concat([nc]); return w; });
+      this.setState({ chatId, view: 'chat', artId: null });
+    }
+    this.upd((w) => { w.chats = w.chats.map((c) => (c.id === chatId ? Object.assign({}, c, { t: SEQ++, msgs: c.msgs.concat([{ role: 'user', text }]) }) : c)); return w; });
+    setTimeout(() => this.startStream(chatId, text, s.view === 'home' ? (s.mode || 'chat') : 'chat'), 60);
+  }
+  openArtifact(a) { const ws = this.ws(); const from = a.chat && ws.chats.find((c) => c.id === a.chat); if (from) this.go('chat', { chatId: from.id, projId: a.project, artId: a.id, artV: 0, slide: 0, renaming: false }); else this.go('artifacts', { projId: a.project, artId: a.id, artV: 0, slide: 0 }); }
+  ask(title, body, ok, fn) { this.confirmFn = fn; this.setState({ confirm: { title, body, ok } }); }
+  renderVals() {
+    const s = this.S();
+    const theme = s.theme || this.props.theme || 'claude';
+    const phase = s.phase || (this.props.start === 'app' ? 'demo' : 'onb');
+    if (phase === 'demo' && !this.demoStarted) { this.demoStarted = true; setTimeout(() => this.finishOnb(true), 0); }
+    const v = { theme, acc: s.acc || 'default', yes: true, isOnb: phase === 'onb', isApp: phase === 'app', toastFn: (t) => this.toast(t), stopProp: (e) => e.stopPropagation() };
+    // ---------- onboarding ----------
+    const ob = s.ob || 0;
+    const STEPS = [['welcome', 'Welcome', 'what this is'], ['engine', 'opencode', 'start or connect'], ['sessions', 'Sessions', 'import earlier chats'], ['workspace', 'Workspace', 'your personal space'], ['model', 'Model', 'a provider to start'], ['web', 'Web search', 'look things up'], ['memory', 'Memory', 'facts or a graph'], ['project', 'Project', 'your first project'], ['look', 'Look', 'theme']];
+    const key = STEPS[ob].at(0);
+    const ocMode = s.ocMode || 'managed';
+    const ocHas = ocMode === 'remote' ? s.ocConn === 'ok' : s.ocState === 'found';
+    const prov = s.prov || (ocHas ? 'existing' : 'anthropic');
+    const tested = s.provTest === 'ok' || prov === 'existing';
+    const sessFound = ocHas ? OC_SESS : [];
+    const sessOn = (x) => !(s.dirOff || {})[x.dir] && !(s.sessOff || {})[x.id];
+    const nSel = sessFound.filter(sessOn).length;
+    const webMode = s.webMode || 'exa'; const webProv = s.webProv || 'Tavily';
+    const odDone = s.od === 'done';
+    const blocked = (key === 'engine' && ((!odDone && !s.odSkip) || (ocMode === 'remote' && s.ocConn !== 'ok'))) || (key === 'workspace' && !(s.wsDraft == null ? 'Personal' : s.wsDraft).trim()) || (key === 'project' && !(s.projDraft == null ? 'Castform' : s.projDraft).trim());
+    const wsDraft = s.wsDraft == null ? 'Personal' : s.wsDraft;
+    const projDraft = s.projDraft == null ? 'Castform' : s.projDraft;
+    const tpl = s.tpl || 'Software';
+    Object.assign(v, {
+      obSteps: STEPS.map((st, k) => ({ label: st.at(1), note: st.at(2), mark: k < ob ? '✓' : String(k + 1), ring: k <= ob ? 'var(--accent-p)' : 'var(--line2)', fill: k < ob ? 'var(--accent-p-fill)' : 'transparent', color: k === ob ? 'var(--text)' : 'var(--muted)', cur: k === ob ? 'step' : 'false', locked: k > (s.obMax || 0), go: () => this.setState({ ob: k }) })),
+      obWelcome: key === 'welcome', obEngine: key === 'engine', obSessions: key === 'sessions', obWorkspace: key === 'workspace', obModel: key === 'model', obWeb: key === 'web', obMemory: key === 'memory', obProject: key === 'project', obLook: key === 'look',
+      ocManaged: ocMode === 'managed' ? 'true' : 'false', ocRemote: ocMode === 'remote' ? 'true' : 'false', ocIsManaged: ocMode === 'managed', ocIsRemote: ocMode === 'remote',
+      pickManaged: () => this.setState({ ocMode: 'managed' }), pickRemote: () => this.setState({ ocMode: 'remote' }),
+      ocUrl: s.ocUrl == null ? 'http://127.0.0.1:4096' : s.ocUrl, onOcUrl: (e) => this.setState({ ocUrl: e.target.value, ocConn: null }),
+      ocUser: s.ocUser == null ? 'opencode' : s.ocUser, onOcUser: (e) => this.setState({ ocUser: e.target.value, ocConn: null }),
+      ocPass: s.ocPass || '', onOcPass: (e) => this.setState({ ocPass: e.target.value, ocConn: null }),
+      ocConnLabel: s.ocConn === 'busy' ? 'Connecting…' : (s.ocConn === 'ok' ? 'Reconnect' : 'Connect'),
+      ocConnMsg: s.ocConn === 'ok' ? 'Connected · opencode [VERSION] · ' + OC_SESS.length + ' sessions in 3 folders · 2 providers configured' : (s.ocConn === 'bad' ? 'Can’t reach that server — check the URL (http:// or https://) and the password.' : (s.ocConn === 'busy' ? 'GET /global/health …' : 'Connect to continue.')),
+      ocConnColor: s.ocConn === 'ok' ? 'var(--success-text)' : (s.ocConn === 'bad' ? 'var(--error-text)' : 'var(--muted)'),
+      connectOc: () => { const u = (s.ocUrl == null ? 'http://127.0.0.1:4096' : s.ocUrl).trim(); const bad = !/^https?:\/\/[^\s]+$/.test(u) || (!/127\.0\.0\.1|localhost/.test(u) && (s.ocPass || '').length < 4); this.setState({ ocConn: 'busy' }); clearTimeout(this.ocConnTimer); this.ocConnTimer = setTimeout(() => this.setState({ ocConn: bad ? 'bad' : 'ok' }), 1000); },
+      sessIntro: sessFound.length ? 'Found ' + sessFound.length + ' sessions in 3 folders ' + (ocMode === 'remote' ? 'on ' + (s.ocUrl || 'http://127.0.0.1:4096') : 'in this computer’s opencode data') + '. Each folder becomes a project (nested by path), and each session becomes a chat in it with its full history.' : (ocMode === 'remote' ? 'Connect to a server on the previous step to see its sessions.' : 'Harness looks for sessions opencode already saved on this computer.'),
+      sessNone: !sessFound.length, sessSome: !!sessFound.length,
+      sessGroups: Array.from(new Set(sessFound.map((x) => x.dir))).map((d) => { const on = !(s.dirOff || {})[d]; const seg = d.split('/').at(-1); const parent = Array.from(new Set(sessFound.map((x) => x.dir))).find((o) => d.indexOf(o + '/') === 0); return { dir: d, target: !on ? 'skipped' : (parent ? 'sub-project “' + seg.charAt(0).toUpperCase() + seg.slice(1) + '” inside ' + parent.split('/').at(-1).charAt(0).toUpperCase() + parent.split('/').at(-1).slice(1) : 'project “' + seg.charAt(0).toUpperCase() + seg.slice(1) + '”'), on: on ? 'true' : 'false', toggle: () => this.setState({ dirOff: Object.assign({}, s.dirOff || {}, { [d]: on }) }),
+        items: sessFound.filter((x) => x.dir === d).map((x) => { const io = sessOn(x); return { id: x.id, title: x.title, n: x.n, when: x.when, on: io ? 'true' : 'false', mark: io ? '✓' : '', dis: !on, toggle: () => this.setState({ sessOff: Object.assign({}, s.sessOff || {}, { [x.id]: io }) }) }; }) }; }),
+      sessSync: s.sessSync === false ? 'false' : 'true', toggleSessSync: () => this.setState({ sessSync: s.sessSync === false }),
+      sessCount: nSel === 1 ? '1 chat will be imported' : nSel + ' chats will be imported',
+      sessAll: () => this.setState({ dirOff: {}, sessOff: {} }), sessNoneBtn: () => { const o = {}; sessFound.forEach((x) => { o[x.dir] = true; }); this.setState({ dirOff: o }); },
+      webOpts: [['off', 'Off', 'No search; pasted links only if page reading is on'], ['exa', 'Built-in', 'opencode’s websearch (Exa), no key'], ['mcp', 'Search provider', 'Tavily, Brave or Firecrawl over MCP'], ['searxng', 'Self-hosted', 'Your SearXNG; queries stay on your network']].map((w) => ({ name: w.at(1), note: w.at(2), on: webMode === w.at(0) ? 'true' : 'false', pick: () => this.setState({ webMode: w.at(0), webTest: null }) })),
+      webIsMcp: webMode === 'mcp', webIsSearx: webMode === 'searxng', webNotOff: webMode !== 'off', webProv,
+      webProvs: Object.keys(WEBP).map((k) => ({ name: k, on: webProv === k ? 'true' : 'false', pick: () => this.setState({ webProv: k, webTest: null }) })),
+      webKey: s.webKey || '', onWebKey: (e) => this.setState({ webKey: e.target.value, webTest: null }),
+      searxUrl: s.searxUrl == null ? 'http://localhost:8888' : s.searxUrl, onSearxUrl: (e) => this.setState({ searxUrl: e.target.value, webTest: null }),
+      webFetch: s.webFetch === false ? 'false' : 'true', toggleWebFetch: () => this.setState({ webFetch: s.webFetch === false }),
+      webAsk: s.webAsk ? 'true' : 'false', toggleWebAsk: () => this.setState({ webAsk: !s.webAsk }),
+      webTestLabel: s.webTest === 'busy' ? 'Searching…' : 'Try a search',
+      webTestMsg: s.webTest === 'ok' ? '8 results for “opencode release notes” · 0.8 s' : (s.webTest === 'bad' ? (webMode === 'mcp' ? 'The ' + webProv + ' key was rejected.' : 'No answer from that URL.') : (s.webTest === 'busy' ? '' : 'Optional — check it works.')),
+      webTestColor: s.webTest === 'ok' ? 'var(--success-text)' : (s.webTest === 'bad' ? 'var(--error-text)' : 'var(--muted)'),
+      testWeb: () => { const bad = (webMode === 'mcp' && (s.webKey || '').trim().length < 8) || (webMode === 'searxng' && !/^https?:\/\//.test(s.searxUrl == null ? 'http://localhost:8888' : s.searxUrl)); this.setState({ webTest: 'busy' }); clearTimeout(this.webTimer); this.webTimer = setTimeout(() => this.setState({ webTest: bad ? 'bad' : 'ok' }), 900); },
+      webConfig: webConfigText(webMode, webProv, s.searxUrl == null ? 'http://localhost:8888' : s.searxUrl, s.webFetch !== false, !!s.webAsk),
+      tourSel1: s.tour === 1 ? 'true' : 'false', tourSel2: s.tour === 2 ? 'true' : 'false', tourSel3: s.tour === 3 ? 'true' : 'false',
+      tour1: () => this.setState({ tour: 1 }), tour2: () => this.setState({ tour: 2 }), tour3: () => this.setState({ tour: 3 }),
+      tourText: ['Pick a card to see how it works.', 'Each workspace runs its own engine with its own config folder. Switching changes which one you talk to; nothing is copied across.', 'Start a chat and pick the project it belongs to. A sub-project is a folder inside its parent and inherits its instructions.', 'Ask for a doc, deck or prototype in any chat and it appears beside the conversation. Loops are built by dragging blocks.'].at(s.tour || 0),
+      ocDot: s.ocState === 'found' ? 'var(--success)' : 'var(--warning)', ocCls: s.ocState === 'found' ? '' : 'pulse',
+      ocText: s.ocState === 'found' ? 'found at /usr/local/bin/opencode · [VERSION]' : 'looking for opencode…',
+      recheck: () => { this.setState({ ocState: null }); clearTimeout(this.ocTimer); this.ocTimer = setTimeout(() => this.setState({ ocState: 'found' }), 1200); },
+      ocSys: s.ocSrc === 'bundled' ? 'false' : 'true', ocBundled: s.ocSrc === 'bundled' ? 'true' : 'false',
+      pickOcSys: () => this.setState({ ocSrc: 'system' }), pickOcBundled: () => this.setState({ ocSrc: 'bundled' }),
+      odDot: odDone ? 'var(--success)' : (s.od === 'busy' ? 'var(--warning)' : 'var(--dim)'), odCls: s.od === 'busy' ? 'pulse' : '',
+      odText: odDone ? 'installed, one daemon per workspace' : (s.od === 'busy' ? 'installing… ' + (s.odPct || 0) + '%' : (s.odSkip ? 'will install later' : 'not installed')),
+      odBtn: odDone ? 'Installed ✓' : (s.od === 'busy' ? 'Installing…' : 'Install'), odBusy: s.od === 'busy' || odDone,
+      odPct: (odDone ? 100 : (s.odPct || 0)) + '%',
+      installOd: () => {
+        this.setState({ od: 'busy', odPct: 0 });
+        clearInterval(this.odTimer);
+        this.odTimer = setInterval(() => { const p = (this.S().odPct || 0) + 9; if (p >= 100) { clearInterval(this.odTimer); this.setState({ od: 'done', odPct: 100 }); } else this.setState({ odPct: p }); }, 160);
+      },
+      wsDraft, wsDraftShown: wsDraft.trim() || 'Personal', onWsDraft: (e) => this.setState({ wsDraft: e.target.value }),
+      wsInitials: (wsDraft.trim().charAt(0) || 'P').toUpperCase(), wsSlug: wsDraft.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'personal',
+      accents: ACCENTS.map((a) => ({ name: a.at(1), hex: a.at(2), on: (s.acc || 'default') === a.at(0) ? 'true' : 'false', ring: (s.acc || 'default') === a.at(0) ? '0 0 0 2px var(--bg0), 0 0 0 4px var(--text)' : 'none', pick: () => this.setState({ acc: a.at(0) }) })),
+      provOpts: (ocHas ? ['existing'] : []).concat(['anthropic', 'openrouter', 'ollama', 'custom']).map((k) => ({ name: k === 'custom' ? 'Custom endpoint' : (k === 'existing' ? 'From opencode' : PRESET[k].name), note: { existing: 'reuse its providers', anthropic: 'API key', openrouter: 'one key, many models', ollama: 'local, no key', custom: 'any OpenAI-compatible URL' }[k], on: prov === k ? 'true' : 'false', pick: () => this.setState({ prov: k, provTest: null }) })),
+      provNeedsKey: prov === 'anthropic' || prov === 'openrouter' || prov === 'custom', provKeyLabel: prov === 'custom' ? 'API key (optional)' : ((PRESET[prov] || {}).name || '') + ' API key',
+      provIsCustom: prov === 'custom', provIsOllama: prov === 'ollama',
+      keyDraft: s.keyDraft || '', onKey: (e) => this.setState({ keyDraft: e.target.value, provTest: null }),
+      urlDraft: s.urlDraft == null ? 'https://[YOUR-ENDPOINT]/v1' : s.urlDraft, onUrl: (e) => this.setState({ urlDraft: e.target.value, provTest: null }),
+      modelDraft: s.modelDraft == null ? 'my-model' : s.modelDraft, onModelDraft: (e) => this.setState({ modelDraft: e.target.value }),
+      ollamaModels: ['qwen3-coder', 'llama3.3', 'mistral-small'].map((m) => { const sel = s.ollamaSel || { 'qwen3-coder': true }; return { name: m, on: sel[m] ? 'true' : 'false', mark: sel[m] ? '✓' : '+', pick: () => this.setState({ ollamaSel: Object.assign({}, sel, { [m]: !sel[m] }) }) }; }),
+      testLabel: s.provTest === 'busy' ? 'Testing…' : 'Test connection',
+      testMsg: prov === 'existing' ? 'Using anthropic and ollama from your opencode.json — keys stay where opencode keeps them.' : s.provTest === 'ok' ? 'Connected · ' + (prov === 'ollama' ? Object.keys(s.ollamaSel || { 'qwen3-coder': 1 }).filter((k) => (s.ollamaSel || { 'qwen3-coder': 1 })[k]).length + ' models ready' : 'first token 380 ms') : (s.provTest === 'bad' ? 'That doesn’t look right — check the key and try again.' : (s.provTest === 'busy' ? '' : 'Test before continuing, or set it up later.')),
+      testColor: tested ? 'var(--success-text)' : (s.provTest === 'bad' ? 'var(--error-text)' : 'var(--muted)'),
+      testProv: () => {
+        const bad = (prov === 'anthropic' || prov === 'openrouter') && (s.keyDraft || '').trim().length < 8;
+        this.setState({ provTest: 'busy' }); clearTimeout(this.testTimer);
+        this.testTimer = setTimeout(() => this.setState({ provTest: bad ? 'bad' : 'ok' }), 900);
+      },
+      memOpts: [['facts', 'Facts', 'Short statements you approve, kept as files'], ['graph', 'Graphify', 'A knowledge graph of your project folders, queried over MCP'], ['both', 'Graphify + facts', 'Recommended for code-heavy projects']].map((m) => ({ name: m.at(1), note: m.at(2), on: (s.mem || 'both') === m.at(0) ? 'true' : 'false', pick: () => this.setState({ mem: m.at(0) }) })),
+      memIsGraph: (s.mem || 'both') !== 'facts',
+      gFolders: (s.gFolders || ['~/code']).map((f) => ({ path: f, remove: () => this.setState({ gFolders: (s.gFolders || ['~/code']).filter((x) => x !== f) }) })),
+      folderDraft: s.folderDraft || '', onFolderDraft: (e) => this.setState({ folderDraft: e.target.value }),
+      addFolder: () => { const f = (s.folderDraft || '').trim(); if (!f) return; this.setState({ gFolders: (s.gFolders || ['~/code']).concat([f]), folderDraft: '' }); },
+      gWatch: s.gWatch === false ? 'false' : 'true', toggleWatch: () => this.setState({ gWatch: s.gWatch === false }),
+      projDraft, onProjDraft: (e) => this.setState({ projDraft: e.target.value, agentsDraft: s.agentsTouched ? s.agentsDraft : TPLS[tpl](e.target.value || 'My project') }),
+      projFolder: s.projFolder == null ? '~/code/castform' : s.projFolder, onProjFolder: (e) => this.setState({ projFolder: e.target.value }),
+      browseFolder: () => { const opts = ['~/code/castform', '~/Documents/projects/' + (projDraft.toLowerCase().replace(/\s+/g, '-') || 'project'), '~/work/' + (projDraft.toLowerCase().replace(/\s+/g, '-') || 'project')]; const i = (opts.indexOf(s.projFolder) + 1) % opts.length; this.setState({ projFolder: opts.at(i) }); },
+      tpls: Object.keys(TPLS).map((k) => ({ name: k, on: tpl === k ? 'true' : 'false', pick: () => this.setState({ tpl: k, agentsDraft: TPLS[k](projDraft || 'My project'), agentsTouched: false }) })),
+      agentsDraft: s.agentsDraft != null ? s.agentsDraft : TPLS[tpl](projDraft || 'My project'), onAgents: (e) => this.setState({ agentsDraft: e.target.value, agentsTouched: true }),
+      isClaude: theme === 'claude' ? 'true' : 'false', isOpencode: theme === 'opencode' ? 'true' : 'false',
+      setClaude: () => this.setState({ theme: 'claude' }), setOpencode: () => this.setState({ theme: 'opencode' }),
+      followSys: s.followSys ? 'true' : 'false', toggleFollow: () => this.setState({ followSys: !s.followSys }),
+      reduceMotion: s.reduce ? 'true' : 'false', toggleMotion: () => this.setState({ reduce: !s.reduce }),
+      summary: [{ k: 'Workspace', v: wsDraft || 'Personal' }, { k: 'opencode', v: ocMode === 'remote' ? 'connected · ' + (s.ocUrl || 'http://127.0.0.1:4096') : 'started by harness' }, { k: 'Imported chats', v: String(nSel) }, { k: 'Model', v: (prov === 'custom' ? 'Custom endpoint' : (prov === 'existing' ? 'From opencode' : PRESET[prov].name)) + (tested ? (prov === 'existing' ? '' : ' · tested') : ' · later') }, { k: 'Web search', v: { off: 'off', exa: 'built-in (Exa)', mcp: webProv, searxng: 'SearXNG' }[webMode] }, { k: 'Memory', v: { facts: 'Facts', graph: 'Graphify', both: 'Graphify + facts' }[s.mem || 'both'] }, { k: 'First project', v: projDraft + ' · ' + (s.projFolder || '~/code/castform') }],
+      obPct: Math.round((ob + 1) / STEPS.length * 100) + '%', obAtStart: ob === 0, obBlocked: blocked,
+      obHint: blocked ? ({ engine: ocMode === 'remote' && s.ocConn !== 'ok' ? 'Connect to the server first' : 'Install Open Design, or skip it below', workspace: 'Give the workspace a name', project: 'Name your project' }[key] || '') : '',
+      obNextLabel: ob === STEPS.length - 1 ? 'Open harness' : (ob === 0 ? 'Get started' : (key === 'model' && !tested ? 'Set up later' : (key === 'sessions' && sessFound.length && !nSel ? 'Start fresh' : (key === 'web' && webMode === 'off' ? 'Skip' : 'Continue')))),
+      obBack: () => this.setState({ ob: Math.max(0, ob - 1) }),
+      obNext: () => { if (ob === STEPS.length - 1) { this.finishOnb(false); return; } if (key === 'model' && !tested) this.setState({ provSkip: true }); this.setState({ ob: ob + 1, obMax: Math.max(s.obMax || 0, ob + 1) }); },
+      skipDemo: () => this.finishOnb(true),
+      skipOd: () => this.setState({ odSkip: !s.odSkip }), skipOdLabel: s.odSkip ? 'Install now instead' : 'Install later',
+    });
+    if (phase !== 'app') return v;
+
+    // ---------- app ----------
+    const ws = this.ws();
+    if (!ws) return v;
+    const isOrg = ws.kind === 'org';
+    const view = s.view || 'home';
+    const proj = ws.projects.find((p) => p.id === s.projId) || ws.projects[0];
+    const chat = ws.chats.find((c) => c.id === s.chatId);
+    const models = this.models(ws);
+    const curModel = (chat && chat.model) || proj.model || ws.defModel || models[0] || 'no model';
+    Object.assign(v, {
+      wsName: ws.name, wsInit: ws.init, wsKind: isOrg ? 'Organization · policy-managed' : (ws.kind === 'team' ? 'Team workspace' : 'Personal workspace'),
+      wsFolder: '~/.harness/ws/' + ws.slug + '/config',
+      themeName: theme === 'claude' ? 'Claude' : 'opencode', toggleTheme: () => { this.setState({ theme: theme === 'claude' ? 'opencode' : 'claude' }); },
+      engDot: s.engine === 'restarting' ? 'var(--warning)' : 'var(--success)', engCls: s.engine === 'restarting' ? 'pulse' : '',
+      engLabel: s.engine === 'restarting' ? 'restarting…' : (ws.oc && ws.oc.mode === 'remote' ? 'opencode · ' + ws.oc.url.replace(/^https?:\/\//, '') : 'opencode :' + (4096 + (s.wss || []).indexOf(ws))),
+      openEngine: () => this.go('settings', { setPage: 'engine' }),
+      nav: (k) => this.go(k),
+      memWs: isOrg ? 'org' : 'p',
+      memLabel: { facts: 'Facts', graph: 'Graphify', both: 'Graphify + facts', mcp: 'Custom MCP' }[ws.mem] || 'Facts',
+      connCount: String(ws.connectors.filter((c) => c.on).length),
+      curModel, curProjName: proj.name,
+      openPalette: () => this.setState({ palOpen: true, palQ: '' }), closePalette: () => this.setState({ palOpen: false }),
+      vHome: view === 'home', vChat: view === 'chat' && !!chat, vArtifacts: view === 'artifacts', vProject: view === 'project', vSettings: view === 'settings', vBrief: view === 'brief', vGenerate: view === 'generate',
+      dGraph: view === 'graph' ? 'flex' : 'none', dRoutines: view === 'routines' ? 'flex' : 'none', dComputers: view === 'computers' ? 'flex' : 'none', dMemory: view === 'memory' ? 'flex' : 'none',
+      goRoutines: () => this.go('routines'), goGraph: () => this.go('graph'), goMemory: () => this.go('memory'), goArtifacts: () => this.go('artifacts'),
+      goConnectors: () => this.go('settings', { setPage: 'connectors' })
+    });
+    // rail
+    v.rail = (s.wss || []).map((w) => ({ name: w.name, initials: w.init, color: w.kind === 'org' ? 'var(--accent-o-text)' : 'var(--accent-p-text)', ring: w.id === ws.id ? (w.kind === 'org' ? 'var(--accent-o)' : 'var(--accent-p)') : 'transparent', pick: () => { clearInterval(this.streamTimer); this.setState({ wsId: w.id, view: 'home', chatId: null, artId: null, stream: null, projId: w.projects[0].id, composeProj: null }); this.toast('Switched to ' + w.name); } }));
+    v.railNav = [['routines', '⏱', 'Routines'], ['computers', '🖥', 'Computers'], ['memory', '◎', 'Memory'], ['settings', '⚙', 'Settings']].map((n) => ({ label: n.at(2), icon: n.at(1), bg: view === n.at(0) ? 'var(--bg3)' : 'transparent', go: () => this.go(n.at(0)) }));
+    // ws accent via data attribute fallback
+    v.acc = s.acc && s.acc !== 'default' ? s.acc : (isOrg ? 'org' : 'default');
+    // sidebar nav
+    const pending = (s.wss || []).length && !isOrg ? 1 : 0;
+    v.sideNav = [['home', '⌂', 'Home', ''], ['artifacts', '▦', 'Artifacts', String(ws.artifacts.length)], ['graph', '⟲', 'Graphs', ''], ['routines', '⏱', 'Routines', pending ? '1 waiting' : ''], ['memory', '◎', 'Memory', '']].map((n) => ({ icon: n.at(1), label: n.at(2), badge: n.at(3), cur: view === n.at(0) ? 'page' : 'false', go: () => this.go(n.at(0)) }));
+    v.newChat = () => { this.setState({ composeProj: proj.id, draft: '' }); this.go('home'); };
+    v.newTopProject = () => this.setState({ addFor: 'root', subDraft: '' });
+    // tree
+    const open = s.open || {};
+    const q = (s.treeQ || '').toLowerCase().trim();
+    const tree = [];
+    const kids = (pid) => ws.projects.filter((p) => p.parent === pid);
+    const row = (o) => Object.assign({ isRow: true, isInput: false, isProject: false, caret: '', rot: 'none', icon: '', iconColor: 'var(--muted)', meta: '', cur: 'false', pad: '4px', addChat: null, addSub: null, placeholder: '' }, o);
+    const inputRow = (depth, ph) => ({ isRow: false, isInput: true, pad: (6 + depth * 14) + 'px', placeholder: ph });
+    if (s.addFor === 'root') tree.push(inputRow(0, 'New project name'));
+    if (q) {
+      ws.projects.filter((p) => p.name.toLowerCase().includes(q)).forEach((p) => tree.push(row({ label: p.name, isProject: true, icon: '▤', meta: this.path(ws, p.id).length > 1 ? 'in ' + this.path(ws, p.id).at(-2).name : '', open: () => this.go('project', { projId: p.id, ptab: 'chats' }), addChat: () => { this.setState({ composeProj: p.id }); this.go('home'); }, addSub: () => this.setState({ addFor: p.id, subDraft: '', open: Object.assign({}, open, { [p.id]: true }), treeQ: '' }) })));
+      ws.artifacts.filter((a) => a.title.toLowerCase().includes(q)).forEach((a) => tree.push(row({ label: a.title, icon: ART_ICON[a.type] || '▧', iconColor: 'var(--accent-p-text)', meta: (ws.projects.find((p) => p.id === a.project) || {}).name, open: () => this.openArtifact(a) })));
+      ws.chats.filter((c) => c.title.toLowerCase().includes(q)).forEach((c) => tree.push(row({ label: c.title, icon: '💬', meta: (ws.projects.find((p) => p.id === c.project) || {}).name, open: () => this.go('chat', { chatId: c.id, projId: c.project, artId: null }) })));
+    } else {
+      const walk = (pid, depth) => kids(pid).forEach((p) => {
+        const isOpen = !!open[p.id];
+        const chats = ws.chats.filter((c) => c.project === p.id).sort((a, b) => b.t - a.t);
+        const arts = ws.artifacts.filter((a) => a.project === p.id);
+        const n = kids(p.id).length + chats.length + arts.length;
+        tree.push(row({ label: p.name, isProject: true, caret: n ? '▶' : '', rot: isOpen ? 'rotate(90deg)' : 'none', icon: '▤', iconColor: depth === 0 ? 'var(--ws-accent)' : 'var(--muted)', meta: !isOpen && n ? String(n) : (p.name === 'General' ? 'default' : ''), cur: view === 'project' && proj.id === p.id ? 'page' : 'false', pad: (4 + depth * 14) + 'px',
+          open: () => { this.setState({ open: Object.assign({}, open, { [p.id]: !isOpen }) }); this.go('project', { projId: p.id, ptab: (s.projId === p.id ? s.ptab : 'chats') || 'chats' }); },
+          addChat: () => { this.setState({ composeProj: p.id, projId: p.id }); this.go('home'); },
+          addSub: () => this.setState({ addFor: p.id, subDraft: '', open: Object.assign({}, open, { [p.id]: true }) }) }));
+        if (isOpen) {
+          if (s.addFor === p.id) tree.push(inputRow(depth + 1, 'Sub-project of ' + p.name));
+          walk(p.id, depth + 1);
+          const artRow = (a, d, viaChat) => row({ label: a.title, icon: (viaChat ? '↳ ' : '') + (ART_ICON[a.type] || '▧'), iconColor: 'var(--accent-p-text)', pad: (4 + d * 14) + 'px', meta: a.type.toLowerCase() + ' v' + a.version, cur: s.artId === a.id ? 'page' : 'false', open: () => this.openArtifact(a) });
+          chats.forEach((c) => {
+            const made = arts.filter((a) => a.chat === c.id);
+            tree.push(row({ label: c.title, icon: '💬', pad: (4 + (depth + 1) * 14) + 'px', caret: '', cur: view === 'chat' && s.chatId === c.id ? 'page' : 'false', meta: s.stream && s.stream.chatId === c.id ? '…' : (made.length ? made.length + ' ▧' : ''), open: () => { clearInterval(this.streamTimer); this.setState({ stream: null }); this.go('chat', { chatId: c.id, projId: c.project, artId: null, renaming: false }); } }));
+            made.forEach((a) => tree.push(artRow(a, depth + 2, true)));
+          });
+          arts.filter((a) => !a.chat || !chats.some((c) => c.id === a.chat)).forEach((a) => tree.push(artRow(a, depth + 1, false)));
+        }
+      });
+      walk(null, 0);
+    }
+    v.tree = tree; v.treeEmpty = q && !tree.length; v.treeQ = s.treeQ || '';
+    v.onTreeQ = (e) => this.setState({ treeQ: e.target.value });
+    v.subDraft = s.subDraft || ''; v.onSubDraft = (e) => this.setState({ subDraft: e.target.value });
+    v.cancelSub = () => this.setState({ addFor: null });
+    v.commitSub = () => {
+      const name = (s.subDraft || '').trim(); if (!name) { this.toast('Give the project a name'); return; }
+      const parent = s.addFor === 'root' ? null : s.addFor;
+      const par = ws.projects.find((p) => p.id === parent);
+      const id = uid('proj');
+      const folder = par ? par.folder + '/' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '~/code/' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      this.upd((w) => { w.projects = w.projects.concat([P(id, name, parent, folder, '')]); return w; });
+      this.setState({ addFor: null, subDraft: '', open: Object.assign({}, open, { [id]: true }) });
+      this.go('project', { projId: id, ptab: 'chats' });
+      this.toast((par ? 'Sub-project of ' + par.name : 'Project') + ' created · ' + name);
+    };
+    // breadcrumb
+    const crumbs = [{ label: ws.name, go: () => this.go('home') }];
+    const viewNames = { home: 'Home', artifacts: 'Artifacts', graph: 'Graphs', routines: 'Routines', computers: 'Computers', memory: 'Memory', settings: 'Settings', brief: 'New artifact', generate: 'Generating' };
+    if (view === 'project' || view === 'chat') this.path(ws, view === 'chat' && chat ? chat.project : proj.id).forEach((p) => crumbs.push({ label: p.name, go: () => this.go('project', { projId: p.id, ptab: 'chats' }) }));
+    if (view === 'chat' && chat) crumbs.push({ label: chat.title, go: () => {} });
+    else if (viewNames[view]) crumbs.push({ label: viewNames[view], go: () => this.go(view) });
+    v.crumbs = crumbs.map((c, i) => ({ label: c.label, go: c.go, sep: i ? '/' : '', color: i === crumbs.length - 1 ? 'var(--text)' : 'var(--muted)' }));
+    // composer shared
+    const composeProj = ws.projects.find((p) => p.id === (s.composeProj || s.projId)) || ws.projects[0];
+    const allProjFlat = [];
+    const flat = (pid, d) => kids(pid).forEach((p) => { allProjFlat.push({ p, d }); flat(p.id, d + 1); });
+    flat(null, 0);
+    Object.assign(v, {
+      draft: s.draft || '', onDraft: (e) => this.setState({ draft: e.target.value }),
+      greeting: (() => { const h = new Date().getHours(); return (h < 12 ? 'Good morning' : h < 19 ? 'Good afternoon' : 'Good evening') + '. What are we making?'; })(),
+      composeProjPath: this.pathName(ws, composeProj.id),
+      showPicker: !!s.picker, pickerOpen: s.picker ? 'true' : 'false', togglePicker: () => this.setState({ picker: !s.picker, modelOpen: false }),
+      projPick: allProjFlat.map((x) => ({ label: x.p.name, pad: (8 + x.d * 16) + 'px', cur: x.p.id === composeProj.id ? 'true' : 'false', pick: () => this.setState({ composeProj: x.p.id, picker: false }) })),
+      modes: [['chat', 'Chat'], ['doc', 'Doc'], ['deck', 'Deck'], ['proto', 'Prototype'], ['research', 'Research'], ['loop', 'Loop']].map((m) => ({ label: m.at(1), on: (s.mode || 'chat') === m.at(0) ? 'true' : 'false', pick: () => this.setState({ mode: m.at(0) }) })),
+      homePlaceholder: { chat: 'Ask anything — it stays in the project you pick', doc: 'Describe the document you need', deck: 'What is the deck about, and who is it for?', proto: 'Describe the screen or page', research: 'What should I find out?', loop: 'Describe a task to repeat until it’s done' }[s.mode || 'chat'],
+      showModel: !!s.modelOpen && view === 'home', showModelChat: !!s.modelOpen && view === 'chat',
+      toggleModel: () => this.setState({ modelOpen: !s.modelOpen, picker: false }),
+      curAgentShort: ((ws.agents || []).find((a) => a.id === ((view === 'chat' && chat && chat.agent) || (view !== 'chat' && s.homeAgent) || ws.defAgent || 'opencode')) || { name: 'opencode' }).name,
+      agentList: (ws.agents || []).filter((a) => a.on).map((a) => { const curId = (view === 'chat' && chat && chat.agent) || (view !== 'chat' && s.homeAgent) || ws.defAgent || 'opencode'; return { name: a.name, via: a.via, cur: a.id === curId ? 'true' : 'false', pick: () => { if (view === 'chat' && chat) { if (chat.msgs.length && a.id !== curId) { this.setState({ modelOpen: false }); this.toast('A chat keeps its agent — start a new chat for ' + a.name); return; } this.upd((w) => { w.chats = w.chats.map((c) => (c.id === chat.id ? Object.assign({}, c, { agent: a.id }) : c)); return w; }); } else this.setState({ homeAgent: a.id }); this.setState({ modelOpen: false }); this.toast('Agent · ' + a.name + (a.id === 'opencode' ? '' : ' over ACP')); } }; }),
+      modelList: models.map((m) => ({ id: m, cur: m === curModel ? 'true' : 'false', pick: () => { if (view === 'chat' && chat) this.upd((w) => { w.chats = w.chats.map((c) => (c.id === chat.id ? Object.assign({}, c, { model: m }) : c)); return w; }); else this.upd((w) => { w.defModel = m; return w; }); this.setState({ modelOpen: false }); this.toast('Model · ' + m); } })),
+      attach: () => this.toast('Attached example.pdf (demo)'),
+      homeWebOn: (s.homeWeb == null ? ws.web.mode !== 'off' : s.homeWeb) ? 'true' : 'false',
+      homeWebLabel: ws.web.mode === 'off' ? 'off' : ((s.homeWeb == null ? true : s.homeWeb) ? 'on' : 'off'),
+      toggleHomeWeb: () => { if (ws.web.mode === 'off') { this.go('settings', { setPage: 'web' }); this.toast('Web search is off for ' + ws.name + ' — pick a search here'); return; } const cur = s.homeWeb == null ? true : s.homeWeb; this.setState({ homeWeb: !cur }); },
+      send: () => this.send(),
+      suggest: [isOrg ? 'Draft a runbook for rotating the realm signing keys' : 'Make a 5-slide deck about ' + composeProj.name, isOrg ? 'Summarise last week’s Data Portal incidents' : 'Write a one-page plan for this week', 'Build a sheet tracking my open tasks'].map((t) => ({ text: t, use: () => this.setState({ draft: t }) })),
+      needs: (isOrg ? [] : [{ title: 'Approve a commit', sub: 'Fix until tests pass · Simulation engine', go: () => this.go('routines') }, { title: 'Review 3 memory links', sub: 'Graphify flagged them as ambiguous', go: () => this.go('memory') }]),
+      recent: ws.chats.slice().sort((a, b) => b.t - a.t).slice(0, 3).map((c) => ({ title: c.title, sub: this.pathName(ws, c.project), go: () => this.go('chat', { chatId: c.id, projId: c.project, artId: null }) })),
+      upcoming: isOrg ? [{ title: 'Nightly realm drift check', sub: 'Tonight 02:00 · org runner', go: () => this.go('routines') }] : [{ title: 'Morning brief', sub: 'Tomorrow 08:30 · cloud', go: () => this.go('routines') }]
+    });
+    v.needsEmpty = !v.needs.length; v.recentEmpty = !v.recent.length;
+    // chat view
+    if (chat) {
+      const st = s.stream && s.stream.chatId === chat.id ? s.stream : null;
+      Object.assign(v, {
+        chat: { title: chat.title, projPath: this.pathName(ws, chat.project), sid: chat.sid || 'ses_new', importedTag: chat.imported ? ' · imported' : '' },
+        copyAttach: () => { this.setState({ chatMenu: false }); this.toast('Copied: opencode attach ' + (ws.oc && ws.oc.mode === 'remote' ? ws.oc.url : 'http://127.0.0.1:' + (4096 + (s.wss || []).indexOf(ws))) + ' -s ' + chat.sid); },
+        forkSession: () => { const nid = uid('c'); this.upd((w) => { const c = C(nid, chat.project, chat.title + ' (fork)', chat.msgs.slice()); c.web = chat.web; w.chats = w.chats.concat([c]); return w; }); this.setState({ chatMenu: false, chatId: nid }); this.toast('Forked into a new opencode session'); },
+        chatWebOn: (ws.web.mode !== 'off' && (chat.web == null ? true : chat.web)) ? 'true' : 'false',
+        chatWebLabel: ws.web.mode === 'off' ? 'off' : ((chat.web == null ? true : chat.web) ? 'on' : 'off'),
+        toggleChatWeb: () => { if (ws.web.mode === 'off') { this.go('settings', { setPage: 'web' }); this.toast('Web search is off for ' + ws.name + ' — pick a search here'); return; } const cur = chat.web == null ? true : chat.web; this.upd((w) => { w.chats = w.chats.map((c) => (c.id === chat.id ? Object.assign({}, c, { web: !cur }) : c)); return w; }); this.toast('Web search ' + (cur ? 'off' : 'on') + ' for this chat'); },
+        msgs: chat.msgs.map((m, i) => {
+          const a = m.art ? ws.artifacts.find((x) => x.id === m.art) : null;
+          return { isUser: m.role === 'user', isBot: m.role === 'bot', text: m.text,
+            tools: (m.tools || []).map((t, j) => { const k = chat.id + i + '_' + j; const o = !!(s.toolOpen || {})[k]; return { text: t, caret: o ? '▾' : '▸', open: o, detail: 'input ' + JSON.stringify({ project: this.pathName(ws, chat.project) }) + ' → ok in 0.4 s', toggle: () => this.setState({ toolOpen: Object.assign({}, s.toolOpen || {}, { [k]: !o }) }) }; }),
+            hasArt: !!a, artType: a ? a.type.toUpperCase() : '', artTitle: a ? a.title : '', artMeta: a ? a.type + ' · v' + a.version : '',
+            openArt: () => this.setState({ artId: a && a.id, artV: 0, slide: 0, exportOpen: false }),
+            copy: () => this.toast('Copied to clipboard'),
+            retry: () => { const lastUser = chat.msgs.slice(0, i).reverse().find((x) => x.role === 'user'); if (lastUser) { this.upd((w) => { w.chats = w.chats.map((c) => (c.id === chat.id ? Object.assign({}, c, { msgs: c.msgs.slice(0, i) }) : c)); return w; }); setTimeout(() => this.startStream(chat.id, lastUser.text, 'chat'), 40); } },
+            remember: () => { this.upd((w) => { w.facts = w.facts.concat([{ id: uid('f'), text: m.text.split('\n')[0].slice(0, 90), scope: chat.project }]); return w; }); this.toast('Saved to ' + (ws.projects.find((p) => p.id === chat.project) || {}).name + ' memory'); } };
+        }),
+        streaming: !!st, notStreaming: !st,
+        streamTools: st ? st.r.tools.slice(0, st.tools).map((t) => ({ text: t, mark: '✓', color: 'var(--success-text)' })).concat(st.tools < st.r.tools.length ? [{ text: st.r.tools.at(st.tools) + '…', mark: '●', color: 'var(--warning-text)' }] : []) : [],
+        streamText: st ? st.r.text.slice(0, st.shown) : '',
+        stop: (e) => { if (e && e.stopPropagation) e.stopPropagation(); if (this.S().stream) this.finishStream(true); },
+        chatEmpty: !chat.msgs.length && !st,
+        chatPlaceholder: s.artId ? 'Ask for a change to the open artifact…' : 'Reply, or ask for a doc, deck, prototype or sheet…',
+        goChatProject: () => this.go('project', { projId: chat.project, ptab: 'chats' }),
+        showChatMenu: !!s.chatMenu, chatMenuOpen: s.chatMenu ? 'true' : 'false', toggleChatMenu: () => this.setState({ chatMenu: !s.chatMenu }),
+        renaming: !!s.renaming, notRenaming: !s.renaming, renameDraft: s.renameDraft || '',
+        startRename: () => this.setState({ renaming: true, renameDraft: chat.title, chatMenu: false }),
+        onRename: (e) => this.setState({ renameDraft: e.target.value }),
+        saveRename: () => { const t = (s.renameDraft || '').trim() || chat.title; this.upd((w) => { w.chats = w.chats.map((c) => (c.id === chat.id ? Object.assign({}, c, { title: t }) : c)); return w; }); this.setState({ renaming: false }); this.toast('Renamed'); },
+        moveTargets: allProjFlat.map((x) => ({ label: x.p.name, pad: (8 + x.d * 14) + 'px', cur: x.p.id === chat.project ? 'true' : 'false', pick: () => { const na = ws.artifacts.filter((a) => a.chat === chat.id).length; this.upd((w) => { w.chats = w.chats.map((c) => (c.id === chat.id ? Object.assign({}, c, { project: x.p.id }) : c)); w.artifacts = w.artifacts.map((a) => (a.chat === chat.id ? Object.assign({}, a, { project: x.p.id }) : a)); return w; }); this.setState({ chatMenu: false, projId: x.p.id, open: Object.assign({}, s.open || {}, { [x.p.id]: true }) }); this.toast('Moved to ' + x.p.name + (na ? ' with ' + (na === 1 ? 'its artifact' : 'its ' + na + ' artifacts') : '')); } })),
+        askDeleteChat: () => { this.setState({ chatMenu: false }); this.ask('Delete this chat?', 'The chat and its messages are removed from ' + chat.projPath + '. Artifacts it made stay in the library.', 'Delete', () => { this.upd((w) => { w.chats = w.chats.filter((c) => c.id !== chat.id); return w; }); this.go('project', { projId: chat.project, chatId: null }); this.toast('Chat deleted'); }); }
+      });
+      v.chat.projPath = this.pathName(ws, chat.project);
+    } else { Object.assign(v, { chat: { title: '', projPath: '' }, msgs: [], streaming: false, notStreaming: true, streamTools: [], streamText: '', chatEmpty: false, stop: (e) => e && e.stopPropagation && e.stopPropagation() }); }
+    // artifact panel
+    const art = ws.artifacts.find((a) => a.id === s.artId);
+    v.artOpen = !!art && (view === 'chat' || view === 'artifacts');
+    if (art) {
+      const viewV = s.artV ? s.artV : art.version;
+      const slide = s.slide || 0;
+      const deck = art.title.startsWith('Castform') ? DECK : [[art.title, 'For ' + this.pathName(ws, art.project)], ['Why now', '[KEY POINT]'], ['How it works', '[DIAGRAM]'], ['What we need', '[ASK]']];
+      const fromChat = art.chat && ws.chats.find((c) => c.id === art.chat);
+      v.art = { type: art.type.toUpperCase(), title: art.title, projPath: this.pathName(ws, art.project), hasChat: !!fromChat, chatTitle: fromChat ? fromChat.title : '', goProj: () => this.go('project', { projId: art.project, ptab: 'arts', artId: null }), goChat: () => fromChat && this.go('chat', { chatId: fromChat.id, projId: art.project, artId: art.id }), version: String(art.version), viewV: String(viewV), isDeck: art.type === 'Deck', isDoc: art.type === 'Doc', isProto: art.type === 'Prototype', isSheet: art.type === 'Sheet',
+        slideNo: String(slide + 1).padStart(2, '0') + ' / ' + String(deck.length).padStart(2, '0'), slideTitle: art.type === 'Prototype' ? art.title : deck.at(slide).at(0), slideSub: art.type === 'Prototype' ? 'A first version for ' + this.pathName(ws, art.project) + '.' : deck.at(slide).at(1),
+        thumbs: deck.map((d, i) => ({ n: String(i + 1), border: i === slide ? 'var(--accent-p)' : 'var(--line)', pick: () => this.setState({ slide: i }) })),
+        lines: [['Summary', 600, 'var(--accent-p-text)', '14px'], ['Written for ' + this.pathName(ws, art.project) + ', version ' + viewV + '.', 400, 'var(--text2)', '13px'], ['1 · Context', 600, 'var(--text)', '14px'], ['[What prompted this, in two sentences.]', 400, 'var(--text2)', '13px'], ['2 · Steps', 600, 'var(--text)', '14px'], ['[Numbered steps with owners.]', 400, 'var(--text2)', '13px'], ['3 · Open questions', 600, 'var(--text)', '14px'], ['[Anything still undecided.]', 400, 'var(--text2)', '13px']].map((l) => ({ t: l.at(0), w: l.at(1), c: l.at(2), s: l.at(3) })),
+        brand: (ws.projects.find((p) => p.id === art.project) || {}).name || 'project', cta: 'Join the beta',
+        cells: [['Item', 'Est.', 'Actual'], ['Train', '[€]', ''], ['Hotel · 1 night', '[€]', ''], ['Food', '[€]', ''], ['Total', '[€]', '']].reduce((a, r, i) => a.concat(r.map((t) => ({ t, bg: i === 0 ? 'var(--bg2)' : 'transparent', w: i === 0 || i === 4 ? 600 : 400 }))), []) };
+      Object.assign(v, {
+        cycleVersion: () => this.setState({ artV: viewV <= 1 ? art.version : viewV - 1 }),
+        shareArt: () => this.toast(isOrg ? 'Shared with your organization (public links are off)' : 'Private link copied'),
+        exportOpen: s.exportOpen ? 'true' : 'false', showExport: !!s.exportOpen, toggleExport: () => this.setState({ exportOpen: !s.exportOpen }),
+        exportList: ({ Deck: [['PowerPoint', '.pptx'], ['PDF', '.pdf'], ['Images', '.png']], Doc: [['Word', '.docx'], ['PDF', '.pdf'], ['Markdown', '.md']], Prototype: [['Single-file HTML', '.html'], ['Project folder', '.zip'], ['PDF', '.pdf']], Sheet: [['Excel', '.xlsx'], ['CSV', '.csv']] }[art.type]).map((e) => ({ label: e.at(0), ext: e.at(1), go: () => { this.setState({ exportOpen: false }); this.toast('Exported ' + art.title + e.at(1)); } })),
+        closeArt: () => this.setState({ artId: null, exportOpen: false }),
+        prevSlide: () => this.setState({ slide: Math.max(0, slide - 1) }), nextSlide: () => this.setState({ slide: Math.min(deck.length - 1, slide + 1) }),
+        protoClick: () => this.setState({ protoMsg: 'The button works in the preview — it would open your sign-up form.' }), protoMsg: s.protoMsg || '',
+        artAsk: s.artAsk || '', onArtAsk: (e) => this.setState({ artAsk: e.target.value }),
+        reviseArt: () => { const t = (s.artAsk || '').trim(); if (!t) { this.toast('Describe the change first'); return; } this.upd((w) => { w.artifacts = w.artifacts.map((a) => (a.id === art.id ? Object.assign({}, a, { version: a.version + 1 }) : a)); return w; }); this.setState({ artAsk: '', artV: 0 }); this.toast('v' + (art.version + 1) + ' · ' + t.slice(0, 40)); }
+      });
+    } else { v.art = { isDeck: false, isDoc: false, isProto: false, isSheet: false, thumbs: [], lines: [], cells: [], hasChat: false, projPath: '', chatTitle: '', goProj: () => {}, goChat: () => {} }; v.exportList = []; }
+    // artifacts library
+    const af = s.artFilter || 'All';
+    v.artFilters = ['All', 'Doc', 'Deck', 'Prototype', 'Sheet'].map((k) => ({ label: k === 'All' ? 'All' : k + 's', on: af === k ? 'true' : 'false', pick: () => this.setState({ artFilter: k }) }));
+    const scope = s.artScope || 'all';
+    const inScope = (a) => scope === 'all' || a.project === scope || this.path(ws, a.project).some((p) => p.id === scope);
+    v.artScopes = [{ label: 'All projects', on: scope === 'all' ? 'true' : 'false', pick: () => this.setState({ artScope: 'all' }) }].concat(ws.projects.filter((p) => ws.artifacts.some((a) => a.project === p.id || this.path(ws, a.project).some((x) => x.id === p.id))).map((p) => ({ label: '▤ ' + this.pathName(ws, p.id), on: scope === p.id ? 'true' : 'false', pick: () => this.setState({ artScope: p.id }) })));
+    v.artList = ws.artifacts.filter((a) => (af === 'All' || a.type === af) && inScope(a)).map((a) => { const fc = a.chat && ws.chats.find((c) => c.id === a.chat); return { type: a.type.toUpperCase(), title: a.title, version: String(a.version), proj: '▤ ' + this.pathName(ws, a.project), from: fc ? 'from 💬 ' + fc.title : 'made in the library', open: () => this.openArtifact(a) }; });
+    v.artEmpty = !v.artList.length; v.artCount = String(ws.artifacts.length);
+    v.newArtifact = () => this.go('brief');
+    v.goGenerate = () => this.go('generate');
+    v.saveGenerated = (title) => { const id = uid('a'); this.upd((w) => { w.artifacts = w.artifacts.concat([A(id, composeProj.id, 'Prototype', title || 'Beta landing page', 1)]); return w; }); this.go('artifacts', { artId: id }); this.toast('Saved to ' + composeProj.name); };
+    v.handoff = () => { const id = uid('c'); this.upd((w) => { w.chats = w.chats.concat([C(id, composeProj.id, 'Continue landing page as code', [{ role: 'bot', text: 'I copied the prototype into ' + composeProj.folder + '/site. Tell me what to change, or say “run it”.', tools: ['open design · handoff', 'opencode · files written'] }])]); return w; }); this.go('chat', { chatId: id, projId: composeProj.id }); this.toast('Handed off to a chat in ' + composeProj.name); };
+    // project view
+    const ptab = s.ptab || 'chats';
+    const subs = kids(proj.id);
+    const pchats = ws.chats.filter((c) => c.project === proj.id || this.path(ws, c.project).some((p) => p.id === proj.id));
+    const parents = this.path(ws, proj.id).slice(0, -1);
+    const parent = parents.at(-1);
+    const parts = ws.artifacts.filter((a) => a.project === proj.id || this.path(ws, a.project).some((p) => p.id === proj.id));
+    v.projArts = parts.map((a) => { const fc = a.chat && ws.chats.find((c) => c.id === a.chat); return { icon: ART_ICON[a.type] || '▧', title: a.title, type: a.type + ' · v' + a.version, where: a.project === proj.id ? 'this project' : 'in ' + this.pathName(ws, a.project).split(' › ').slice(this.path(ws, proj.id).length).join(' › '), from: fc ? 'from 💬 ' + fc.title : 'made in the library', open: () => this.openArtifact(a) }; });
+    v.projArtsEmpty = !parts.length;
+    v.proj = { name: proj.name, folder: proj.folder, stats: subs.length + ' sub-projects · ' + pchats.length + ' chats · ' + parts.length + ' artifacts', hasParent: !!parent, parentName: parent ? parent.name : '', goParent: () => parent && this.go('project', { projId: parent.id }),
+      addSub: () => this.setState({ addFor: proj.id, subDraft: '', open: Object.assign({}, open, { [proj.id]: true }) }),
+      newChat: () => { this.setState({ composeProj: proj.id }); this.go('home'); },
+      hasSubs: subs.length > 0, subs: subs.map((p) => ({ name: p.name, meta: ws.chats.filter((c) => c.project === p.id).length + ' chats · ' + kids(p.id).length + ' sub-projects', open: () => this.go('project', { projId: p.id, ptab: 'chats' }) })),
+      chats: pchats.map((c) => ({ title: c.title, where: this.pathName(ws, c.project), n: String(c.msgs.length), open: () => this.go('chat', { chatId: c.id, projId: c.project, artId: null }) })), noChats: !pchats.length,
+      layers: [{ name: 'Workspace · ' + ws.name, file: 'workspace settings', text: isOrg ? 'Org policy: never paste secrets; EU data only.' : 'Answer in English. Ask before deleting anything.', indent: '0px', open: () => this.go('settings', { setPage: 'general' }) }].concat(proj.inherit ? parents.map((p, i) => ({ name: p.name, file: p.folder + '/AGENTS.md', text: p.instr || '(empty)', indent: ((i + 1) * 16) + 'px', open: () => this.go('project', { projId: p.id, ptab: 'instr' }) })) : []),
+      thisIndent: ((proj.inherit ? parents.length : 0) + 1) * 16 + 'px',
+      facts: ws.facts.filter((f) => f.scope === proj.id).map((f) => ({ text: f.text, scope: 'this project', remove: () => { this.upd((w) => { w.facts = w.facts.filter((x) => x.id !== f.id); return w; }); this.toast('Forgotten'); } })),
+      inherit: proj.inherit ? 'true' : 'false', isGeneral: proj.name === 'General' && !proj.parent,
+      archiveNote: proj.name === 'General' && !proj.parent ? 'General can’t be archived — quick chats live here.' : 'Hides it, its sub-projects and their chats.',
+      files: [] };
+    v.proj.noFacts = !v.proj.facts.length;
+    const fsel = s.fileSel || 'AGENTS.md';
+    v.proj.files = [[proj.folder.split('/').at(-1) + '/', 0, '▾', 'var(--accent-p-text)', 'this project'], ['AGENTS.md', 1, '·', 'var(--muted)', '']].concat(subs.map((p) => [p.folder.split('/').at(-1) + '/', 1, '▸', 'var(--accent-p-text)', 'sub-project'])).concat([['README.md', 1, '·', 'var(--muted)', ''], ['src/', 1, '▸', 'var(--muted)', ''], ['graphify-out/', 1, '▸', 'var(--accent-o-text)', ws.mem === 'facts' ? '' : 'memory graph']]).map((f) => ({ name: f.at(0), pad: (8 + f.at(1) * 18) + 'px', glyph: f.at(2), color: f.at(3), tag: f.at(4), cur: fsel === f.at(0) ? 'true' : 'false', pick: () => { this.setState({ fileSel: f.at(0) }); if (f.at(4) === 'sub-project') { const sp = subs.find((p) => p.folder.endsWith(f.at(0).slice(0, -1))); if (sp) this.go('project', { projId: sp.id }); } } }));
+    v.fileNote = fsel === 'AGENTS.md' ? 'AGENTS.md is edited on the Instructions tab.' : (fsel === 'graphify-out/' ? 'Graphify keeps graph.json and GRAPH_REPORT.md here.' : 'Selected ' + fsel);
+    v.projTabs = [['chats', 'Chats'], ['arts', 'Artifacts'], ['instr', 'Instructions'], ['mem', 'Memory'], ['files', 'Files'], ['loops', 'Loops'], ['set', 'Settings']].map((t) => ({ label: t.at(1), sel: ptab === t.at(0) ? 'true' : 'false', pick: () => this.setState({ ptab: t.at(0), instrDraft: null, projNameDraft: null }) }));
+    v.pt = { arts: ptab === 'arts', chats: ptab === 'chats', instr: ptab === 'instr', mem: ptab === 'mem', files: ptab === 'files', loops: ptab === 'loops', set: ptab === 'set' };
+    v.instrDraft = s.instrDraft != null ? s.instrDraft : proj.instr; v.onInstr = (e) => this.setState({ instrDraft: e.target.value });
+    v.saveInstr = () => { const t = s.instrDraft != null ? s.instrDraft : proj.instr; this.upd((w) => { w.projects = w.projects.map((p) => (p.id === proj.id ? Object.assign({}, p, { instr: t }) : p)); return w; }); this.setState({ instrDraft: null }); this.toast('Saved ' + proj.folder + '/AGENTS.md'); };
+    v.resetInstr = () => this.setState({ instrDraft: null });
+    v.factDraft = s.factDraft || ''; v.onFactDraft = (e) => this.setState({ factDraft: e.target.value });
+    v.addFact = () => { const t = (s.factDraft || '').trim(); if (!t) return; this.upd((w) => { w.facts = w.facts.concat([{ id: uid('f'), text: t, scope: proj.id }]); return w; }); this.setState({ factDraft: '' }); this.toast('Fact saved'); };
+    v.projNameDraft = s.projNameDraft != null ? s.projNameDraft : proj.name; v.onProjName = (e) => this.setState({ projNameDraft: e.target.value });
+    v.saveProjName = () => { const t = (s.projNameDraft || '').trim(); if (!t) return; this.upd((w) => { w.projects = w.projects.map((p) => (p.id === proj.id ? Object.assign({}, p, { name: t }) : p)); return w; }); this.setState({ projNameDraft: null }); this.toast('Renamed to ' + t); };
+    const descendants = (pid) => kids(pid).reduce((a, p) => a.concat([p.id], descendants(p.id)), []);
+    const banned = [proj.id].concat(descendants(proj.id));
+    v.parentOpts = [{ label: 'Top level', id: null }].concat(allProjFlat.map((x) => ({ label: '› '.repeat(x.d) + x.p.name, id: x.p.id }))).map((o) => ({ label: o.label, on: (proj.parent || null) === o.id ? 'true' : 'false', dis: banned.includes(o.id) || (proj.name === 'General' && !proj.parent), pick: () => { this.upd((w) => { w.projects = w.projects.map((p) => (p.id === proj.id ? Object.assign({}, p, { parent: o.id }) : p)); return w; }); this.toast('Moved under ' + o.label.replace(/› /g, '')); } }));
+    v.projModels = ['inherit'].concat(models).map((m) => ({ id: m === 'inherit' ? 'inherit from parent' : m, on: (proj.model || 'inherit') === m ? 'true' : 'false', pick: () => { this.upd((w) => { w.projects = w.projects.map((p) => (p.id === proj.id ? Object.assign({}, p, { model: m === 'inherit' ? '' : m }) : p)); return w; }); } }));
+    v.toggleInherit = () => this.upd((w) => { w.projects = w.projects.map((p) => (p.id === proj.id ? Object.assign({}, p, { inherit: !p.inherit }) : p)); return w; });
+    v.askArchive = () => this.ask('Archive ' + proj.name + '?', 'It, ' + descendants(proj.id).length + ' sub-projects and their chats are hidden. Nothing is deleted; restore it from Settings › Data.', 'Archive', () => { const gone = [proj.id].concat(descendants(proj.id)); this.upd((w) => { w.projects = w.projects.filter((p) => !gone.includes(p.id)); w.chats = w.chats.filter((c) => !gone.includes(c.project)); return w; }); this.go('home', { projId: ws.projects[0].id }); this.toast(proj.name + ' archived'); });
+    // settings
+    const page = s.setPage || 'general';
+    const tog = (key, def) => (ws.toggles[key] != null ? ws.toggles[key] : def);
+    const setTog = (key, def) => () => this.upd((w) => { w.toggles = Object.assign({}, w.toggles, { [key]: !tog(key, def) }); return w; });
+    const R = {
+      text: (label, note, value) => ({ label, note, value, isText: true }),
+      toggle: (label, note, key, def, dis) => ({ label, note, isToggle: true, on: tog(key, def) ? 'true' : 'false', act: dis ? () => this.toast('Locked by org policy') : setTog(key, def), dis: !!dis }),
+      button: (label, note, btn, act, danger, dis) => ({ label, note, isButton: true, btn, act, cls: danger ? 'btn-d' : '', dis: !!dis }),
+      choice: (label, note, opts, cur, pick, dis) => ({ label, note, isChoice: true, dis: !!dis, choices: opts.map((o) => ({ label: o, on: o === cur ? 'true' : 'false', pick: () => pick(o) })) }),
+      input: (label, note, value, onInput, btn, act, dis) => ({ label, note, isInput: true, value, onInput, btn, act, dis: !!dis })
+    };
+    const norm = (r) => Object.assign({ isText: false, isToggle: false, isButton: false, isChoice: false, isInput: false, choices: [], dis: false, cls: '', on: 'false', act: () => {}, onInput: () => {}, value: '', btn: '' }, r);
+    const PAGES = {
+      general: ['General', 'Name, accent and defaults for this workspace.', [
+        R.input('Workspace name', 'Shown in the rail and the header', s.wsNameDraft != null ? s.wsNameDraft : ws.name, (e) => this.setState({ wsNameDraft: e.target.value }), 'Rename', () => { const t = (s.wsNameDraft || '').trim(); if (!t) return; this.upd((w) => { w.name = t; w.init = t.split(/\s+/).map((x) => x.charAt(0)).join('').slice(0, 2).toUpperCase(); return w; }); this.setState({ wsNameDraft: null }); this.toast('Workspace renamed'); }, isOrg),
+        R.choice('Accent', 'Top strip, rail and buttons', ACCENTS.map((a) => a.at(1)), (ACCENTS.find((a) => a.at(0) === (s.acc || 'default')) || ACCENTS[0]).at(1), (o) => this.setState({ acc: ACCENTS.find((a) => a.at(1) === o).at(0) })),
+        R.choice('Default project', 'Where quick chats go — no chat is left outside a project', ws.projects.filter((p) => !p.parent).map((p) => p.name), (ws.projects.find((p) => p.id === ws.defProj) || ws.projects[0]).name, (o) => this.upd((w) => { w.defProj = w.projects.find((p) => p.name === o).id; return w; })),
+        R.choice('Default model', '', models.length ? models : ['none'], ws.defModel, (o) => this.upd((w) => { w.defModel = o; return w; })),
+        R.button(isOrg ? 'Leave organization' : (ws.kind === 'personal' ? 'Personal workspace' : 'Delete workspace'), isOrg ? 'Your org data stays with the org' : (ws.kind === 'personal' ? 'Your personal workspace can’t be deleted' : 'Deletes its chats, memory and artifacts'), isOrg ? 'Leave…' : 'Delete…', () => this.ask(isOrg ? 'Leave ' + ws.name + '?' : 'Delete ' + ws.name + '?', 'This removes the workspace from this computer.', isOrg ? 'Leave' : 'Delete', () => { this.setState({ wss: (s.wss || []).filter((w) => w.id !== ws.id), wsId: 'p', view: 'home' }); this.toast(ws.name + ' removed'); }), true, ws.kind === 'personal')
+      ]],
+      members: ['Members & SSO', isOrg ? 'Who is in this workspace and how they sign in.' : 'Personal workspaces have one member: you.', isOrg ? [R.text('Identity provider', 'OIDC', 'MyAccessID via CAIM'), R.toggle('Require SSO', 'Set by your organization', 'sso', true, true)].concat(ws.members.map((m, i) => R.choice(m.name, 'member', ['Admin', 'Member', 'Viewer'], m.role, (o) => this.upd((w) => { w.members = w.members.map((x, j) => (j === i ? Object.assign({}, x, { role: o }) : x)); return w; }), i === 0))).concat([R.input('Invite', 'By email; they sign in with SSO', s.invite || '', (e) => this.setState({ invite: e.target.value }), 'Invite', () => { const t = (s.invite || '').trim(); if (!t) return; this.upd((w) => { w.members = w.members.concat([{ name: t, role: 'Member' }]); return w; }); this.setState({ invite: '' }); this.toast('Invited ' + t); })]) : [R.text('Members', '', 'Only you'), R.button('Want to collaborate?', 'Create a Team workspace and invite people there', 'New team workspace', () => this.setState({ nw: { open: true, type: 'team', name: 'Team' } }))]],
+      providers: ['Model providers', 'Which models chats, loops and routines may use here.', (isOrg ? [R.text('Gateway', 'LiteLLM proxy, open-source (MIT) edition, run by your organization', 'https://llm.[ORG-HOST]/v1')] : []).concat(ws.providers.map((p) => R.button(p.name + (p.default ? ' · default' : ''), p.note + ' · ' + p.models.join(', '), p.locked ? 'Locked' : (p.default ? 'Remove' : 'Make default'), () => { if (p.locked) { this.toast('Locked by org policy'); return; } if (p.default) this.ask('Remove ' + p.name + '?', 'Chats using its models will switch to another provider.', 'Remove', () => { this.upd((w) => { w.providers = w.providers.filter((x) => x.id !== p.id); if (w.providers[0]) w.providers[0] = Object.assign({}, w.providers[0], { default: true }); return w; }); this.toast(p.name + ' removed'); }); else { this.upd((w) => { w.providers = w.providers.map((x) => Object.assign({}, x, { default: x.id === p.id })); w.defModel = p.id + '/' + p.models[0]; return w; }); this.toast(p.name + ' is now the default'); } }, false, false)).concat([R.button('Custom provider', isOrg ? 'Only your org admin can add providers here' : 'Any OpenAI-compatible or AI SDK endpoint, written to opencode.json', 'Add custom provider…', () => this.setState({ cp: { open: true, id: 'my-endpoint', name: 'My endpoint', url: 'https://[YOUR-ENDPOINT]/v1', env: 'MY_ENDPOINT_KEY', model: 'my-model', pkg: '@ai-sdk/openai-compatible' } }), false, isOrg)]))],
+      connectors: ['Connectors & MCP', 'Apps and MCP servers chats can call. Credentials are kept per workspace.', ws.connectors.map((c) => ({ label: c.name, note: c.kind + (c.locked ? ' · required by org' : ''), isToggle: true, on: c.on ? 'true' : 'false', dis: !!c.locked, act: () => { this.upd((w) => { w.connectors = w.connectors.map((x) => (x.id === c.id ? Object.assign({}, x, { on: !x.on }) : x)); return w; }); this.toast(c.name + (c.on ? ' off' : ' on')); } })).concat([R.input('Add MCP server', 'Name or command, e.g. uvx blender-mcp', s.mcpDraft || '', (e) => this.setState({ mcpDraft: e.target.value }), 'Add', () => { const t = (s.mcpDraft || '').trim(); if (!t) return; this.upd((w) => { w.connectors = w.connectors.concat([{ id: uid('m'), name: t, kind: 'MCP · stdio', on: true }]); return w; }); this.setState({ mcpDraft: '' }); this.toast('Added ' + t + ' to opencode.json'); })])],
+      memory: ['Memory', 'What the agent remembers in this workspace, and how.', [R.choice('Memory engine', 'Served to opencode over MCP', ['Facts', 'Graphify', 'Graphify + facts', 'Custom MCP'], { facts: 'Facts', graph: 'Graphify', both: 'Graphify + facts', mcp: 'Custom MCP' }[ws.mem], (o) => { this.upd((w) => { w.mem = { Facts: 'facts', Graphify: 'graph', 'Graphify + facts': 'both', 'Custom MCP': 'mcp' }[o]; return w; }); this.toast('Memory · ' + o); }), R.toggle('Suggest memories from chats', 'You approve each one', 'learn', true), R.toggle('Share with other workspaces', 'Never — each workspace has its own', 'share', false, true), R.button('Open memory', ws.facts.length + ' facts saved', 'Open', () => this.go('memory')), R.button('Delete all memory', 'Cannot be undone', 'Delete…', () => this.ask('Delete all memory?', 'Every fact in ' + ws.name + ' is removed.', 'Delete', () => { this.upd((w) => { w.facts = []; return w; }); this.toast('Memory cleared'); }), true)]],
+      skills: ['Skills & plugins', 'SKILL.md folders and plugins available here.', [R.toggle('frontend-design', 'built-in', 'sk1', true), R.toggle('docx · pptx · xlsx · pdf', 'built-in file formats', 'sk2', true), R.toggle('Open Design templates', 'deck and prototype templates', 'sk3', true), R.toggle('graphify', 'memory graph · opencode integration', 'pl1', ws.mem !== 'facts'), R.button('Add a skill folder', 'Point at a folder with a SKILL.md', 'Add…', () => this.toast('Added ~/skills/my-skill (demo)'))]],
+      artifacts: ['Artifacts & sharing', 'Defaults for docs, decks, prototypes and sheets.', [R.choice('Default visibility', '', ['Private', 'Workspace'], ws.vis || 'Private', (o) => this.upd((w) => { w.vis = o; return w; })), R.toggle('Allow public links', isOrg ? 'Blocked by org policy' : 'Anyone with the link can view', 'pub', !isOrg, isOrg), R.choice('Design system', 'Open Design DESIGN.md used for new artifacts', ['Claude Warm Editorial', isOrg ? 'BSC brand' : 'Castform brand'], ws.design, (o) => { this.upd((w) => { w.design = o; return w; }); this.toast('Design system · ' + o); })]],
+      routines: ['Routines', 'Scheduled prompts and graphs.', [R.button('Open routines', 'See the week, run history and create new ones', 'Open', () => this.go('routines')), R.toggle('Ask before acting', 'Routines pause at approval steps', 'askAct', true), R.choice('If a computer is asleep', '', ['Run when it wakes', 'Wake it', 'Skip'], ws.sleep || 'Run when it wakes', (o) => this.upd((w) => { w.sleep = o; return w; }))]],
+      computers: ['Computers', 'Linked machines this workspace may use.', [R.button('Manage computers', 'Permissions, folders and live view', 'Open', () => this.go('computers'))]],
+      data: ['Data & retention', 'Where this workspace keeps things and for how long.', [R.text('Data folder', '', '~/.harness/ws/' + ws.slug), R.choice('Keep chats', isOrg ? 'Set by org policy' : '', ['Forever', '1 year', '90 days'], isOrg ? '1 year' : (ws.keep || 'Forever'), (o) => this.upd((w) => { w.keep = o; return w; }), isOrg), R.button('Export this workspace', 'Chats, artifacts, memory and config as .zip', 'Export', () => this.toast('Exported ' + ws.slug + '.zip'))]],
+      audit: ['Audit log', isOrg ? 'Uploaded to your organization daily.' : 'What happened in this session.', (s.events || []).slice(0, 14).map((e) => R.text(e.text, e.when, '')).concat((s.events || []).length ? [] : [R.text('Nothing yet', 'Actions you take appear here', '')])],
+      agents: ['Agents (ACP)', isOrg ? 'Your organization allows opencode only.' : 'Coding agents chats and graph tasks can run on. opencode is the default; others connect over the Agent Client Protocol.', (ws.agents || []).map((a) => ({ label: a.name + (a.id === ws.defAgent ? ' · default' : ''), note: a.builtin ? 'opencode serve (HTTP) · also speaks ACP via opencode acp' : a.via + ' · ' + a.cmd, isToggle: true, on: a.on ? 'true' : 'false', dis: !!a.builtin || isOrg, act: () => { if (a.builtin) { this.toast('opencode is always on'); return; } if (isOrg) { this.toast('Locked by org policy'); return; } this.upd((w) => { w.agents = w.agents.map((x) => (x.id === a.id ? Object.assign({}, x, { on: !x.on }) : x)); if (a.on && w.defAgent === a.id) w.defAgent = 'opencode'; return w; }); this.toast(a.name + (a.on ? ' off' : ' on · initialize → session/new')); } })).concat([
+        R.choice('Default agent', 'Used for new chats in this workspace', (ws.agents || []).filter((a) => a.on).map((a) => a.name), ((ws.agents || []).find((a) => a.id === ws.defAgent) || { name: 'opencode' }).name, (o) => this.upd((w) => { w.defAgent = w.agents.find((a) => a.name === o).id; return w; }), isOrg),
+        R.input('Add ACP agent', 'Command that starts it over stdio (JSON-RPC)', s.acpDraft || '', (e) => this.setState({ acpDraft: e.target.value }), 'Add', () => { const t = (s.acpDraft || '').trim(); if (!t) return; this.upd((w) => { w.agents = w.agents.concat([{ id: uid('ag'), name: t.split(/\s+/)[0], via: 'ACP', cmd: t, on: true }]); return w; }); this.setState({ acpDraft: '' }); this.toast('Added ' + t.split(/\s+/)[0] + ' · initialize ok'); }, isOrg),
+        R.text('Harness provides', 'ACP client capabilities', 'fs read/write and terminal, limited to the chat’s project folder'),
+        R.toggle('Ask before file writes and commands', 'Answers session/request_permission in the chat', 'acpask', true),
+        R.text('Chats on other agents', '', 'Still live in a project; history is kept by harness and reloaded with session/load')
+      ])],
+      web: ['Web search', isOrg ? 'Set by your organization. Queries go to its own search service.' : 'Which search the agent can use in this workspace. Each chat can still turn it off.', [
+        R.choice('Search', 'opencode websearch, an MCP search server, or none', ['Off', 'Built-in (Exa)', 'Search provider', 'SearXNG'], { off: 'Off', exa: 'Built-in (Exa)', mcp: 'Search provider', searxng: 'SearXNG' }[ws.web.mode], (o) => { this.upd((w) => { w.web = Object.assign({}, w.web, { mode: { Off: 'off', 'Built-in (Exa)': 'exa', 'Search provider': 'mcp', SearXNG: 'searxng' }[o] }); return w; }); this.toast('Web search · ' + o + ' · opencode restarted'); }, ws.web.locked)
+      ].concat(ws.web.mode === 'mcp' ? [R.choice('Provider', 'Runs as a local MCP server; key kept in the keychain', Object.keys(WEBP), ws.web.prov, (o) => this.upd((w) => { w.web = Object.assign({}, w.web, { prov: o }); return w; }), ws.web.locked)] : [])
+       .concat(ws.web.mode === 'searxng' ? [R.input('SearXNG URL', 'Your instance', s.searxEdit != null ? s.searxEdit : ws.web.url, (e) => this.setState({ searxEdit: e.target.value }), 'Save', () => { const t = (s.searxEdit || '').trim(); if (!t) return; this.upd((w) => { w.web = Object.assign({}, w.web, { url: t }); return w; }); this.setState({ searxEdit: null }); this.toast('Saved'); }, ws.web.locked)] : [])
+       .concat([
+        { label: 'Read pages by URL', note: 'opencode webfetch', isToggle: true, on: ws.web.fetch ? 'true' : 'false', dis: !!ws.web.locked, act: () => { if (ws.web.locked) { this.toast('Locked by org policy'); return; } this.upd((w) => { w.web = Object.assign({}, w.web, { fetch: !w.web.fetch }); return w; }); } },
+        { label: 'Ask before each search', note: 'permission: ask', isToggle: true, on: ws.web.ask ? 'true' : 'false', dis: false, act: () => this.upd((w) => { w.web = Object.assign({}, w.web, { ask: !w.web.ask }); return w; }) },
+        R.toggle('Show sources under answers', 'Links to every page the agent read', 'webcite', true),
+        R.button('Try a search', ws.web.mode === 'off' ? 'Search is off' : 'Runs one query through this workspace’s opencode', 'Search', () => this.toast(ws.web.mode === 'off' ? 'Web search is off' : '8 results · 0.8 s'), false, ws.web.mode === 'off'),
+        R.text('Config', 'written to opencode.json', ws.web.mode === 'exa' ? 'OPENCODE_ENABLE_EXA=true' : (ws.web.mode === 'off' ? 'websearch: deny' : (ws.web.mode === 'mcp' ? 'mcp.' + ws.web.prov.toLowerCase() : 'mcp.searxng')))
+      ])],
+      engine: ['Engine', 'The processes behind this workspace. Every chat is an opencode session.', [
+        R.choice('opencode', 'Start a server for this workspace, or use one you run', ['Managed by harness', 'Connect to a server'], ws.oc && ws.oc.mode === 'remote' ? 'Connect to a server' : 'Managed by harness', (o) => { this.upd((w) => { w.oc = Object.assign({}, w.oc, { mode: o === 'Connect to a server' ? 'remote' : 'managed', url: w.oc.url || 'http://127.0.0.1:4096' }); return w; }); this.toast(o === 'Connect to a server' ? 'Connected to ' + ((ws.oc && ws.oc.url) || 'http://127.0.0.1:4096') : 'Harness now starts opencode for ' + ws.name); }, isOrg),
+        R.input('Server URL', ws.oc && ws.oc.mode === 'remote' ? 'Basic auth; password in the keychain' : 'Used only when connecting to a server', s.ocUrlEdit != null ? s.ocUrlEdit : ((ws.oc && ws.oc.url) || 'http://127.0.0.1:4096'), (e) => this.setState({ ocUrlEdit: e.target.value }), 'Reconnect', () => { const t = (s.ocUrlEdit || (ws.oc && ws.oc.url) || '').trim(); if (!/^https?:\/\//.test(t)) { this.toast('Use http:// or https://'); return; } this.upd((w) => { w.oc = Object.assign({}, w.oc, { url: t }); return w; }); this.setState({ ocUrlEdit: null }); this.toast('Reconnected · ' + t); }, !(ws.oc && ws.oc.mode === 'remote')),
+        R.toggle('Sync sessions both ways', 'TUI sessions appear here; chats here appear in the TUI', 'ocsync', true),
+        R.button('Import sessions', 'Bring in sessions created outside harness; folders become projects', 'Scan', () => this.toast('Scanned /session · nothing new to import')),
+        R.text('Attach the TUI', '', 'opencode attach ' + (ws.oc && ws.oc.mode === 'remote' ? ws.oc.url : 'http://127.0.0.1:' + (4096 + (s.wss || []).indexOf(ws)))),
+        R.text('Desktop shell', 'native window and updates', 'Tauri 2 · opencode and Open Design start as sidecars'),
+        R.text('Version', 'pinned per workspace', '[VERSION] · ' + (ws.oc && ws.oc.mode === 'remote' ? ws.oc.url : '127.0.0.1:' + (4096 + (s.wss || []).indexOf(ws)))), R.text('Config', '', '~/.harness/ws/' + ws.slug + '/config/opencode.json'), R.text('Open Design', '', 'running · loopback only'), R.button('Restart servers', 'Open chats reconnect on their own', s.engine === 'restarting' ? 'Restarting…' : 'Restart', () => { this.setState({ engine: 'restarting' }); clearTimeout(this.engTimer); this.engTimer = setTimeout(() => { this.setState({ engine: null }); this.toast('Servers restarted'); }, 1600); }), R.button('Logs', 'Last 500 lines', 'Open logs', () => this.toast('Logs opened in a new window (demo)'))]],
+      appearance: ['Appearance', 'Applies to every workspace.', [R.choice('Theme', '', ['Claude', 'opencode'], theme === 'claude' ? 'Claude' : 'opencode', (o) => this.setState({ theme: o === 'Claude' ? 'claude' : 'opencode' })), R.choice('Accent', '', ACCENTS.map((a) => a.at(1)), (ACCENTS.find((a) => a.at(0) === (s.acc || 'default')) || ACCENTS[0]).at(1), (o) => this.setState({ acc: ACCENTS.find((a) => a.at(1) === o).at(0) })), { label: 'Reduce motion', note: 'Also follows your system setting', isToggle: true, on: s.reduce ? 'true' : 'false', act: () => this.setState({ reduce: !s.reduce }) }]]
+    };
+    const pg = PAGES[page];
+    v.sp = { title: pg.at(0), lead: pg.at(1), locked: isOrg && ['providers', 'members', 'artifacts', 'data'].includes(page), rows: pg.at(2).map(norm) };
+    v.setNav = [['general', 'General'], ['members', 'Members & SSO'], ['providers', 'Model providers'], ['agents', 'Agents (ACP)'], ['connectors', 'Connectors & MCP'], ['web', 'Web search'], ['memory', 'Memory'], ['skills', 'Skills & plugins'], ['artifacts', 'Artifacts & sharing'], ['routines', 'Routines'], ['computers', 'Computers'], ['data', 'Data & retention'], ['audit', 'Audit log'], ['engine', 'Engine'], ['appearance', 'Appearance']].map((n) => ({ label: n.at(1), badge: n.at(0) === 'providers' && isOrg ? 'locked' : (n.at(0) === 'audit' ? String((s.events || []).length || '') : ''), cur: page === n.at(0) ? 'page' : 'false', pick: () => this.setState({ setPage: n.at(0), wsNameDraft: null }) }));
+    // palette
+    const pq = (s.palQ || '').toLowerCase();
+    const items = [];
+    (s.wss || []).forEach((w) => items.push({ kind: 'Workspace', label: w.name, meta: w.kind, go: () => { this.setState({ wsId: w.id, view: 'home', chatId: null, artId: null, palOpen: false }); this.toast('Switched to ' + w.name); } }));
+    [['home', 'Home'], ['artifacts', 'Artifacts'], ['graph', 'Graph editor'], ['routines', 'Routines'], ['computers', 'Computers'], ['memory', 'Memory'], ['settings', 'Settings']].forEach((x) => items.push({ kind: 'Screen', label: x.at(1), meta: '', go: () => this.go(x.at(0)) }));
+    allProjFlat.forEach((x) => items.push({ kind: 'Project', label: x.p.name, meta: this.pathName(ws, x.p.id), go: () => this.go('project', { projId: x.p.id, ptab: 'chats' }) }));
+    ws.chats.forEach((c) => items.push({ kind: 'Chat', label: c.title, meta: this.pathName(ws, c.project), go: () => this.go('chat', { chatId: c.id, projId: c.project, artId: null }) }));
+    ws.artifacts.forEach((a) => items.push({ kind: 'Artifact', label: a.title, meta: a.type, go: () => this.go('artifacts', { artId: a.id }) }));
+    items.push({ kind: 'Action', label: 'New chat', meta: 'in ' + proj.name, go: () => { this.setState({ composeProj: proj.id }); this.go('home'); } });
+    items.push({ kind: 'Action', label: 'New workspace', meta: '', go: () => this.setState({ palOpen: false, nw: { open: true, type: 'team', name: 'Team' } }) });
+    items.push({ kind: 'Action', label: 'Switch theme', meta: theme, go: () => this.setState({ theme: theme === 'claude' ? 'opencode' : 'claude', palOpen: false }) });
+    items.push({ kind: 'Action', label: 'New routine', meta: 'in words', go: () => this.go('routines') });
+    items.push({ kind: 'Action', label: 'New graph', meta: 'BPMN', go: () => this.go('graph') });
+    if (chat) items.push({ kind: 'Action', label: 'Open this chat in opencode TUI', meta: chat.sid || '', go: () => { this.setState({ palOpen: false }); this.toast('Copied: opencode attach … -s ' + chat.sid); } });
+    const score = (x) => { if (!pq) return 1; const hay = (x.label + ' ' + x.meta + ' ' + x.kind).toLowerCase(); if (x.label.toLowerCase().startsWith(pq)) return 3; if (hay.includes(pq)) return 2; let i = 0; for (const ch of hay) { if (ch === pq[i]) i++; if (i === pq.length) return 1; } return 0; };
+    v.palItems = items.map((x) => Object.assign({ sc: score(x) }, x)).filter((x) => x.sc > 0).sort((a, b) => b.sc - a.sc).slice(0, 24);
+    const order = ['Action', 'Workspace', 'Project', 'Chat', 'Artifact', 'Screen'];
+    v.palGroups = order.map((k) => ({ name: { Action: 'Actions', Workspace: 'Workspaces', Project: 'Projects', Chat: 'Chats', Artifact: 'Artifacts', Screen: 'Screens' }[k], items: v.palItems.filter((x) => x.kind === k).slice(0, 6).map((x, i) => Object.assign({ cur: 'false' }, x)) })).filter((g) => g.items.length);
+    const palFlat = []; v.palGroups.forEach((g) => g.items.forEach((x) => palFlat.push(x)));
+    const ps = Math.min(Math.max(0, s.palSel || 0), Math.max(0, palFlat.length - 1));
+    if (palFlat[ps]) palFlat[ps].cur = 'true';
+    v.palKey = (e) => { if (e.key === 'ArrowDown') { e.preventDefault(); this.setState({ palSel: Math.min(palFlat.length - 1, ps + 1) }); } else if (e.key === 'ArrowUp') { e.preventDefault(); this.setState({ palSel: Math.max(0, ps - 1) }); } else if (e.key === 'Enter') { e.preventDefault(); if (palFlat[ps]) palFlat[ps].go(); } else if (e.key === 'Escape') this.setState({ palOpen: false }); };
+    v.palCount = v.palItems.length + ' results';
+    v.paletteOpen = !!s.palOpen; v.palQ = s.palQ || ''; v.onPalQ = (e) => this.setState({ palQ: e.target.value, palSel: 0 }); v.palEmpty = !v.palItems.length;
+    // new workspace
+    const nw = s.nw || {};
+    v.nwOpen = !!nw.open; v.nwName = nw.name || ''; v.onNwName = (e) => this.setState({ nw: Object.assign({}, nw, { name: e.target.value }) });
+    v.nwTypes = [['team', 'Team', 'shared space you manage'], ['personal', 'Personal', 'another private space'], ['org', 'Organization', 'join with SSO']].map((t) => ({ label: t.at(1), note: t.at(2), on: (nw.type || 'team') === t.at(0) ? 'true' : 'false', pick: () => this.setState({ nw: Object.assign({}, nw, { type: t.at(0), name: t.at(0) === 'org' ? 'BSC AI Factory' : nw.name }) }) }));
+    v.nwBtn = (nw.type || 'team') === 'org' ? 'Continue with SSO' : 'Create workspace';
+    v.openNewWs = () => this.setState({ nw: { open: true, type: 'team', name: 'Castform Labs' } });
+    v.closeNewWs = () => this.setState({ nw: null });
+    v.createWs = () => {
+      const name = (nw.name || '').trim(); if (!name) { this.toast('Name the workspace'); return; }
+      if ((nw.type || 'team') === 'org' && !(s.wss || []).some((w) => w.kind === 'org')) { const o = demoOrg(); this.setState({ wss: (s.wss || []).concat([o]), wsId: o.id, nw: null, view: 'home' }); this.toast('Joined BSC AI Factory'); return; }
+      const id = uid('w'); const w = mkWs(id, name, nw.type === 'personal' ? 'personal-extra' : 'team', name.split(/\s+/).map((x) => x.charAt(0)).join('').slice(0, 2).toUpperCase());
+      const me = this.ws(); w.providers = (nw.type === 'org') ? [] : [Object.assign({ default: true }, PRESET.anthropic)]; w.defModel = 'anthropic/claude-opus-5-5';
+      this.setState({ wss: (s.wss || []).concat([w]), wsId: id, nw: null, view: 'home', chatId: null, artId: null, projId: w.projects[0].id });
+      this.toast('Created ' + name + ' · own engine on :' + (4096 + (s.wss || []).length));
+    };
+    // custom provider
+    const cp = s.cp || {};
+    const setCp = (k) => (e) => this.setState({ cp: Object.assign({}, cp, { [k]: e.target.value, test: null }) });
+    v.cpOpen = !!cp.open; v.cp = { id: cp.id || '', name: cp.name || '', url: cp.url || '', env: cp.env || '', model: cp.model || '', testMsg: cp.test === 'ok' ? 'Connected · 1 model answered' : (cp.test === 'busy' ? 'Testing…' : (cp.test === 'bad' ? 'Use https://, or http:// only for localhost' : '')), testColor: cp.test === 'ok' ? 'var(--success-text)' : (cp.test === 'bad' ? 'var(--error-text)' : 'var(--muted)') };
+    v.cpOnId = setCp('id'); v.cpOnName = setCp('name'); v.cpOnUrl = setCp('url'); v.cpOnEnv = setCp('env'); v.cpOnModel = setCp('model');
+    v.cpPresets = [['LiteLLM proxy', { id: 'litellm', name: 'LiteLLM proxy', url: 'http://localhost:4000/v1', env: 'LITELLM_API_KEY', model: '[MODEL ALIAS]', pkg: '@ai-sdk/openai-compatible' }], ['Ollama', { id: 'ollama', name: 'Ollama', url: 'http://localhost:11434/v1', env: 'OLLAMA_API_KEY', model: 'qwen3-coder', pkg: '@ai-sdk/openai-compatible' }], ['OpenAI-compatible', { id: 'my-endpoint', name: 'My endpoint', url: 'https://[YOUR-ENDPOINT]/v1', env: 'MY_ENDPOINT_KEY', model: 'my-model', pkg: '@ai-sdk/openai-compatible' }]].map((x) => ({ label: x.at(0), pick: () => this.setState({ cp: Object.assign({ open: true }, x.at(1)) }) }));
+    v.cpPkgs = ['@ai-sdk/openai-compatible', '@ai-sdk/openai', '@ai-sdk/anthropic'].map((p) => ({ label: p, on: (cp.pkg || '@ai-sdk/openai-compatible') === p ? 'true' : 'false', pick: () => this.setState({ cp: Object.assign({}, cp, { pkg: p }) }) }));
+    v.cpJson = JSON.stringify({ provider: { [cp.id || 'id']: { npm: cp.pkg || '@ai-sdk/openai-compatible', name: cp.name || '', options: { baseURL: cp.url || '', apiKey: '{env:' + (cp.env || 'KEY') + '}' }, models: { [cp.model || 'model']: { name: cp.model || 'model' } } } } }, null, 2);
+    v.cpTest = () => { const bad = !/^(https:\/\/|http:\/\/(localhost|127\.0\.0\.1)[:/])/.test(cp.url || ''); this.setState({ cp: Object.assign({}, cp, { test: 'busy' }) }); clearTimeout(this.testTimer); this.testTimer = setTimeout(() => this.setState({ cp: Object.assign({}, this.S().cp, { test: bad ? 'bad' : 'ok' }) }), 800); };
+    v.cpClose = () => this.setState({ cp: null });
+    v.cpSave = () => { if (!(cp.id || '').trim()) { this.toast('Provider ID is required'); return; } this.upd((w) => { w.providers = w.providers.concat([{ id: cp.id.trim(), name: cp.name || cp.id, note: (cp.pkg || '@ai-sdk/openai-compatible') + ' · ' + (cp.url || ''), models: [cp.model || 'model'] }]); return w; }); this.setState({ cp: null }); this.toast('Added ' + (cp.name || cp.id) + ' to opencode.json'); };
+    // confirm
+    v.confirmOpen = !!s.confirm; v.confirm = s.confirm || { title: '', body: '', ok: '' };
+    v.confirmNo = () => this.setState({ confirm: null }); v.confirmYes = () => { const f = this.confirmFn; this.setState({ confirm: null }); if (f) f(); };
+    // toasts
+    v.toasts = (s.toasts || []).map((t) => ({ text: t.text, close: () => this.setState({ toasts: (this.S().toasts || []).filter((x) => x.id !== t.id) }) }));
+    return v;
+  }
+}
+</script>
+</body>
+</html>

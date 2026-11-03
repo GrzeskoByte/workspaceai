@@ -1,0 +1,31 @@
+{
+  "name": "harness",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Harness — a desktop shell over opencode and Open Design with isolated workspaces, projects, memory and BPMN loops.",
+  "workspaces": [
+    "packages/*",
+    "apps/ui",
+    "apps/desktop"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "supervisor": "node packages/supervisor/src/main.ts",
+    "ui": "npm --workspace apps/ui run dev",
+    "build": "npm --workspace apps/ui run build",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "desktop": "npm --workspace @harness/desktop run dev",
+    "desktop:build": "npm --workspace @harness/desktop run build",
+    "desktop:hot": "npm --workspace @harness/desktop run dev:hot"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

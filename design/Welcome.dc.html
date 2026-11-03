@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Welcome</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:transparent}
+.hx{--bg0:#0a0a0a;--bg-deep:#050505;--bg1:#141414;--bg2:#1e1e1e;--bg3:#282828;--line:#323232;--line2:#3c3c3c;--line3:#484848;--dim:#606060;--text:#eeeeee;--text2:#d4d4d4;--text3:#b4b4b4;--muted:#9a9a9a;--muted2:#808080;--link-hover:#8ab8ff;
+--accent-p:#fab283;--accent-p-fill:#fab283;--accent-p-text:#fab283;--accent-p-deep:#7a4f35;--accent-o:#9d7cd8;--accent-o-fill:#9d7cd8;--accent-o-text:#9d7cd8;--on-accent:#0a0a0a;--on-accent-o:#0a0a0a;
+--info:#5c9cf5;--info-text:#5c9cf5;--cyan:#56b6c2;--cyan-text:#56b6c2;--success:#7fd88f;--success-text:#7fd88f;--warning:#f5a742;--warning-text:#f5a742;--error:#e06c75;--error-text:#e06c75;
+--font-ui:Inter,system-ui,sans-serif;--font-display:Inter,system-ui,sans-serif;--display-weight:600;--display-track:-0.02em;--font-label:'JetBrains Mono',monospace;color-scheme:dark}
+.hx[data-theme="claude"]{--bg0:#faf9f5;--bg-deep:#f5f0e8;--bg1:#f5f0e8;--bg2:#efe9de;--bg3:#e8e0d2;--line:#e6dfd8;--line2:#d6cdbf;--line3:#b8ae9f;--dim:#8e8b82;--text:#141413;--text2:#3d3d3a;--text3:#3d3d3a;--muted:#6c6a64;--muted2:#8e8b82;--link-hover:#141413;
+--accent-p:#cc785c;--accent-p-fill:#cc785c;--accent-p-text:#a9583e;--accent-p-deep:#f2d8cc;--accent-o:#5db8a6;--accent-o-fill:#5db8a6;--accent-o-text:#2f7d6d;--on-accent:#ffffff;--on-accent-o:#141413;
+--info:#a9583e;--info-text:#a9583e;--cyan:#5db8a6;--cyan-text:#2f7d6d;--success:#5db872;--success-text:#2f7a43;--warning:#d4a017;--warning-text:#8a6400;--error:#c64545;--error-text:#c64545;
+--font-display:Copernicus,'Tiempos Headline','Cormorant Garamond',Georgia,serif;--display-weight:500;--display-track:-0.01em;--font-label:Inter,system-ui,sans-serif;color-scheme:light}
+
+a{color:var(--info-text)}a:hover{color:var(--link-hover)}
+button{font:inherit;cursor:pointer}
+button,a,input,textarea,select{transition:filter .15s ease,transform .15s ease,box-shadow .25s ease,border-color .25s ease,background-color .25s ease,color .25s ease}
+button:hover,a:hover{filter:brightness(1.18)}
+button:active,a:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent-p) 45%, transparent)}50%{box-shadow:0 0 0 8px transparent}}
+@keyframes flow{to{stroke-dashoffset:-24}}
+@keyframes shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+.rise{animation:rise .4s cubic-bezier(.2,.7,.2,1) both}
+.pulse{animation:pulse 1.4s ease-in-out infinite}
+.glow{animation:glow 1.6s ease-out infinite}
+.flow path{stroke-dasharray:6 6;animation:flow .8s linear infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+textarea{font:inherit}
+</style>
+</helmet>
+<div class="hx" data-theme="{{theme}}" style="width: 1120px; height: 800px; box-sizing: border-box; padding: 40px; background: var(--bg-deep); color: var(--text); font-family: var(--font-ui); font-size: 14px; line-height: 1.5; display: flex; align-items: center; justify-content: center;">
+  <div role="dialog" aria-label="Set up harness" style="width: 1000px; height: 680px; border-radius: 16px; border: 1px solid var(--line); background: var(--bg0); display: flex; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,0.18);">
+    <aside style="flex: 0 0 280px; padding: 28px 24px; background: var(--bg1); border-right: 1px solid var(--bg2); display: flex; flex-direction: column; gap: 22px;">
+      <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 16px;">harness</span>
+      <ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px;">
+        <sc-for list="{{steps}}" as="st" hint-placeholder-count="5">
+          <li style="display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 8px; background: {{st.bg}};">
+            <span style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid {{st.ring}}; background: {{st.fill}}; color: var(--on-accent); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-sizing: border-box; transition: background-color .3s ease, border-color .3s ease;">{{st.mark}}</span>
+            <span style="display: flex; flex-direction: column;"><span style="font-size: 13px; font-weight: 500; color: {{st.color}};">{{st.label}}</span><span style="font-size: 11px; color: var(--muted);">{{st.note}}</span></span>
+          </li>
+        </sc-for>
+      </ol>
+      <span style="margin-top: auto; font-size: 12px; color: var(--muted);">You can change any of this later in Settings.</span>
+    </aside>
+    <main style="flex: 1 1 auto; min-width: 0; padding: 36px 40px; display: flex; flex-direction: column; gap: 18px;">
+      <sc-if value="{{s0}}" hint-placeholder-val="{{ true }}">
+        <div class="rise" style="display: flex; flex-direction: column; gap: 16px;">
+          <h1 style="margin: 0; font-size: 36px; font-family: var(--font-display); font-weight: var(--display-weight); letter-spacing: var(--display-track); line-height: 1.1;">Welcome. First, the engine.</h1>
+          <span style="color: var(--text2);">Harness runs your chats on opencode and makes artifacts with Open Design, both on this computer.</span>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg1);"><span style="width: 10px; height: 10px; border-radius: 50%; background: var(--success);"></span><span style="flex: 1 1 auto;"><b>opencode</b> found · <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px;">/usr/local/bin/opencode</span></span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted);">[VERSION]</span></div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg1);"><span class="{{odCls}}" style="width: 10px; height: 10px; border-radius: 50%; background: {{odDot}};"></span><span style="flex: 1 1 auto;"><b>Open Design</b> · {{odText}}</span><button type="button" onClick="{{installOd}}" style="height: 28px; padding: 0 12px; border-radius: 7px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 12px;">{{odBtn}}</button></div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{s1}}" hint-placeholder-val="{{ false }}">
+        <div class="rise" style="display: flex; flex-direction: column; gap: 16px;">
+          <h1 style="margin: 0; font-size: 36px; font-family: var(--font-display); font-weight: var(--display-weight); letter-spacing: var(--display-track); line-height: 1.1;">Your workspaces</h1>
+          <span style="color: var(--text2);">Each workspace keeps its own chats, memory, connectors and models. Start with Personal; add work later or now.</span>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+            <div style="padding: 16px; border-radius: 12px; border: 1px solid var(--accent-p); background: var(--bg1); display: flex; flex-direction: column; gap: 4px;"><span style="font-weight: 600;">Personal</span><span style="font-size: 12px; color: var(--muted);">Created · your own keys and accounts</span></div>
+            <button type="button" onClick="{{toggleOrg}}" style="padding: 16px; border-radius: 12px; border: 1px {{orgStyle}} {{orgBorder}}; background: transparent; color: var(--text); text-align: left; display: flex; flex-direction: column; gap: 4px;"><span style="font-weight: 600;">{{orgTitle}}</span><span style="font-size: 12px; color: var(--muted);">{{orgNote}}</span></button>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{s2}}" hint-placeholder-val="{{ false }}">
+        <div class="rise" style="display: flex; flex-direction: column; gap: 16px;">
+          <h1 style="margin: 0; font-size: 36px; font-family: var(--font-display); font-weight: var(--display-weight); letter-spacing: var(--display-track); line-height: 1.1;">Pick a model provider</h1>
+          <span style="color: var(--text2);">For Personal. You can add more, including your own endpoint.</span>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+            <sc-for list="{{providers}}" as="p" hint-placeholder-count="4">
+              <button type="button" aria-pressed="{{p.on}}" onClick="{{p.pick}}" style="padding: 14px 16px; border-radius: 12px; border: 1px solid {{p.border}}; background: {{p.bg}}; color: var(--text); text-align: left; display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 600;">{{p.name}}</span><span style="font-size: 12px; color: var(--muted);">{{p.note}}</span></button>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{s3}}" hint-placeholder-val="{{ false }}">
+        <div class="rise" style="display: flex; flex-direction: column; gap: 16px;">
+          <h1 style="margin: 0; font-size: 36px; font-family: var(--font-display); font-weight: var(--display-weight); letter-spacing: var(--display-track); line-height: 1.1;">How should it remember?</h1>
+          <span style="color: var(--text2);">Memory is per workspace. You can switch any time.</span>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <sc-for list="{{mems}}" as="m" hint-placeholder-count="3">
+              <button type="button" aria-pressed="{{m.on}}" onClick="{{m.pick}}" style="padding: 14px 16px; border-radius: 12px; border: 1px solid {{m.border}}; background: {{m.bg}}; color: var(--text); text-align: left; display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 600;">{{m.name}}</span><span style="font-size: 12px; color: var(--muted);">{{m.note}}</span></button>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{s4}}" hint-placeholder-val="{{ false }}">
+        <div class="rise" style="display: flex; flex-direction: column; gap: 16px;">
+          <h1 style="margin: 0; font-size: 36px; font-family: var(--font-display); font-weight: var(--display-weight); letter-spacing: var(--display-track); line-height: 1.1;">Choose a look</h1>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;">
+            <button type="button" onClick="{{pickClaude}}" style="padding: 0; border-radius: 12px; border: 2px solid {{claudeBorder}}; background: transparent; overflow: hidden; text-align: left; color: inherit;">
+              <span style="display: block; height: 120px; background: #faf9f5; position: relative;"><span style="position: absolute; left: 16px; top: 16px; font-family: 'Cormorant Garamond', Georgia, serif; font-size: 26px; color: #141413;">Aa</span><span style="position: absolute; right: 16px; bottom: 16px; width: 60px; height: 24px; border-radius: 6px; background: #cc785c;"></span></span>
+              <span style="display: block; padding: 10px 14px; font-weight: 600; background: var(--bg1);">Claude · warm cream</span>
+            </button>
+            <button type="button" onClick="{{pickOpencode}}" style="padding: 0; border-radius: 12px; border: 2px solid {{ocBorder}}; background: transparent; overflow: hidden; text-align: left; color: inherit;">
+              <span style="display: block; height: 120px; background: #0a0a0a; position: relative;"><span style="position: absolute; left: 16px; top: 16px; font-family: 'JetBrains Mono', monospace; font-size: 22px; color: #eeeeee;">Aa</span><span style="position: absolute; right: 16px; bottom: 16px; width: 60px; height: 24px; border-radius: 6px; background: #fab283;"></span></span>
+              <span style="display: block; padding: 10px 14px; font-weight: 600; background: var(--bg1);">opencode · dark</span>
+            </button>
+          </div>
+        </div>
+      </sc-if>
+      <div style="margin-top: auto; display: flex; align-items: center; gap: 10px;">
+        <div style="flex: 1 1 auto; height: 4px; border-radius: 999px; background: var(--bg3); overflow: hidden;"><div style="height: 4px; width: {{progress}}; background: var(--accent-p); transition: width .4s ease;"></div></div>
+        <button type="button" onClick="{{back}}" disabled="{{atStart}}" style="height: 38px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 13px; opacity: {{backOpacity}};">Back</button>
+        <a href="{{nextHref}}" onClick="{{next}}" style="height: 38px; padding: 0 18px; border-radius: 8px; background: var(--accent-p-fill); color: var(--on-accent); text-decoration: none; display: inline-flex; align-items: center; font-size: 13px; font-weight: 600;">{{nextLabel}}</a>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["claude","opencode"],"default":"claude"},"$preview":{"width":1120,"height":800}}'>
+const STEPS = [['Engine', 'opencode + Open Design'], ['Workspaces', 'personal and work'], ['Models', 'a provider to start'], ['Memory', 'facts or a graph'], ['Look', 'theme']];
+class Component extends DCLogic {
+  componentWillUnmount() { clearTimeout(this.t); }
+  renderVals() {
+    const s = this.state || {};
+    const i = s.i || 0;
+    const sel = (key, def) => s[key] || def;
+    const opt = (list, key, def) => list.map((o) => ({ name: o.at(1), note: o.at(2), on: sel(key, def) === o.at(0) ? 'true' : 'false', border: sel(key, def) === o.at(0) ? 'var(--accent-p)' : 'var(--line)', bg: sel(key, def) === o.at(0) ? 'var(--bg2)' : 'transparent', pick: () => this.setState({ [key]: o.at(0) }) }));
+    const theme = s.theme || this.props.theme || 'claude';
+    const last = i === STEPS.length - 1;
+    return {
+      theme,
+      steps: STEPS.map((st, k) => ({ label: st.at(0), note: st.at(1), mark: k < i ? '✓' : String(k + 1), ring: k <= i ? 'var(--accent-p)' : 'var(--line2)', fill: k < i ? 'var(--accent-p-fill)' : 'transparent', color: k === i ? 'var(--text)' : 'var(--muted)', bg: k === i ? 'var(--bg2)' : 'transparent' })),
+      s0: i === 0, s1: i === 1, s2: i === 2, s3: i === 3, s4: i === 4,
+      odDot: s.od === 'done' ? 'var(--success)' : (s.od === 'busy' ? 'var(--warning)' : 'var(--dim)'), odCls: s.od === 'busy' ? 'pulse' : '',
+      odText: s.od === 'done' ? 'installed for each workspace' : (s.od === 'busy' ? 'installing…' : 'not installed yet'),
+      odBtn: s.od === 'done' ? 'Installed' : 'Install',
+      installOd: () => { if (s.od) return; this.setState({ od: 'busy' }); clearTimeout(this.t); this.t = setTimeout(() => this.setState({ od: 'done' }), 1600); },
+      toggleOrg: () => this.setState({ org: !s.org }),
+      orgTitle: s.org ? 'BSC AI Factory' : '+ Join an organization',
+      orgNote: s.org ? 'Will sign in with MyAccessID after setup' : 'Sign in with SSO; your admin sets the models',
+      orgStyle: s.org ? 'solid' : 'dashed', orgBorder: s.org ? 'var(--accent-o)' : 'var(--line2)',
+      providers: opt([['anthropic', 'Anthropic', 'Paste an API key — kept in your keychain'], ['openrouter', 'OpenRouter', 'Many models with one key'], ['ollama', 'Ollama', 'Local models on this computer, no key'], ['custom', 'Custom endpoint', 'Any OpenAI-compatible URL']], 'prov', 'anthropic'),
+      mems: opt([['facts', 'Facts', 'Short statements you approve'], ['graph', 'Graphify', 'A knowledge graph of your project folders'], ['both', 'Graphify + facts', 'Recommended for code-heavy projects']], 'mem', 'both'),
+      claudeBorder: theme === 'claude' ? 'var(--accent-p)' : 'var(--line)', ocBorder: theme === 'opencode' ? 'var(--accent-p)' : 'var(--line)',
+      pickClaude: () => this.setState({ theme: 'claude' }), pickOpencode: () => this.setState({ theme: 'opencode' }),
+      progress: Math.round((i + 1) / STEPS.length * 100) + '%',
+      atStart: i === 0, backOpacity: i === 0 ? 0.4 : 1,
+      back: () => this.setState({ i: Math.max(0, i - 1) }),
+      nextLabel: last ? 'Start using harness' : 'Continue',
+      nextHref: last ? 'Home.dc.html' : '#',
+      next: (e) => { if (!last) { e.preventDefault(); this.setState({ i: i + 1 }); } }
+    };
+  }
+}
+</script>
+</body>
+</html>
