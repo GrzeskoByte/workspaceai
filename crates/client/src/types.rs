@@ -71,7 +71,57 @@ pub struct Chat {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
+pub struct WorkspaceInfo {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub kind: String,
+    #[serde(default)]
+    pub instructions: String,
+    #[serde(default)]
+    pub default_model: String,
+    /// Missing means on.
+    #[serde(default)]
+    pub use_memory: Option<bool>,
+    /// Missing means on.
+    #[serde(default)]
+    pub memory_recall: Option<bool>,
+    #[serde(default)]
+    pub suggest_memories: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+pub struct Sidecar {
+    pub name: String,
+    #[serde(default)]
+    pub state: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+pub struct EngineStatus {
+    #[serde(default)]
+    pub state: String,
+    #[serde(default)]
+    pub url: String,
+    #[serde(default)]
+    pub port: u16,
+    #[serde(default)]
+    pub version: String,
+    #[serde(default)]
+    pub error: Option<String>,
+    #[serde(default)]
+    pub sidecars: Vec<Sidecar>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct Snapshot {
+    #[serde(default)]
+    pub workspace: WorkspaceInfo,
+    #[serde(default)]
+    pub engine: EngineStatus,
     #[serde(default)]
     pub projects: Vec<Project>,
     #[serde(default)]
