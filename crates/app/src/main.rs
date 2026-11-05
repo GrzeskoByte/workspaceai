@@ -21,6 +21,7 @@ use workspaceai_client::files;
 use workspaceai_client::model::{Connection, Model, RowKind};
 use workspaceai_client::models::ModelList;
 use workspaceai_client::palette::{self, Kind};
+use workspaceai_client::routines;
 use workspaceai_client::settings::{self, engine_actions, EngineAction};
 use workspaceai_client::supervisor::Supervisor;
 use workspaceai_client::chats::{self, Confirm, InFlight};
@@ -36,6 +37,7 @@ const TEXT: u32 = 0xe6e6e8;
 const MUTED: u32 = 0x8b8b95;
 const ACCENT: u32 = 0xd97757;
 const USER_BUBBLE: u32 = 0x33333b;
+const RAISED_OFF: u32 = 0x2a2a30;
 
 /// Everything a background thread can tell the window.
 enum Msg {
@@ -287,6 +289,8 @@ struct AppView {
     settings_page: &'static str,
     name_input: Entity<TextInput>,
     fact_input: Entity<TextInput>,
+    routine_phrase: Entity<TextInput>,
+    routine_prompt: Entity<TextInput>,
     model: Model,
     rx: Receiver<Msg>,
     tx: Sender<Msg>,
@@ -333,6 +337,11 @@ impl AppView {
             cx.notify();
         })
         .detach();
+        let routine_phrase = cx.new(|cx| TextInput::new(cx, "When? e.g. every weekday at 9"));
+        let routine_prompt = cx.new(|cx| TextInput::new(cx, "What should it do?"));
+        for input in [&routine_phrase, &routine_prompt] {
+            cx.observe(input, |_, _, cx| cx.notify()).detach();
+        }
         let fact_input = cx.new(|cx| TextInput::new(cx, "Something to remember…"));
         cx.subscribe_in(&fact_input, window, |this, input, event: &TextInputEvent, window, cx| {
             if *event == TextInputEvent::Submit {
@@ -383,7 +392,7 @@ impl AppView {
             }
         })
         .detach();
-        AppView { palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
+        AppView { palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -587,6 +596,13 @@ impl AppView {
     fn mutate_ws(&mut self, method: &'static str, sub_path: String, body: Option<serde_json::Value>) {
         if let (Some(api), Some(ws)) = (self.api.clone(), self.model.active_ws.clone()) {
             let path = format!("/api/ws/{}{}", seg(&ws), sub_path);
+            mutate(api, ws, method, path, body, self.tx.clone());
+        }
+    }
+
+    /// Like `mutate_ws`, for a path that already carries the workspace (the `routines::*_path` helpers).
+    fn mutate_path(&mut self, method: &'static str, path: String, body: Option<serde_json::Value>) {
+        if let (Some(api), Some(ws)) = (self.api.clone(), self.model.active_ws.clone()) {
             mutate(api, ws, method, path, body, self.tx.clone());
         }
     }
@@ -1201,6 +1217,76 @@ impl Render for AppView {
                     }))
                 })))
             }
+            "routines" => {
+                let tz = workspaceai_shared::schedule::local_tz();
+                let phrase = self.routine_phrase.read(cx).content().to_string();
+                let prompt = self.routine_prompt.read(cx).content().to_string();
+                let pv = routines::preview(&phrase, &tz, chrono::Utc::now());
+                let can_create = !phrase.trim().is_empty() && pv.ok && !prompt.trim().is_empty();
+                let create_body = routines::create_body(&phrase, &prompt, &tz);
+                let ws_id = m.active_ws.clone().unwrap_or_default();
+                let mut p = page.child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap_2()
+                        .p_3()
+                        .rounded_lg()
+                        .bg(rgb(PANEL))
+                        .child(div().font_weight(FontWeight::BOLD).child("New routine"))
+                        .child(div().px_2().py_1().rounded_md().bg(rgb(BG)).child(self.routine_phrase.clone()))
+                        .child(div().px_2().py_1().rounded_md().bg(rgb(BG)).child(self.routine_prompt.clone()))
+                        .child(div().text_sm().text_color(rgb(if phrase.trim().is_empty() { MUTED } else if pv.ok { 0x7bd88f } else { 0xff6b6b })).child(SharedString::from(if phrase.trim().is_empty() { "Write when it should run, then what it should do.".to_string() } else { pv.text.clone() })))
+                        .child(
+                            ui::button("routine-create", "Create routine", if can_create { ACCENT } else { RAISED_OFF }).on_click(cx.listener({
+                                let ws_id = ws_id.clone();
+                                move |this, _, window, cx| {
+                                    if let Some(body) = create_body.clone().filter(|_| can_create) {
+                                        this.mutate_path("POST", format!("/api/ws/{}/routines", seg(&ws_id)), Some(body));
+                                        this.routine_phrase.update(cx, |i, cx| i.clear(window, cx));
+                                        this.routine_prompt.update(cx, |i, cx| i.clear(window, cx));
+                                    }
+                                    cx.notify();
+                                }
+                            })),
+                        ),
+                );
+                let now = chrono::Utc::now();
+                for r in &m.snapshot.routines {
+                    let (id_run, id_pause, id_del) = (r.id.clone(), r.id.clone(), r.id.clone());
+                    let (ws_run, ws_pause, ws_del) = (ws_id.clone(), ws_id.clone(), ws_id.clone());
+                    let paused = r.paused;
+                    let armed = self.confirm.is_armed(&format!("r:{}", r.id));
+                    let what = match &r.what {
+                        workspaceai_client::types::RoutineWhat::Prompt { prompt } => prompt.chars().take(110).collect::<String>(),
+                        workspaceai_client::types::RoutineWhat::Graph { .. } => "Runs a graph (not editable in the native app)".into(),
+                        workspaceai_client::types::RoutineWhat::Artifact { .. } => "Refreshes an artifact".into(),
+                    };
+                    let note = format!("{} · {}\n{}", routines::trigger_text(r, now), routines::last_run_text(r), what);
+                    let controls = div()
+                        .flex()
+                        .gap_2()
+                        .child(ui::button(format!("rt-run-{}", r.id), "Run now", ACCENT).on_click(cx.listener(move |this, _, _, cx| {
+                            this.mutate_path("POST", routines::run_path(&ws_run, &id_run), None);
+                            cx.notify();
+                        })))
+                        .child(ui::button(format!("rt-pause-{}", r.id), if paused { "Resume" } else { "Pause" }, USER_BUBBLE).on_click(cx.listener(move |this, _, _, cx| {
+                            this.mutate_path("PATCH", routines::item_path(&ws_pause, &id_pause), Some(routines::pause_body(!paused)));
+                            cx.notify();
+                        })))
+                        .child(ui::button(format!("rt-del-{}", r.id), if armed { "Click again to delete" } else { "Delete" }, if armed { 0x7a2b2b } else { ui::DANGER }).on_click(cx.listener(move |this, _, _, cx| {
+                            if this.confirm.press(&format!("r:{id_del}")) {
+                                this.mutate_path("DELETE", routines::item_path(&ws_del, &id_del), None);
+                            }
+                            cx.notify();
+                        })));
+                    p = p.child(ui::row(if r.name.is_empty() { &r.phrase } else { &r.name }, &note, controls));
+                }
+                if m.snapshot.routines.is_empty() {
+                    p = p.child(div().text_color(rgb(MUTED)).child("No routines yet."));
+                }
+                p
+            }
             _ => page.child(div().p_4().rounded_lg().bg(rgb(PANEL)).text_color(rgb(MUTED)).child("This page is not in the native app yet. Use the web app for it for now.")),
         };
         let settings_main = div().id("settings-scroll").flex_1().min_w_0().h_full().overflow_y_scroll().child(page);
@@ -1310,6 +1396,7 @@ fn smoke() -> Result<(), String> {
     if let Some(ws) = state.settings.active_workspace.or_else(|| state.workspaces.first().map(|w| w.id.clone())) {
         let snap: Snapshot = fetch(&api, &format!("/api/ws/{}/snapshot", seg(&ws)))?;
         println!("SMOKE ok: {} projects, {} chats", snap.projects.len(), snap.chats.len());
+        println!("SMOKE ok: {} routines ({} paused)", snap.routines.len(), snap.routines.iter().filter(|r| r.paused).count());
         println!("SMOKE ok: {} memory facts ({} suggested)", snap.facts.len(), snap.facts.iter().filter(|f| f.status == "suggested").count());
         println!("SMOKE ok: workspace {:?} ({}), memory {:?}, engine {:?}", snap.workspace.name, snap.workspace.kind, snap.workspace.use_memory, snap.engine.state);
         if let Some(p) = snap.projects.iter().find(|p| !p.archived) {
