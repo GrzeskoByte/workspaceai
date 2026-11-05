@@ -73,11 +73,16 @@ pub fn pct(s: &str) -> String {
     })
 }
 
-/// One id as a single URL path segment. Ids come from the server (and from files it reads), so a `/`, `?`, `#`
-/// or a bare `.`/`..` must never change which route an authenticated request reaches.
+/// What an id that cannot be a path segment turns into. A real id never contains a space, so the server answers
+/// "not found" instead of routing the request somewhere else.
+pub const INVALID_ID: &str = "invalid%20id";
+
+/// One id as a single URL path segment. Ids come from the server (and from files it reads), so a `/`, `?` or `#` is
+/// encoded, and ids that no encoding can make safe (`.`, `..`, empty) become `INVALID_ID`: `%2E%2E` is still a dot
+/// segment to many HTTP stacks, and an empty segment would turn `/facts/{id}` into the bulk `/facts` route.
 pub fn seg(id: &str) -> String {
-    if id == "." || id == ".." {
-        return id.replace('.', "%2E");
+    if id.is_empty() || id == "." || id == ".." {
+        return INVALID_ID.to_string();
     }
     pct(id)
 }

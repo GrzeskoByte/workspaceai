@@ -32,6 +32,7 @@ Build/run: `CARGO_PROFILE_DEV_DEBUG=0 cargo run -p workspaceai-app` (needs `libx
 Graph views, BPMN editor.
 
 ## Known gaps / debts
+- Server side (do in the Rust supervisor port): reject ids that are empty or dot segments when created or loaded, and require an explicit confirm parameter on bulk-destructive routes such as `DELETE /facts`. The client already never sends such ids (`api::seg`).
 - Markdown input length is not capped in `parse` (security review suggestion).
 - Visual/interaction behaviour of the window has only been checked by the owner by hand; no UI tests.
 - Disk on the dev machine is ~93% full; GPUI builds are large.
