@@ -61,15 +61,18 @@ fn main() {
         })
         .unwrap();
         cx.activate(true);
-        // Pump GTK so the web view runs, then quit.
-        cx.spawn(async move |cx| {
-            for _ in 0..300 {
-                cx.background_executor().timer(Duration::from_millis(16)).await;
-                while gtk::events_pending() {
-                    gtk::main_iteration_do(false);
-                }
+        // Pump GTK so the web view runs; stays open until the window is closed.
+        cx.on_window_closed(|cx, _window_id| {
+            if cx.windows().is_empty() {
+                cx.quit();
             }
-            cx.update(|cx| cx.quit());
+        })
+        .detach();
+        cx.spawn(async move |cx| loop {
+            cx.background_executor().timer(Duration::from_millis(16)).await;
+            while gtk::events_pending() {
+                gtk::main_iteration_do(false);
+            }
         })
         .detach();
     });

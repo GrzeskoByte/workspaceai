@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::Duration;
 use text_input::{TextInput, TextInputEvent};
-use workspaceai_client::api::Api;
+use workspaceai_client::api::{seg, Api};
 use workspaceai_client::events;
 use workspaceai_client::facts;
 use workspaceai_client::files;
@@ -83,7 +83,7 @@ fn load_state(api: Api, tx: Sender<Msg>) {
 
 fn load_snapshot(api: Api, ws: String, tx: Sender<Msg>) {
     spawn(move || {
-        let _ = tx.send(match fetch::<Snapshot>(&api, &format!("/api/ws/{ws}/snapshot")) {
+        let _ = tx.send(match fetch::<Snapshot>(&api, &format!("/api/ws/{}/snapshot", seg(&ws))) {
             Ok(s) => Msg::Snapshot(ws, s),
             Err(e) => Msg::Error(e),
         });
@@ -92,7 +92,7 @@ fn load_snapshot(api: Api, ws: String, tx: Sender<Msg>) {
 
 fn load_messages(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
     spawn(move || {
-        let r = api.get(&format!("/api/ws/{ws}/chats/{chat}/messages")).map_err(|e| e.to_string()).and_then(|v| {
+        let r = api.get(&format!("/api/ws/{}/chats/{}/messages", seg(&ws), seg(&chat))).map_err(|e| e.to_string()).and_then(|v| {
             serde_json::from_value::<Vec<ChatMessage>>(v["messages"].clone()).map_err(|e| format!("unexpected messages reply: {e}"))
         });
         let _ = tx.send(match r {
@@ -104,7 +104,7 @@ fn load_messages(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
 
 fn load_permissions(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
     spawn(move || {
-        let r = api.get(&format!("/api/ws/{ws}/chats/{chat}/permissions")).map_err(|e| e.to_string()).and_then(|v| {
+        let r = api.get(&format!("/api/ws/{}/chats/{}/permissions", seg(&ws), seg(&chat))).map_err(|e| e.to_string()).and_then(|v| {
             serde_json::from_value::<Vec<PermissionRequest>>(v["permissions"].clone()).map_err(|e| format!("unexpected permissions reply: {e}"))
         });
         // A failure here only means no cards until the next event; it is not worth a toast.
@@ -124,7 +124,7 @@ fn search_files(api: Api, ws: String, project: String, query: String, tx: Sender
 
 fn fork_chat(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
     spawn(move || {
-        let r = api.post(&format!("/api/ws/{ws}/chats/{chat}/fork"), None).map_err(|e| e.to_string()).and_then(|v| serde_json::from_value::<Chat>(v).map_err(|e| e.to_string()));
+        let r = api.post(&format!("/api/ws/{}/chats/{}/fork", seg(&ws), seg(&chat)), None).map_err(|e| e.to_string()).and_then(|v| serde_json::from_value::<Chat>(v).map_err(|e| e.to_string()));
         let _ = tx.send(match r {
             Ok(c) => Msg::ChatCreated(ws, c),
             Err(e) => Msg::Error(e),
@@ -133,7 +133,7 @@ fn fork_chat(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
 }
 
 fn delete_chat(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
-    spawn(move || match api.del(&format!("/api/ws/{ws}/chats/{chat}")) {
+    spawn(move || match api.del(&format!("/api/ws/{}/chats/{}", seg(&ws), seg(&chat))) {
         Ok(_) => load_snapshot(api, ws, tx),
         Err(e) => {
             let _ = tx.send(Msg::Error(e.to_string()));
@@ -144,7 +144,7 @@ fn delete_chat(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
 /// Changes one workspace setting; the reply is the fresh snapshot.
 fn patch_workspace(api: Api, ws: String, body: serde_json::Value, tx: Sender<Msg>) {
     spawn(move || {
-        let _ = tx.send(match api.patch(&format!("/api/ws/{ws}"), &body).map_err(|e| e.to_string()).and_then(|v| serde_json::from_value::<Snapshot>(v).map_err(|e| e.to_string())) {
+        let _ = tx.send(match api.patch(&format!("/api/ws/{}", seg(&ws)), &body).map_err(|e| e.to_string()).and_then(|v| serde_json::from_value::<Snapshot>(v).map_err(|e| e.to_string())) {
             Ok(snap) => Msg::Snapshot(ws, snap),
             Err(e) => Msg::Error(e),
         });
@@ -173,7 +173,7 @@ fn mutate(api: Api, ws: String, method: &'static str, path: String, body: Option
 fn load_models(api: Api, ws: String, tx: Sender<Msg>) {
     spawn(move || {
         // The list is slow when an engine has to start; a failure just leaves the picker empty.
-        if let Ok(list) = fetch::<ModelList>(&api, &format!("/api/ws/{ws}/models")) {
+        if let Ok(list) = fetch::<ModelList>(&api, &format!("/api/ws/{}/models", seg(&ws))) {
             let _ = tx.send(Msg::Models(ws, list));
         }
     });
@@ -181,7 +181,7 @@ fn load_models(api: Api, ws: String, tx: Sender<Msg>) {
 
 /// Changes a chat's model or effort, then refreshes the snapshot so every view agrees.
 fn patch_chat(api: Api, ws: String, chat: String, body: serde_json::Value, tx: Sender<Msg>) {
-    spawn(move || match api.patch(&format!("/api/ws/{ws}/chats/{chat}"), &body) {
+    spawn(move || match api.patch(&format!("/api/ws/{}/chats/{}", seg(&ws), seg(&chat)), &body) {
         Ok(_) => load_snapshot(api, ws, tx),
         Err(e) => {
             // Whatever the window assumed, show what the server really has.
@@ -193,7 +193,7 @@ fn patch_chat(api: Api, ws: String, chat: String, body: serde_json::Value, tx: S
 
 fn load_commands(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
     spawn(move || {
-        let r = api.get(&format!("/api/ws/{ws}/chats/{chat}/commands")).map_err(|e| e.to_string()).and_then(|v| {
+        let r = api.get(&format!("/api/ws/{}/chats/{}/commands", seg(&ws), seg(&chat))).map_err(|e| e.to_string()).and_then(|v| {
             serde_json::from_value::<Vec<ChatCommand>>(v["commands"].clone()).map_err(|e| format!("unexpected commands reply: {e}"))
         });
         if let Ok(list) = r {
@@ -204,7 +204,7 @@ fn load_commands(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
 
 fn run_command(api: Api, ws: String, chat: String, text: String, tx: Sender<Msg>) {
     spawn(move || {
-        let _ = tx.send(match api.post(&format!("/api/ws/{ws}/chats/{chat}/command"), Some(&serde_json::json!({ "text": text }))) {
+        let _ = tx.send(match api.post(&format!("/api/ws/{}/chats/{}/command", seg(&ws), seg(&chat)), Some(&serde_json::json!({ "text": text }))) {
             Ok(v) => Msg::CommandDone(command::interpret(&v)),
             Err(e) => Msg::Error(e.to_string()),
         });
@@ -213,7 +213,7 @@ fn run_command(api: Api, ws: String, chat: String, text: String, tx: Sender<Msg>
 
 fn answer_permission(api: Api, ws: String, chat: String, request: String, decision: &'static str, tx: Sender<Msg>) {
     spawn(move || {
-        if let Err(e) = api.post(&format!("/api/ws/{ws}/chats/{chat}/permission/{request}"), Some(&serde_json::json!({ "decision": decision }))) {
+        if let Err(e) = api.post(&format!("/api/ws/{}/chats/{}/permission/{}", seg(&ws), seg(&chat), seg(&request)), Some(&serde_json::json!({ "decision": decision }))) {
             let _ = tx.send(Msg::Error(e.to_string()));
             load_permissions(api, ws, chat, tx);
         }
@@ -222,7 +222,7 @@ fn answer_permission(api: Api, ws: String, chat: String, request: String, decisi
 
 fn stop_chat(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
     spawn(move || {
-        if let Err(e) = api.post(&format!("/api/ws/{ws}/chats/{chat}/stop"), None) {
+        if let Err(e) = api.post(&format!("/api/ws/{}/chats/{}/stop", seg(&ws), seg(&chat)), None) {
             let _ = tx.send(Msg::Error(e.to_string()));
         }
     });
@@ -230,7 +230,7 @@ fn stop_chat(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
 
 fn send_text(api: Api, ws: String, chat: String, text: String, tx: Sender<Msg>) {
     spawn(move || {
-        if let Err(e) = api.post(&format!("/api/ws/{ws}/chats/{chat}/send"), Some(&serde_json::json!({ "text": text }))) {
+        if let Err(e) = api.post(&format!("/api/ws/{}/chats/{}/send", seg(&ws), seg(&chat)), Some(&serde_json::json!({ "text": text }))) {
             let _ = tx.send(Msg::Error(e.to_string()));
         }
     });
@@ -242,7 +242,7 @@ fn create_chat(api: Api, ws: String, project: String, text: Option<String>, tx: 
         if let Some(t) = text {
             body["text"] = t.into();
         }
-        let r = api.post(&format!("/api/ws/{ws}/chats"), Some(&body)).map_err(|e| e.to_string()).and_then(|v| serde_json::from_value::<Chat>(v).map_err(|e| e.to_string()));
+        let r = api.post(&format!("/api/ws/{}/chats", seg(&ws)), Some(&body)).map_err(|e| e.to_string()).and_then(|v| serde_json::from_value::<Chat>(v).map_err(|e| e.to_string()));
         let _ = tx.send(match r {
             Ok(c) => Msg::ChatCreated(ws, c),
             Err(e) => Msg::Error(e),
@@ -252,7 +252,7 @@ fn create_chat(api: Api, ws: String, project: String, text: Option<String>, tx: 
 
 fn activate(api: Api, ws: String, tx: Sender<Msg>) {
     spawn(move || {
-        let _ = tx.send(match api.post(&format!("/api/workspaces/{ws}/activate"), None).map_err(|e| e.to_string()).and_then(|v| serde_json::from_value::<AppState>(v).map_err(|e| e.to_string())) {
+        let _ = tx.send(match api.post(&format!("/api/workspaces/{}/activate", seg(&ws)), None).map_err(|e| e.to_string()).and_then(|v| serde_json::from_value::<AppState>(v).map_err(|e| e.to_string())) {
             Ok(s) => Msg::State(s),
             Err(e) => Msg::Error(e),
         });
@@ -586,7 +586,7 @@ impl AppView {
 
     fn mutate_ws(&mut self, method: &'static str, sub_path: String, body: Option<serde_json::Value>) {
         if let (Some(api), Some(ws)) = (self.api.clone(), self.model.active_ws.clone()) {
-            let path = format!("/api/ws/{ws}{sub_path}");
+            let path = format!("/api/ws/{}{}", seg(&ws), sub_path);
             mutate(api, ws, method, path, body, self.tx.clone());
         }
     }
@@ -1156,12 +1156,12 @@ impl Render for AppView {
                             let mut controls = div().flex().gap_2();
                             if suggested {
                                 controls = controls.child(button(format!("fact-ok-{}", f.id), "Approve", ACCENT).on_click(cx.listener(move |this, _, _, cx| {
-                                    this.mutate_ws("PATCH", format!("/facts/{fid_ok}"), Some(facts::approve_body()));
+                                    this.mutate_ws("PATCH", format!("/facts/{}", seg(&fid_ok)), Some(facts::approve_body()));
                                     cx.notify();
                                 })));
                             }
                             controls = controls.child(button(format!("fact-del-{}", f.id), "Delete", ui::DANGER).on_click(cx.listener(move |this, _, _, cx| {
-                                this.mutate_ws("DELETE", format!("/facts/{fid_del}"), None);
+                                this.mutate_ws("DELETE", format!("/facts/{}", seg(&fid_del)), None);
                                 cx.notify();
                             })));
                             rows.push(ui::row(&f.text, if suggested { "Suggested — approve to keep it" } else { "" }, controls).into_any_element());
@@ -1308,7 +1308,7 @@ fn smoke() -> Result<(), String> {
     let state: AppState = fetch(&api, "/api/state")?;
     println!("SMOKE ok: {} workspaces, active {:?}", state.workspaces.len(), state.settings.active_workspace);
     if let Some(ws) = state.settings.active_workspace.or_else(|| state.workspaces.first().map(|w| w.id.clone())) {
-        let snap: Snapshot = fetch(&api, &format!("/api/ws/{ws}/snapshot"))?;
+        let snap: Snapshot = fetch(&api, &format!("/api/ws/{}/snapshot", seg(&ws)))?;
         println!("SMOKE ok: {} projects, {} chats", snap.projects.len(), snap.chats.len());
         println!("SMOKE ok: {} memory facts ({} suggested)", snap.facts.len(), snap.facts.iter().filter(|f| f.status == "suggested").count());
         println!("SMOKE ok: workspace {:?} ({}), memory {:?}, engine {:?}", snap.workspace.name, snap.workspace.kind, snap.workspace.use_memory, snap.engine.state);
@@ -1318,7 +1318,7 @@ fn smoke() -> Result<(), String> {
                 Err(e) => println!("SMOKE files: {e}"),
             }
         }
-        match fetch::<ModelList>(&api, &format!("/api/ws/{ws}/models")) {
+        match fetch::<ModelList>(&api, &format!("/api/ws/{}/models", seg(&ws))) {
             Ok(m) => println!("SMOKE ok: {} opencode models, {} other agents", m.options_for("opencode").len(), m.agents.len()),
             Err(e) => println!("SMOKE models: {e}"),
         }

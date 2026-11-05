@@ -60,3 +60,24 @@ impl Api {
         self.request("DELETE", path, None)
     }
 }
+
+/// Percent-encodes everything but unreserved characters (RFC 3986), byte by byte so non-ASCII is safe.
+pub fn pct(s: &str) -> String {
+    s.bytes().fold(String::new(), |mut out, b| {
+        if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b'~') {
+            out.push(b as char);
+        } else {
+            out.push_str(&format!("%{b:02X}"));
+        }
+        out
+    })
+}
+
+/// One id as a single URL path segment. Ids come from the server (and from files it reads), so a `/`, `?`, `#`
+/// or a bare `.`/`..` must never change which route an authenticated request reaches.
+pub fn seg(id: &str) -> String {
+    if id == "." || id == ".." {
+        return id.replace('.', "%2E");
+    }
+    pct(id)
+}

@@ -57,7 +57,7 @@ impl EngineAction {
             EngineAction::Stop => "stop",
             EngineAction::Restart => "restart",
         };
-        format!("/api/ws/{workspace}/engine/{verb}")
+        format!("/api/ws/{}/engine/{verb}", crate::api::seg(workspace))
     }
 
     pub fn label(self) -> &'static str {
