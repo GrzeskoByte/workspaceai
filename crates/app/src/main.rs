@@ -2,6 +2,7 @@
 //! The window renders `workspaceai_client::model::Model`; background threads talk to the supervisor and report
 //! back through one channel that the window drains on a timer.
 
+mod md_view;
 mod text_input;
 
 use gpui::{
@@ -16,7 +17,8 @@ use workspaceai_client::api::Api;
 use workspaceai_client::events;
 use workspaceai_client::model::{Connection, Model, RowKind};
 use workspaceai_client::supervisor::Supervisor;
-use workspaceai_client::types::{AppState, Chat, ChatMessage, Snapshot, UiEvent};
+use workspaceai_client::markdown;
+use workspaceai_client::types::{AppState, Chat, ChatMessage, PermissionRequest, Snapshot, UiEvent};
 
 const BG: u32 = 0x1b1b1f;
 const PANEL: u32 = 0x232329;
@@ -35,6 +37,7 @@ enum Msg {
     State(AppState),
     Snapshot(String, Snapshot),
     Messages(String, String, Vec<ChatMessage>),
+    Permissions(String, String, Vec<PermissionRequest>),
     ChatCreated(String, Chat),
     Error(String),
 }
@@ -83,6 +86,35 @@ fn load_messages(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
             Ok(m) => Msg::Messages(ws, chat, m),
             Err(e) => Msg::Error(e),
         });
+    });
+}
+
+fn load_permissions(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
+    spawn(move || {
+        let r = api.get(&format!("/api/ws/{ws}/chats/{chat}/permissions")).map_err(|e| e.to_string()).and_then(|v| {
+            serde_json::from_value::<Vec<PermissionRequest>>(v["permissions"].clone()).map_err(|e| format!("unexpected permissions reply: {e}"))
+        });
+        // A failure here only means no cards until the next event; it is not worth a toast.
+        if let Ok(list) = r {
+            let _ = tx.send(Msg::Permissions(ws, chat, list));
+        }
+    });
+}
+
+fn answer_permission(api: Api, ws: String, chat: String, request: String, decision: &'static str, tx: Sender<Msg>) {
+    spawn(move || {
+        if let Err(e) = api.post(&format!("/api/ws/{ws}/chats/{chat}/permission/{request}"), Some(&serde_json::json!({ "decision": decision }))) {
+            let _ = tx.send(Msg::Error(e.to_string()));
+            load_permissions(api, ws, chat, tx);
+        }
+    });
+}
+
+fn stop_chat(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
+    spawn(move || {
+        if let Err(e) = api.post(&format!("/api/ws/{ws}/chats/{chat}/stop"), None) {
+            let _ = tx.send(Msg::Error(e.to_string()));
+        }
     });
 }
 
@@ -247,6 +279,11 @@ impl AppView {
                     self.model.messages = messages;
                 }
             }
+            Msg::Permissions(ws, chat, list) => {
+                if self.model.active_ws.as_deref() == Some(&ws) {
+                    self.model.set_permissions(&chat, list);
+                }
+            }
             Msg::ChatCreated(ws, chat) => {
                 if self.model.active_ws.as_deref() == Some(&ws) {
                     let id = chat.id.clone();
@@ -262,7 +299,20 @@ impl AppView {
     fn open_chat(&mut self, id: String) {
         self.model.open_chat(id.clone(), Vec::new());
         if let (Some(api), Some(ws)) = (self.api.clone(), self.model.active_ws.clone()) {
-            load_messages(api, ws, id, self.tx.clone());
+            load_messages(api.clone(), ws.clone(), id.clone(), self.tx.clone());
+            load_permissions(api, ws, id, self.tx.clone());
+        }
+    }
+
+    fn answer(&mut self, request: &str, decision: &'static str) {
+        let (Some(api), Some(ws), Some(chat)) = (self.api.clone(), self.model.active_ws.clone(), self.model.open_chat_id.clone()) else { return };
+        self.model.drop_permission(&chat, request);
+        answer_permission(api, ws, chat, request.to_string(), decision, self.tx.clone());
+    }
+
+    fn stop(&mut self) {
+        if let (Some(api), Some(ws), Some(chat)) = (self.api.clone(), self.model.active_ws.clone(), self.model.open_chat_id.clone()) {
+            stop_chat(api, ws, chat, self.tx.clone());
         }
     }
 
@@ -391,12 +441,37 @@ impl Render for AppView {
             .border_b_1()
             .border_color(rgb(PANEL))
             .child(div().font_weight(FontWeight::BOLD).child(SharedString::from(chat_title)))
-            .child(div().text_sm().text_color(rgb(MUTED)).child(status_line(m)));
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_3()
+                    .when(m.open_chat_working(), |d| {
+                        d.child(
+                            div()
+                                .id("stop")
+                                .px_3()
+                                .py_1()
+                                .rounded_md()
+                                .cursor_pointer()
+                                .bg(rgb(0x4a2b2b))
+                                .text_sm()
+                                .child("■ Stop")
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.stop();
+                                    cx.notify();
+                                })),
+                        )
+                    })
+                    .child(div().text_sm().text_color(rgb(MUTED)).child(status_line(m))),
+            );
 
         let messages = div().id("messages").flex_1().min_h_0().overflow_y_scroll().track_scroll(&self.scroll).p_4().flex().flex_col().gap_3().children(
             m.messages.iter().map(|msg| {
                 let user = msg.role == "user";
-                let mut bubble = div().max_w(px(760.)).px_3().py_2().rounded_lg().bg(rgb(if user { USER_BUBBLE } else { BG })).child(SharedString::from(if msg.text.is_empty() && msg.tools.is_empty() && msg.error.is_none() { "…".to_string() } else { msg.text.clone() }));
+                let shown = if msg.text.is_empty() && msg.tools.is_empty() && msg.error.is_none() { "…".to_string() } else { msg.text.clone() };
+                let mut bubble = div().max_w(px(760.)).px_3().py_2().rounded_lg().bg(rgb(if user { USER_BUBBLE } else { BG }));
+                bubble = if user { bubble.child(SharedString::from(shown)) } else { bubble.child(md_view::blocks(&markdown::parse(&shown))) };
                 for t in &msg.tools {
                     bubble = bubble.child(div().text_sm().text_color(rgb(MUTED)).child(SharedString::from(format!("⚙ {} · {}{}", t.name, t.status, t.detail.as_deref().map(|d| format!(" · {d}")).unwrap_or_default()))));
                 }
@@ -405,7 +480,40 @@ impl Render for AppView {
                 }
                 div().flex().when(user, |d| d.justify_end()).child(bubble)
             }),
-        );
+        )
+        .children(m.pending_permissions().iter().map(|p| {
+            let (a, b, c) = (p.id.clone(), p.id.clone(), p.id.clone());
+            let button = |id: String, label: &'static str, bg: u32| div().id(SharedString::from(format!("perm-{id}-{label}"))).px_3().py_1().rounded_md().cursor_pointer().bg(rgb(bg)).text_sm().child(label);
+            div()
+                .flex()
+                .flex_col()
+                .gap_2()
+                .max_w(px(760.))
+                .px_3()
+                .py_2()
+                .rounded_lg()
+                .border_1()
+                .border_color(rgb(ACCENT))
+                .child(div().font_weight(FontWeight::BOLD).child(SharedString::from(format!("Permission needed: {}", p.title))))
+                .when(!p.detail.is_empty(), |d| d.child(div().font_family("monospace").text_size(px(13.)).text_color(rgb(MUTED)).child(SharedString::from(p.detail.clone()))))
+                .child(
+                    div()
+                        .flex()
+                        .gap_2()
+                        .child(button(a.clone(), "Allow once", ACCENT).on_click(cx.listener(move |this, _, _, cx| {
+                            this.answer(&a, "once");
+                            cx.notify();
+                        })))
+                        .child(button(b.clone(), "Always allow", USER_BUBBLE).on_click(cx.listener(move |this, _, _, cx| {
+                            this.answer(&b, "always");
+                            cx.notify();
+                        })))
+                        .child(button(c.clone(), "Reject", 0x4a2b2b).on_click(cx.listener(move |this, _, _, cx| {
+                            this.answer(&c, "reject");
+                            cx.notify();
+                        }))),
+                )
+        }));
 
         let toast = m.toast.clone().map(|t| {
             div()
