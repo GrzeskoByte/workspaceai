@@ -22,6 +22,7 @@ use workspaceai_client::model::{Connection, Model, RowKind};
 use workspaceai_client::models::ModelList;
 use workspaceai_client::palette::{self, Kind};
 use workspaceai_client::projects;
+use workspaceai_client::providers::{self, KeyState};
 use workspaceai_client::routines;
 use workspaceai_client::settings::{self, engine_actions, EngineAction};
 use workspaceai_client::supervisor::Supervisor;
@@ -55,6 +56,7 @@ enum Msg {
     CommandDone(Outcome),
     Models(String, ModelList),
     Files(String, Vec<String>),
+    Secrets(String, Vec<String>),
     ChatCreated(String, Chat),
     Error(String),
 }
@@ -171,6 +173,26 @@ fn mutate(api: Api, ws: String, method: &'static str, path: String, body: Option
             let _ = tx.send(Msg::Error(format!("Could not save the change: {e}")));
         }
         load_snapshot(api, ws, tx);
+    });
+}
+
+/// Names of the secrets stored for a workspace (never their values).
+fn load_secrets(api: Api, ws: String, tx: Sender<Msg>) {
+    spawn(move || {
+        if let Ok(v) = api.get(&providers::secrets_list_path(&ws)) {
+            let names = v["names"].as_array().map(|a| a.iter().filter_map(|n| n.as_str().map(str::to_string)).collect()).unwrap_or_default();
+            let _ = tx.send(Msg::Secrets(ws, names));
+        }
+    });
+}
+
+/// Saves or removes a secret, then refreshes which ones exist. The value is only ever in `body`.
+fn change_secret(api: Api, ws: String, method: &'static str, path: String, body: Option<serde_json::Value>, tx: Sender<Msg>) {
+    spawn(move || {
+        if let Err(e) = api.request(method, &path, body.as_ref()) {
+            let _ = tx.send(Msg::Error(format!("Could not change the key: {e}")));
+        }
+        load_secrets(api, ws, tx);
     });
 }
 
@@ -301,6 +323,8 @@ struct AppView {
     settings_page: &'static str,
     name_input: Entity<TextInput>,
     fact_input: Entity<TextInput>,
+    secret_input: Entity<TextInput>,
+    secret_names: Vec<String>,
     project_input: Entity<TextInput>,
     show_archived: bool,
     routine_phrase: Entity<TextInput>,
@@ -351,6 +375,8 @@ impl AppView {
             cx.notify();
         })
         .detach();
+        let secret_input = cx.new(|cx| TextInput::new_masked(cx, "Paste an API key"));
+        cx.observe(&secret_input, |_, _, cx| cx.notify()).detach();
         let project_input = cx.new(|cx| TextInput::new(cx, "Project name"));
         cx.subscribe_in(&project_input, window, |this, input, event: &TextInputEvent, window, cx| {
             if *event == TextInputEvent::Submit {
@@ -417,7 +443,7 @@ impl AppView {
             }
         })
         .detach();
-        AppView { palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, project_input, show_archived: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
+        AppView { palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, secret_input, secret_names: Vec::new(), project_input, show_archived: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -508,6 +534,11 @@ impl AppView {
             Msg::Permissions(ws, chat, list) => {
                 if self.model.active_ws.as_deref() == Some(&ws) {
                     self.model.set_permissions(&chat, list);
+                }
+            }
+            Msg::Secrets(ws, names) => {
+                if self.model.active_ws.as_deref() == Some(&ws) {
+                    self.secret_names = names;
                 }
             }
             Msg::Files(query, list) => {
@@ -1163,6 +1194,11 @@ impl Render for AppView {
                         let name = this.model.snapshot.workspace.name.clone();
                         this.name_input.update(cx, |i, cx| i.set_content(&name, cx));
                     }
+                    if id == "providers" {
+                        if let (Some(api), Some(ws)) = (this.api.clone(), this.model.active_ws.clone()) {
+                            load_secrets(api, ws, this.tx.clone());
+                        }
+                    }
                     cx.notify();
                 }))
         }));
@@ -1248,6 +1284,58 @@ impl Render for AppView {
                         cx.notify();
                     }))
                 })))
+            }
+            "providers" => {
+                let ws_id = m.active_ws.clone().unwrap_or_default();
+                let locked = cur.locked;
+                let mut p = page.child(ui::row(
+                    "API key",
+                    "Paste a key here, then press “Save key” on a provider. It goes straight to your system keychain and is never shown again.",
+                    div().w(px(300.)).px_2().py_1().rounded_md().bg(rgb(BG)).child(self.secret_input.clone()),
+                ));
+                for pr in &m.snapshot.workspace.providers {
+                    let state = providers::key_state(pr, &self.secret_names);
+                    let env = pr.key_env.clone().unwrap_or_default();
+                    let mut controls = div().flex().gap_2();
+                    if !locked && state != KeyState::NotNeeded {
+                        let (env_save, ws_save) = (env.clone(), ws_id.clone());
+                        controls = controls.child(ui::button(format!("pv-save-{}", pr.id), "Save key", ACCENT).on_click(cx.listener(move |this, _, window, cx| {
+                            let typed = this.secret_input.read(cx).content().to_string();
+                            if let (Some(body), Some(name), Some(api)) = (providers::secret_body(&typed), providers::secret_name(&env_save), this.api.clone()) {
+                                change_secret(api, ws_save.clone(), "PUT", providers::secret_path(&ws_save, &name), Some(body), this.tx.clone());
+                                this.secret_input.update(cx, |i, cx| i.clear(window, cx));
+                            } else {
+                                this.model.toast = Some("Paste a key first.".into());
+                            }
+                            cx.notify();
+                        })));
+                        if state == KeyState::Stored {
+                            let (env_rm, ws_rm) = (env.clone(), ws_id.clone());
+                            controls = controls.child(ui::button(format!("pv-rmkey-{}", pr.id), "Remove key", USER_BUBBLE).on_click(cx.listener(move |this, _, _, cx| {
+                                if let (Some(name), Some(api)) = (providers::secret_name(&env_rm), this.api.clone()) {
+                                    change_secret(api, ws_rm.clone(), "DELETE", providers::secret_path(&ws_rm, &name), None, this.tx.clone());
+                                }
+                                cx.notify();
+                            })));
+                        }
+                    }
+                    if !locked {
+                        let (id_del, ws_del) = (pr.id.clone(), ws_id.clone());
+                        let armed = self.confirm.is_armed(&format!("pv:{}", pr.id));
+                        controls = controls.child(ui::button(format!("pv-del-{}", pr.id), if armed { "Click again to remove" } else { "Remove provider" }, if armed { 0x7a2b2b } else { ui::DANGER }).on_click(cx.listener(move |this, _, _, cx| {
+                            if this.confirm.press(&format!("pv:{id_del}")) {
+                                this.mutate_path("DELETE", providers::provider_path(&ws_del, &id_del), None);
+                            }
+                            cx.notify();
+                        })));
+                    }
+                    let note = format!("{} · {} model{} · {}", if pr.note.is_empty() { "provider" } else { &pr.note }, pr.models.len(), if pr.models.len() == 1 { "" } else { "s" }, state.text());
+                    p = p.child(ui::row(if pr.name.is_empty() { &pr.id } else { &pr.name }, &note, controls));
+                }
+                if m.snapshot.workspace.providers.is_empty() {
+                    p = p.child(div().text_color(rgb(MUTED)).child("No providers configured. Add a custom provider in the web app for now."));
+                }
+                p
             }
             "computers" => {
                 let ws_id = m.active_ws.clone().unwrap_or_default();
@@ -1517,6 +1605,10 @@ fn smoke() -> Result<(), String> {
     if let Some(ws) = state.settings.active_workspace.or_else(|| state.workspaces.first().map(|w| w.id.clone())) {
         let snap: Snapshot = fetch(&api, &format!("/api/ws/{}/snapshot", seg(&ws)))?;
         println!("SMOKE ok: {} projects, {} chats", snap.projects.len(), snap.chats.len());
+        match api.get(&providers::secrets_list_path(&ws)) {
+            Ok(v) => println!("SMOKE ok: {} providers, {} stored secrets (names only)", snap.workspace.providers.len(), v["names"].as_array().map_or(0, Vec::len)),
+            Err(e) => println!("SMOKE secrets: {e}"),
+        }
         println!("SMOKE ok: {} routines ({} paused)", snap.routines.len(), snap.routines.iter().filter(|r| r.paused).count());
         println!("SMOKE ok: {} memory facts ({} suggested)", snap.facts.len(), snap.facts.iter().filter(|f| f.status == "suggested").count());
         println!("SMOKE ok: workspace {:?} ({}), memory {:?}, engine {:?}", snap.workspace.name, snap.workspace.kind, snap.workspace.use_memory, snap.engine.state);

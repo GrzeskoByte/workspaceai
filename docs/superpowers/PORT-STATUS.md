@@ -15,13 +15,14 @@ Build/run: `CARGO_PROFILE_DEV_DEBUG=0 cargo run -p workspaceai-app` (needs `libx
 - Routines (Settings › Routines): list with next run and last run, Run now, Pause/Resume, Delete, and create with a live "understood as…" preview (uses the ported schedule parser)
 - Projects (Settings › Projects): tree with chat counts, create, subproject, rename, archive/restore, delete (two-step; General protected)
 - Computers (Settings › Computers): status, capabilities, per-workspace access switch (keeps other workspaces' access), Wake, Unlink (two-step). Pairing new computers is still web-only
+- Providers (Settings › Providers): list, key status from the keychain, save/remove key through a masked field (no copy/cut), remove provider (two-step); org-locked pages are read-only. Adding a custom provider is still web-only
 - Command palette (Ctrl+K / Cmd+K): actions, workspaces, chats, settings pages; Up/Down/Enter/Esc
 - Chat actions: rename, fork, archive, delete (two-step), full-access toggle
 
 ## Next, in order
 1. Attach file picker (drag/drop)
 2. Chat extras left: move chat to another project, copy message, restore archived chats
-3. Settings pages left: workspaces/members, providers (+test), subscriptions + sign-in, agents, web search, secrets, MCP servers, engine logs/mode/version, Open Design panel, artifacts, data, audit, appearance, vaults, skills, multi-line instructions editor
+3. Settings pages left: workspaces/members, custom provider form + test, subscriptions + sign-in, agents, web search, secrets, MCP servers, engine logs/mode/version, Open Design panel, artifacts, data, audit, appearance, vaults, skills, multi-line instructions editor
 4. Onboarding (detect opencode, scan, test remote/provider, templates, finish) and New workspace / join org
 5. Keyboard shortcuts beyond the palette (workspace switching by number)
 6. Home / Create (briefs, pipeline) views
