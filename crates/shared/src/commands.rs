@@ -153,12 +153,17 @@ pub enum CommandSource {
 
 /// A command as the composer lists it. `runs_as` says what actually runs for this chat's agent.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ChatCommand {
     pub name: String,
+    #[serde(default)]
     pub description: String,
+    #[serde(default)]
     pub hint: Option<String>,
     pub source: CommandSource,
+    #[serde(default)]
     pub runs_as: Option<String>,
+    #[serde(default)]
     pub sheet: bool,
 }
 
