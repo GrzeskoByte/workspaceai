@@ -6,6 +6,7 @@ publish = false
 
 [dependencies]
 workspaceai-shared = { path = "../shared" }
+chrono = "0.4"
 libc = "0.2"
 serde = { version = "1", features = ["derive"] }
 pulldown-cmark = { version = "0.13", default-features = false }

@@ -133,9 +133,67 @@ pub struct Fact {
     pub created_at: i64,
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum RoutineTrigger {
+    Schedule {
+        cron: String,
+        #[serde(default)]
+        tz: String,
+        #[serde(default)]
+        once: Option<i64>,
+    },
+    Event {
+        event: String,
+        #[serde(default)]
+        detail: String,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum RoutineWhat {
+    Prompt { prompt: String },
+    Graph { graph: String },
+    Artifact { artifact: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct RoutineRun {
+    pub id: String,
+    #[serde(default)]
+    pub at: i64,
+    #[serde(default)]
+    pub status: String,
+    #[serde(default)]
+    pub note: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Routine {
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub phrase: String,
+    pub trigger: RoutineTrigger,
+    pub what: RoutineWhat,
+    #[serde(default)]
+    pub project: String,
+    #[serde(default)]
+    pub paused: bool,
+    #[serde(default)]
+    pub runs: Vec<RoutineRun>,
+    #[serde(default)]
+    pub last_fired: Option<i64>,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
+    #[serde(default)]
+    pub routines: Vec<Routine>,
     #[serde(default)]
     pub facts: Vec<Fact>,
     #[serde(default)]
