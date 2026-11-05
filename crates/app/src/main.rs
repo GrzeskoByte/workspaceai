@@ -28,10 +28,12 @@ use workspaceai_client::settings::{self, engine_actions, EngineAction};
 use workspaceai_client::supervisor::Supervisor;
 use workspaceai_client::chats::{self, Confirm, InFlight};
 use workspaceai_client::computers;
+use workspaceai_client::connectors;
+use workspaceai_client::subscriptions::{self, SubAction};
 use workspaceai_client::command::{self, Outcome};
 use workspaceai_client::markdown;
 use workspaceai_shared::commands::{insert_mention, mention_at, parse_slash, ChatCommand};
-use workspaceai_client::types::{AppState, Chat, ChatMessage, PermissionRequest, Snapshot, UiEvent};
+use workspaceai_client::types::{AppState, Chat, ChatMessage, PermissionRequest, Snapshot, Subscription, UiEvent};
 
 const BG: u32 = 0x1b1b1f;
 const PANEL: u32 = 0x232329;
@@ -57,6 +59,7 @@ enum Msg {
     Models(String, ModelList),
     Files(String, Vec<String>),
     Secrets(String, Vec<String>),
+    Subscriptions(String, Vec<Subscription>),
     ChatCreated(String, Chat),
     Error(String),
 }
@@ -173,6 +176,24 @@ fn mutate(api: Api, ws: String, method: &'static str, path: String, body: Option
             let _ = tx.send(Msg::Error(format!("Could not save the change: {e}")));
         }
         load_snapshot(api, ws, tx);
+    });
+}
+
+/// Detecting installed agents runs their CLIs, so this can take a few seconds.
+fn load_subscriptions(api: Api, ws: String, tx: Sender<Msg>) {
+    spawn(move || {
+        if let Ok(v) = api.get(&subscriptions::list_path(&ws)) {
+            let _ = tx.send(Msg::Subscriptions(ws, subscriptions::parse_list(&v)));
+        }
+    });
+}
+
+fn change_subscription(api: Api, ws: String, path: String, tx: Sender<Msg>) {
+    spawn(move || {
+        if let Err(e) = api.post(&path, None) {
+            let _ = tx.send(Msg::Error(format!("Could not change the connection: {e}")));
+        }
+        load_subscriptions(api, ws, tx);
     });
 }
 
@@ -325,6 +346,7 @@ struct AppView {
     fact_input: Entity<TextInput>,
     secret_input: Entity<TextInput>,
     secret_names: Vec<String>,
+    subs: Vec<Subscription>,
     project_input: Entity<TextInput>,
     show_archived: bool,
     routine_phrase: Entity<TextInput>,
@@ -443,7 +465,7 @@ impl AppView {
             }
         })
         .detach();
-        AppView { palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, secret_input, secret_names: Vec::new(), project_input, show_archived: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
+        AppView { palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, secret_input, secret_names: Vec::new(), subs: Vec::new(), project_input, show_archived: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -534,6 +556,11 @@ impl AppView {
             Msg::Permissions(ws, chat, list) => {
                 if self.model.active_ws.as_deref() == Some(&ws) {
                     self.model.set_permissions(&chat, list);
+                }
+            }
+            Msg::Subscriptions(ws, list) => {
+                if self.model.active_ws.as_deref() == Some(&ws) {
+                    self.subs = list;
                 }
             }
             Msg::Secrets(ws, names) => {
@@ -1194,6 +1221,11 @@ impl Render for AppView {
                         let name = this.model.snapshot.workspace.name.clone();
                         this.name_input.update(cx, |i, cx| i.set_content(&name, cx));
                     }
+                    if id == "agents" {
+                        if let (Some(api), Some(ws)) = (this.api.clone(), this.model.active_ws.clone()) {
+                            load_subscriptions(api, ws, this.tx.clone());
+                        }
+                    }
                     if id == "providers" {
                         if let (Some(api), Some(ws)) = (this.api.clone(), this.model.active_ws.clone()) {
                             load_secrets(api, ws, this.tx.clone());
@@ -1284,6 +1316,67 @@ impl Render for AppView {
                         cx.notify();
                     }))
                 })))
+            }
+            "agents" => {
+                let ws_id = m.active_ws.clone().unwrap_or_default();
+                let locked = cur.locked;
+                let mut p = page;
+                for sub in &self.subs {
+                    let mut controls = div().flex().gap_2();
+                    if !locked {
+                        for a in subscriptions::actions(sub) {
+                            let (ws_a, id_a) = (ws_id.clone(), sub.id.clone());
+                            controls = controls.child(ui::button(format!("sub-{}-{}", sub.id, a.label()), a.label(), if a == SubAction::Disconnect { USER_BUBBLE } else { ACCENT }).on_click(cx.listener(move |this, _, _, cx| {
+                                if let Some(api) = this.api.clone() {
+                                    change_subscription(api, ws_a.clone(), subscriptions::action_path(&ws_a, &id_a, a), this.tx.clone());
+                                }
+                                cx.notify();
+                            })));
+                        }
+                    }
+                    let mut note = subscriptions::summary(sub);
+                    if subscriptions::needs_sign_in(sub) {
+                        note.push_str("\nThe login expired. Sign in again from the web app.");
+                    }
+                    p = p.child(ui::row(if sub.name.is_empty() { &sub.id } else { &sub.name }, &note, controls));
+                }
+                if self.subs.is_empty() {
+                    p = p.child(div().text_color(rgb(MUTED)).child("Looking for installed agents…"));
+                }
+                p
+            }
+            "connectors" => {
+                let ws_id = m.active_ws.clone().unwrap_or_default();
+                let locked = cur.locked;
+                let mut p = page;
+                for c in &m.snapshot.workspace.mcp {
+                    let mut controls = div().flex().items_center().gap_3();
+                    if connectors::can_toggle(c) && !locked {
+                        let (ws_t, id_t, on) = (ws_id.clone(), c.id.clone(), c.on);
+                        controls = controls.child(ui::switch(format!("mcp-sw-{}", c.id), c.on, false).on_click(cx.listener(move |this, _, _, cx| {
+                            this.mutate_path("PATCH", connectors::item_path(&ws_t, &id_t), Some(connectors::toggle_body(!on)));
+                            cx.notify();
+                        })));
+                    } else {
+                        controls = controls.child(ui::switch(format!("mcp-sw-{}", c.id), c.on, true));
+                    }
+                    if connectors::can_remove(c) && !locked {
+                        let (ws_d, id_d) = (ws_id.clone(), c.id.clone());
+                        let armed = self.confirm.is_armed(&format!("m:{}", c.id));
+                        controls = controls.child(ui::button(format!("mcp-del-{}", c.id), if armed { "Click again to remove" } else { "Remove" }, if armed { 0x7a2b2b } else { ui::DANGER }).on_click(cx.listener(move |this, _, _, cx| {
+                            if this.confirm.press(&format!("m:{id_d}")) {
+                                this.mutate_path("DELETE", connectors::item_path(&ws_d, &id_d), None);
+                            }
+                            cx.notify();
+                        })));
+                    }
+                    let note = format!("{}{}", connectors::describe(c), if c.locked == Some(true) { " · required by your organization" } else { "" });
+                    p = p.child(ui::row(if c.name.is_empty() { &c.id } else { &c.name }, &note, controls));
+                }
+                if m.snapshot.workspace.mcp.is_empty() {
+                    p = p.child(div().text_color(rgb(MUTED)).child("No connectors. Add one in the web app for now."));
+                }
+                p
             }
             "providers" => {
                 let ws_id = m.active_ws.clone().unwrap_or_default();
@@ -1608,6 +1701,14 @@ fn smoke() -> Result<(), String> {
         match api.get(&providers::secrets_list_path(&ws)) {
             Ok(v) => println!("SMOKE ok: {} providers, {} stored secrets (names only)", snap.workspace.providers.len(), v["names"].as_array().map_or(0, Vec::len)),
             Err(e) => println!("SMOKE secrets: {e}"),
+        }
+        println!("SMOKE ok: {} connectors", snap.workspace.mcp.len());
+        match api.get(&subscriptions::list_path(&ws)) {
+            Ok(v) => {
+                let subs = subscriptions::parse_list(&v);
+                println!("SMOKE ok: {} agent subscriptions ({} connected)", subs.len(), subs.iter().filter(|s| s.connected).count());
+            }
+            Err(e) => println!("SMOKE subscriptions: {e}"),
         }
         println!("SMOKE ok: {} routines ({} paused)", snap.routines.len(), snap.routines.iter().filter(|r| r.paused).count());
         println!("SMOKE ok: {} memory facts ({} suggested)", snap.facts.len(), snap.facts.iter().filter(|f| f.status == "suggested").count());

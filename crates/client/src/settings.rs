@@ -10,12 +10,13 @@ pub struct Page {
     pub locked: bool,
 }
 
-const PAGES: [(&str, &str); 15] = [
+const PAGES: [(&str, &str); 16] = [
     ("general", "General"),
     ("projects", "Projects"),
     ("members", "Workspaces"),
     ("providers", "Model providers"),
     ("agents", "Agents"),
+    ("connectors", "Connectors"),
     ("web", "Web search"),
     ("memory", "Memory"),
     ("artifacts", "Artifacts & sharing"),
