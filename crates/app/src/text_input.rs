@@ -38,6 +38,8 @@ pub struct TextInput {
     focus_handle: FocusHandle,
     content: SharedString,
     placeholder: SharedString,
+    /// Draw bullets instead of the text, and refuse to copy or cut it (API keys).
+    masked: bool,
     selected_range: Range<usize>,
     selection_reversed: bool,
     marked_range: Option<Range<usize>>,
@@ -155,14 +157,15 @@ impl TextInput {
     }
 
     fn copy(&mut self, _: &Copy, _: &mut Window, cx: &mut Context<Self>) {
-        if !self.selected_range.is_empty() {
+        if !self.selected_range.is_empty() && !self.masked {
             cx.write_to_clipboard(ClipboardItem::new_string(
                 self.content[self.selected_range.clone()].to_string(),
             ));
         }
     }
     fn cut(&mut self, _: &Cut, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.selected_range.is_empty() {
+        // A masked field never puts its text on the clipboard.
+        if !self.selected_range.is_empty() && !self.masked {
             cx.write_to_clipboard(ClipboardItem::new_string(
                 self.content[self.selected_range.clone()].to_string(),
             ));
@@ -200,7 +203,12 @@ impl TextInput {
         if position.y > bounds.bottom() {
             return self.content.len();
         }
-        line.closest_index_for_x(position.x - bounds.left())
+        let index = line.closest_index_for_x(position.x - bounds.left());
+        if self.masked {
+            mask::from_display(&self.content, index)
+        } else {
+            index
+        }
     }
 
     fn select_to(&mut self, offset: usize, window: &Window, cx: &mut Context<Self>) {
@@ -516,11 +524,15 @@ impl Element for TextElement {
         let cursor = input.cursor_offset();
         let style = window.text_style();
 
-        let (display_text, text_color) = if content.is_empty() {
-            (input.placeholder.clone(), hsla(0., 0., 0., 0.2))
+        let masked = input.masked && !content.is_empty();
+        let (display_text, text_color): (SharedString, _) = if content.is_empty() {
+            (input.placeholder.clone(), hsla(0., 0., 0.55, 0.8))
+        } else if masked {
+            (mask::masked_text(&content).into(), style.color)
         } else {
-            (content, style.color)
+            (content.clone(), style.color)
         };
+        let shown = |offset: usize| if masked { mask::to_display(&content, offset) } else { offset };
 
         let run = TextRun {
             len: display_text.len(),
@@ -530,7 +542,7 @@ impl Element for TextElement {
             underline: None,
             strikethrough: None,
         };
-        let runs = if let Some(marked_range) = input.marked_range.as_ref() {
+        let runs = if let (false, Some(marked_range)) = (masked, input.marked_range.as_ref()) {
             vec![
                 TextRun {
                     len: marked_range.start,
@@ -562,7 +574,7 @@ impl Element for TextElement {
             .text_system()
             .shape_line(display_text, font_size, &runs, None);
 
-        let cursor_pos = line.x_for_index(cursor);
+        let cursor_pos = line.x_for_index(shown(cursor));
         let (selection, cursor) = if selected_range.is_empty() {
             (
                 None,
@@ -571,7 +583,7 @@ impl Element for TextElement {
                         point(bounds.left() + cursor_pos, bounds.top()),
                         size(px(2.), bounds.bottom() - bounds.top()),
                     ),
-                    gpui::blue(),
+                    rgb(0xd97757),
                 )),
             )
         } else {
@@ -579,11 +591,11 @@ impl Element for TextElement {
                 Some(fill(
                     Bounds::from_corners(
                         point(
-                            bounds.left() + line.x_for_index(selected_range.start),
+                            bounds.left() + line.x_for_index(shown(selected_range.start)),
                             bounds.top(),
                         ),
                         point(
-                            bounds.left() + line.x_for_index(selected_range.end),
+                            bounds.left() + line.x_for_index(shown(selected_range.end)),
                             bounds.bottom(),
                         ),
                     ),
@@ -700,6 +712,7 @@ impl TextInput {
             focus_handle: cx.focus_handle(),
             content: "".into(),
             placeholder: placeholder.to_string().into(),
+            masked: false,
             selected_range: 0..0,
             selection_reversed: false,
             marked_range: None,
@@ -707,6 +720,11 @@ impl TextInput {
             last_bounds: None,
             is_selecting: false,
         }
+    }
+
+    /// A field that shows bullets and cannot be copied from, for secrets.
+    pub fn new_masked(cx: &mut Context<Self>, placeholder: &str) -> Self {
+        TextInput { masked: true, ..TextInput::new(cx, placeholder) }
     }
 
     pub fn content(&self) -> &str {
@@ -752,6 +770,26 @@ const PASTE: &str = if cfg!(target_os = "macos") { "cmd-v" } else { "ctrl-v" };
 const COPY: &str = if cfg!(target_os = "macos") { "cmd-c" } else { "ctrl-c" };
 const CUT: &str = if cfg!(target_os = "macos") { "cmd-x" } else { "ctrl-x" };
 
+/// Masked fields (API keys) draw one bullet per character; these map offsets between the real text and the bullets.
+pub mod mask {
+    const BULLET: &str = "•";
+
+    pub fn masked_text(content: &str) -> String {
+        BULLET.repeat(content.chars().count())
+    }
+
+    /// Byte offset in the real text → byte offset in the bullets.
+    pub fn to_display(content: &str, offset: usize) -> usize {
+        content.get(..offset).map_or(0, |head| head.chars().count()) * BULLET.len()
+    }
+
+    /// Byte offset in the bullets → byte offset of the nearest character at or before it in the real text.
+    pub fn from_display(content: &str, display: usize) -> usize {
+        let n = display / BULLET.len();
+        content.char_indices().nth(n).map_or(content.len(), |(i, _)| i)
+    }
+}
+
 /// Key bindings for every `TextInput`.
 pub fn bindings() -> Vec<KeyBinding> {
     let ctx = Some("TextInput");
@@ -778,6 +816,27 @@ pub fn bind_keys(cx: &mut App) {
 
 #[cfg(test)]
 mod tests {
+    use super::mask::*;
+
+    #[test]
+    fn masked_text_is_one_bullet_per_character() {
+        assert_eq!(masked_text("abc"), "•••");
+        assert_eq!(masked_text("żółw"), "••••");
+        assert_eq!(masked_text(""), "");
+    }
+
+    #[test]
+    fn offsets_map_between_the_real_text_and_the_bullets() {
+        // Each bullet is 3 bytes; "żółw" is 4 characters in 7 bytes.
+        assert_eq!(to_display("abc", 2), 6);
+        assert_eq!(to_display("żółw", 4), 6);
+        assert_eq!(to_display("żółw", 7), 12);
+        assert_eq!(from_display("żółw", 6), 4);
+        assert_eq!(from_display("żółw", 7), 4, "inside a bullet rounds down to a character");
+        assert_eq!(from_display("abc", 100), 3, "past the end is the end");
+        assert_eq!(from_display("", 3), 0);
+    }
+
     #[test]
     fn every_binding_is_a_valid_keystroke() {
         // KeyBinding::new panics on a keystroke GPUI cannot parse, which used to kill the app at startup.
