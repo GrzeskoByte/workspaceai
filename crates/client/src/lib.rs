@@ -1,6 +1,7 @@
 pub mod api;
 pub mod chats;
 pub mod command;
+pub mod computers;
 pub mod events;
 pub mod facts;
 pub mod files;

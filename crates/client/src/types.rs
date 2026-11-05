@@ -26,7 +26,56 @@ pub struct AppSettings {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct Capabilities {
+    #[serde(default)]
+    pub files: bool,
+    #[serde(default)]
+    pub commands: bool,
+    #[serde(default)]
+    pub browser: bool,
+    #[serde(default)]
+    pub computer_use: bool,
+    #[serde(default)]
+    pub wake: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Activity {
+    #[serde(default)]
+    pub at: i64,
+    #[serde(default)]
+    pub text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Computer {
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub os: String,
+    /// "online", "asleep" or "offline".
+    #[serde(default)]
+    pub status: String,
+    #[serde(default)]
+    pub last_seen: i64,
+    #[serde(default)]
+    pub capabilities: Capabilities,
+    /// workspace id → `{allowed, folders}`, kept raw: the server replaces the whole map on every change.
+    #[serde(default)]
+    pub access: std::collections::HashMap<String, serde_json::Value>,
+    #[serde(default)]
+    pub activity: Vec<Activity>,
+    #[serde(default)]
+    pub managed: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
 pub struct AppState {
+    #[serde(default)]
+    pub computers: Vec<Computer>,
     #[serde(default)]
     pub settings: AppSettings,
     #[serde(default)]
