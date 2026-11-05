@@ -142,9 +142,56 @@ pub struct Provider {
     pub is_default: Option<bool>,
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct McpServer {
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    /// Display label such as "MCP · stdio".
+    #[serde(default)]
+    pub kind: String,
+    /// "local", "remote" or "connector" (the JSON field is `type`).
+    #[serde(rename = "type", default)]
+    pub kind_of: String,
+    #[serde(default)]
+    pub command: Option<Vec<String>>,
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default)]
+    pub on: bool,
+    #[serde(default)]
+    pub locked: Option<bool>,
+    #[serde(default)]
+    pub builtin: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Subscription {
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub installed: bool,
+    #[serde(default)]
+    pub signed_in: bool,
+    #[serde(default)]
+    pub version: Option<String>,
+    #[serde(default)]
+    pub account: Option<String>,
+    #[serde(default)]
+    pub connected: bool,
+    #[serde(default)]
+    pub agent_on: bool,
+    #[serde(default)]
+    pub detail: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceInfo {
+    #[serde(default)]
+    pub mcp: Vec<McpServer>,
     #[serde(default)]
     pub providers: Vec<Provider>,
     #[serde(default)]
