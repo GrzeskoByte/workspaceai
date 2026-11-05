@@ -4,6 +4,7 @@
 
 mod md_view;
 mod text_input;
+mod ui;
 
 use gpui::{
     div, prelude::*, px, rgb, size, App, Bounds, Context, Entity, Focusable, FontWeight, ScrollHandle, SharedString, Window, WindowBounds,
@@ -18,6 +19,7 @@ use workspaceai_client::events;
 use workspaceai_client::files;
 use workspaceai_client::model::{Connection, Model, RowKind};
 use workspaceai_client::models::ModelList;
+use workspaceai_client::settings::{self, engine_actions, EngineAction};
 use workspaceai_client::supervisor::Supervisor;
 use workspaceai_client::chats::{self, Confirm};
 use workspaceai_client::command::{self, Outcome};
@@ -137,6 +139,25 @@ fn delete_chat(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
     });
 }
 
+/// Changes one workspace setting; the reply is the fresh snapshot.
+fn patch_workspace(api: Api, ws: String, body: serde_json::Value, tx: Sender<Msg>) {
+    spawn(move || {
+        let _ = tx.send(match api.patch(&format!("/api/ws/{ws}"), &body).map_err(|e| e.to_string()).and_then(|v| serde_json::from_value::<Snapshot>(v).map_err(|e| e.to_string())) {
+            Ok(snap) => Msg::Snapshot(ws, snap),
+            Err(e) => Msg::Error(e),
+        });
+    });
+}
+
+fn engine_action(api: Api, ws: String, action: EngineAction, tx: Sender<Msg>) {
+    spawn(move || {
+        if let Err(e) = api.post(&action.path(&ws), None) {
+            let _ = tx.send(Msg::Error(e.to_string()));
+        }
+        load_snapshot(api, ws, tx);
+    });
+}
+
 fn load_models(api: Api, ws: String, tx: Sender<Msg>) {
     spawn(move || {
         // The list is slow when an engine has to start; a failure just leaves the picker empty.
@@ -236,7 +257,16 @@ fn run_events(api: Api, tx: Sender<Msg>) {
     });
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum View {
+    Chat,
+    Settings,
+}
+
 struct AppView {
+    view: View,
+    settings_page: &'static str,
+    name_input: Entity<TextInput>,
     model: Model,
     rx: Receiver<Msg>,
     tx: Sender<Msg>,
@@ -270,6 +300,16 @@ impl AppView {
         });
         let input = cx.new(|cx| TextInput::new(cx, "Message…"));
         let rename_input = cx.new(|cx| TextInput::new(cx, "Chat title"));
+        let name_input = cx.new(|cx| TextInput::new(cx, "Workspace name"));
+        cx.subscribe_in(&name_input, window, |this, input, event: &TextInputEvent, _window, cx| {
+            if *event == TextInputEvent::Submit {
+                let name = input.read(cx).content().trim().to_string();
+                if !name.is_empty() {
+                    this.patch_ws(settings::patch("name", name.into()));
+                }
+            }
+        })
+        .detach();
         cx.subscribe_in(&rename_input, window, |this, input, event: &TextInputEvent, window, cx| {
             if *event == TextInputEvent::Submit {
                 let title = input.read(cx).content().to_string();
@@ -299,7 +339,7 @@ impl AppView {
             }
         })
         .detach();
-        AppView { model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
+        AppView { view: View::Chat, settings_page: "general", name_input, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -488,6 +528,18 @@ impl AppView {
             }
         }
         patch_chat(api, ws, id, body.into(), self.tx.clone());
+    }
+
+    fn patch_ws(&mut self, body: serde_json::Value) {
+        if let (Some(api), Some(ws)) = (self.api.clone(), self.model.active_ws.clone()) {
+            patch_workspace(api, ws, body, self.tx.clone());
+        }
+    }
+
+    fn run_engine(&mut self, action: EngineAction) {
+        if let (Some(api), Some(ws)) = (self.api.clone(), self.model.active_ws.clone()) {
+            engine_action(api, ws, action, self.tx.clone());
+        }
     }
 
     fn start_rename(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -928,7 +980,108 @@ impl Render for AppView {
 
         let main = div().flex().flex_col().flex_1().min_w_0().h_full().child(header).children(actions).children(rename_row).children(picker).child(messages).children(toast).children(panel).children(suggest_box).children(file_box).child(composer);
 
-        div().flex().size_full().bg(rgb(BG)).text_color(rgb(TEXT)).child(rail).child(sidebar).child(main)
+        // ---- settings ----
+        let is_org = m.snapshot.workspace.kind == "org";
+        let pages = settings::pages(is_org);
+        let cur = pages.iter().find(|p| p.id == self.settings_page).cloned().unwrap_or_else(|| pages[0].clone());
+        let settings_nav = div().flex().flex_col().w(px(240.)).h_full().bg(rgb(PANEL)).p_2().gap_1().children(pages.iter().map(|p| {
+            let id = p.id;
+            let on = p.id == cur.id;
+            div()
+                .id(SharedString::from(format!("page-{}", p.id)))
+                .px_3()
+                .py_2()
+                .rounded_md()
+                .cursor_pointer()
+                .bg(rgb(if on { USER_BUBBLE } else { PANEL }))
+                .hover(|s| s.bg(rgb(USER_BUBBLE)))
+                .flex()
+                .justify_between()
+                .child(SharedString::from(p.title))
+                .when(p.locked, |d| d.child(div().text_color(rgb(MUTED)).text_sm().child("locked")))
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.settings_page = id;
+                    if id == "general" {
+                        let name = this.model.snapshot.workspace.name.clone();
+                        this.name_input.update(cx, |i, cx| i.set_content(&name, cx));
+                    }
+                    cx.notify();
+                }))
+        }));
+        let w = &m.snapshot.workspace;
+        let switch_row = |field: &'static str, label: &str, note: &str, on: bool, locked: bool| {
+            let sw = ui::switch(format!("sw-{field}"), on, locked);
+            let sw = if locked {
+                sw
+            } else {
+                sw.on_click(cx.listener(move |this, _, _, cx| {
+                    this.patch_ws(settings::patch(field, serde_json::json!(!on)));
+                    cx.notify();
+                }))
+            };
+            ui::row(label, note, sw)
+        };
+        let mut page = div().flex().flex_col().gap_3().p(px(28.)).max_w(px(840.)).child(ui::page_title(cur.title, ""));
+        if cur.locked {
+            page = page.child(div().p_3().rounded_lg().border_1().border_color(rgb(ACCENT)).text_sm().child("Set by your organization's policy. You can read it here but not change it."));
+        }
+        page = match cur.id {
+            "general" => page
+                .child(ui::row("Workspace name", "Press Enter to save.", div().w(px(260.)).px_2().py_1().rounded_md().bg(rgb(BG)).child(self.name_input.clone())))
+                .child(ui::row("Default model", "Used for new chats. Change it per chat from the chat header.", div().text_color(rgb(MUTED)).child(SharedString::from(if w.default_model.is_empty() { "Default".to_string() } else { w.default_model.clone() }))))
+                .child(ui::row("Workspace instructions", "Read-only here for now. Edit them in the web app.", div().max_w(px(320.)).text_sm().text_color(rgb(MUTED)).child(SharedString::from(w.instructions.chars().take(160).collect::<String>())))),
+            "memory" => page
+                .child(switch_row("useMemory", "Use memory", "Agents are told to use this workspace's memory, and each session opens with what it holds.", settings::switch_on(w.use_memory), cur.locked))
+                .child(switch_row("memoryRecall", "Recall on every message", "Look each message up in memory and hand the agent what matched.", settings::switch_on(w.memory_recall), cur.locked))
+                .child(switch_row("suggestMemories", "Suggest memories", "Offer to remember things from chats.", w.suggest_memories == Some(true), cur.locked)),
+            "engine" => {
+                let e = &m.snapshot.engine;
+                let mut p = page
+                    .child(ui::row("State", "Every chat is an opencode session.", div().font_weight(FontWeight::BOLD).child(SharedString::from(if e.state.is_empty() { "unknown".to_string() } else { e.state.clone() }))))
+                    .child(ui::row("Version", "", div().text_color(rgb(MUTED)).child(SharedString::from(if e.version.is_empty() { "—".to_string() } else { e.version.clone() }))))
+                    .child(ui::row("Address", "", div().font_family("monospace").text_color(rgb(MUTED)).child(SharedString::from(if e.url.is_empty() { "—".to_string() } else { e.url.clone() }))));
+                if let Some(err) = &e.error {
+                    p = p.child(div().p_3().rounded_lg().bg(rgb(ui::DANGER)).text_sm().child(SharedString::from(err.clone())));
+                }
+                for sc in &e.sidecars {
+                    p = p.child(ui::row(&sc.name, "Helper process", div().text_color(rgb(MUTED)).child(SharedString::from(sc.state.clone()))));
+                }
+                p.child(div().flex().gap_2().children(engine_actions(&e.state).into_iter().map(|a| {
+                    ui::button(format!("engine-{}", a.label()), a.label(), if a == EngineAction::Stop { ui::DANGER } else { ACCENT }).on_click(cx.listener(move |this, _, _, cx| {
+                        this.run_engine(a);
+                        cx.notify();
+                    }))
+                })))
+            }
+            _ => page.child(div().p_4().rounded_lg().bg(rgb(PANEL)).text_color(rgb(MUTED)).child("This page is not in the native app yet. Use the web app for it for now.")),
+        };
+        let settings_main = div().id("settings-scroll").flex_1().min_w_0().h_full().overflow_y_scroll().child(page);
+
+        let gear_on = self.view == View::Settings;
+        let rail = rail.child(
+            div()
+                .id("settings-btn")
+                .mt_auto()
+                .flex()
+                .items_center()
+                .justify_center()
+                .size(px(40.))
+                .rounded_lg()
+                .cursor_pointer()
+                .bg(rgb(if gear_on { ACCENT } else { PANEL }))
+                .child("⚙")
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.view = if this.view == View::Settings { View::Chat } else { View::Settings };
+                    if this.view == View::Settings {
+                        let name = this.model.snapshot.workspace.name.clone();
+                        this.name_input.update(cx, |i, cx| i.set_content(&name, cx));
+                    }
+                    cx.notify();
+                })),
+        );
+        let (left, right) = if gear_on { (settings_nav.into_any_element(), settings_main.into_any_element()) } else { (sidebar.into_any_element(), main.into_any_element()) };
+
+        div().flex().size_full().bg(rgb(BG)).text_color(rgb(TEXT)).child(rail).child(left).child(right)
     }
 }
 
@@ -941,6 +1094,7 @@ fn smoke() -> Result<(), String> {
     if let Some(ws) = state.settings.active_workspace.or_else(|| state.workspaces.first().map(|w| w.id.clone())) {
         let snap: Snapshot = fetch(&api, &format!("/api/ws/{ws}/snapshot"))?;
         println!("SMOKE ok: {} projects, {} chats", snap.projects.len(), snap.chats.len());
+        println!("SMOKE ok: workspace {:?} ({}), memory {:?}, engine {:?}", snap.workspace.name, snap.workspace.kind, snap.workspace.use_memory, snap.engine.state);
         if let Some(p) = snap.projects.iter().find(|p| !p.archived) {
             match api.get(&files::search_path(&ws, &p.id, "")) {
                 Ok(v) => println!("SMOKE ok: {} files for an empty @ query in {:?}", files::parse_files(&v).len(), p.name),
