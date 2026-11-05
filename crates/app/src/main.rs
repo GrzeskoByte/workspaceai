@@ -7,7 +7,7 @@ mod text_input;
 mod ui;
 
 use gpui::{
-    div, prelude::*, px, rgb, size, App, Bounds, Context, Entity, Focusable, FontWeight, ScrollHandle, SharedString, Window, WindowBounds,
+    actions, div, prelude::*, px, rgb, rgba, size, App, Bounds, KeyBinding, Context, Entity, Focusable, FontWeight, ScrollHandle, SharedString, Window, WindowBounds,
     WindowOptions,
 };
 use std::path::PathBuf;
@@ -19,6 +19,7 @@ use workspaceai_client::events;
 use workspaceai_client::files;
 use workspaceai_client::model::{Connection, Model, RowKind};
 use workspaceai_client::models::ModelList;
+use workspaceai_client::palette::{self, Kind};
 use workspaceai_client::settings::{self, engine_actions, EngineAction};
 use workspaceai_client::supervisor::Supervisor;
 use workspaceai_client::chats::{self, Confirm, InFlight};
@@ -259,6 +260,8 @@ fn run_events(api: Api, tx: Sender<Msg>) {
     });
 }
 
+actions!(app, [OpenPalette, ClosePalette, PaletteUp, PaletteDown]);
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum View {
     Chat,
@@ -266,6 +269,9 @@ enum View {
 }
 
 struct AppView {
+    palette_open: bool,
+    palette_sel: usize,
+    palette_input: Entity<TextInput>,
     view: View,
     settings_page: &'static str,
     name_input: Entity<TextInput>,
@@ -303,6 +309,18 @@ impl AppView {
         });
         let input = cx.new(|cx| TextInput::new(cx, "Message…"));
         let rename_input = cx.new(|cx| TextInput::new(cx, "Chat title"));
+        let palette_input = cx.new(|cx| TextInput::new(cx, "Jump to a chat, workspace or setting…"));
+        cx.subscribe_in(&palette_input, window, |this, _, event: &TextInputEvent, window, cx| {
+            if *event == TextInputEvent::Submit {
+                this.run_palette(window, cx);
+            }
+        })
+        .detach();
+        cx.observe(&palette_input, |this, _, cx| {
+            this.palette_sel = 0;
+            cx.notify();
+        })
+        .detach();
         let name_input = cx.new(|cx| TextInput::new(cx, "Workspace name"));
         cx.subscribe_in(&name_input, window, |this, input, event: &TextInputEvent, _window, cx| {
             if *event == TextInputEvent::Submit {
@@ -342,7 +360,7 @@ impl AppView {
             }
         })
         .detach();
-        AppView { view: View::Chat, settings_page: "general", name_input, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
+        AppView { palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -547,6 +565,58 @@ impl AppView {
         if let (Some(api), Some(ws)) = (self.api.clone(), self.model.active_ws.clone()) {
             engine_action(api, ws, action, self.tx.clone());
         }
+    }
+
+    /// The palette's current matches (cloned, so handlers can use them after the borrow ends).
+    fn palette_items(&self, cx: &App) -> Vec<palette::Item> {
+        let all = palette::build(&self.model.workspaces, &self.model.snapshot, self.model.snapshot.workspace.kind == "org");
+        palette::filter(&all, self.palette_input.read(cx).content()).into_iter().cloned().collect()
+    }
+
+    fn open_palette(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.palette_open = true;
+        self.palette_sel = 0;
+        self.palette_input.update(cx, |i, cx| i.set_content("", cx));
+        window.focus(&self.palette_input.focus_handle(cx), cx);
+        cx.notify();
+    }
+
+    fn close_palette(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.palette_open {
+            self.palette_open = false;
+            window.focus(&self.input.focus_handle(cx), cx);
+            cx.notify();
+        }
+    }
+
+    fn run_palette(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let items = self.palette_items(cx);
+        let Some(item) = items.get(self.palette_sel.min(items.len().saturating_sub(1))).cloned() else { return };
+        self.close_palette(window, cx);
+        match item.kind {
+            Kind::Action if item.id == "new-chat" => {
+                self.view = View::Chat;
+                self.new_chat();
+            }
+            Kind::Action => self.view = View::Settings,
+            Kind::Workspace => {
+                if let Some(api) = self.api.clone() {
+                    activate(api, item.id, self.tx.clone());
+                }
+                self.view = View::Chat;
+            }
+            Kind::Chat => {
+                self.view = View::Chat;
+                self.open_chat(item.id);
+            }
+            Kind::Page => {
+                if let Some(p) = settings::pages(false).into_iter().find(|p| p.id == item.id) {
+                    self.settings_page = p.id;
+                }
+                self.view = View::Settings;
+            }
+        }
+        cx.notify();
     }
 
     fn start_rename(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -1091,7 +1161,75 @@ impl Render for AppView {
         );
         let (left, right) = if gear_on { (settings_nav.into_any_element(), settings_main.into_any_element()) } else { (sidebar.into_any_element(), main.into_any_element()) };
 
-        div().flex().size_full().bg(rgb(BG)).text_color(rgb(TEXT)).child(rail).child(left).child(right)
+        let overlay = self.palette_open.then(|| {
+            let items = self.palette_items(cx);
+            let sel = self.palette_sel.min(items.len().saturating_sub(1));
+            div()
+                .id("palette-backdrop")
+                .absolute()
+                .inset_0()
+                .flex()
+                .justify_center()
+                .pt(px(90.))
+                .bg(rgba(0x000000aa))
+                .on_click(cx.listener(|this, _, window, cx| this.close_palette(window, cx)))
+                .child(
+                    div()
+                        .key_context("Palette")
+                        .on_action(cx.listener(|this, _: &PaletteDown, _, cx| {
+                            this.palette_sel += 1;
+                            cx.notify();
+                        }))
+                        .on_action(cx.listener(|this, _: &PaletteUp, _, cx| {
+                            this.palette_sel = this.palette_sel.saturating_sub(1);
+                            cx.notify();
+                        }))
+                        .id("palette")
+                        .w(px(620.))
+                        .h_auto()
+                        .max_h(px(520.))
+                        .flex()
+                        .flex_col()
+                        .rounded_lg()
+                        .bg(rgb(PANEL))
+                        .border_1()
+                        .border_color(rgb(USER_BUBBLE))
+                        .child(div().px_4().py_3().border_b_1().border_color(rgb(USER_BUBBLE)).child(self.palette_input.clone()))
+                        .child(div().id("palette-list").flex().flex_col().p_1().overflow_y_scroll().children(items.into_iter().enumerate().map(|(i, it)| {
+                            let id = it.id.clone();
+                            div()
+                                .id(SharedString::from(format!("pal-{i}")))
+                                .flex()
+                                .justify_between()
+                                .px_3()
+                                .py_2()
+                                .rounded_md()
+                                .cursor_pointer()
+                                .bg(rgb(if i == sel { USER_BUBBLE } else { PANEL }))
+                                .child(SharedString::from(it.label))
+                                .child(div().text_sm().text_color(rgb(MUTED)).child(SharedString::from(it.hint)))
+                                .on_click(cx.listener(move |this, _, window, cx| {
+                                    this.palette_sel = i;
+                                    let _ = &id;
+                                    this.run_palette(window, cx);
+                                }))
+                        }))),
+                )
+        });
+
+        div()
+            .key_context("App")
+            .on_action(cx.listener(|this, _: &OpenPalette, window, cx| this.open_palette(window, cx)))
+            .on_action(cx.listener(|this, _: &ClosePalette, window, cx| this.close_palette(window, cx)))
+            .relative()
+            .flex()
+            .size_full()
+            .bg(rgb(BG))
+            .text_color(rgb(TEXT))
+            .child(rail)
+            .child(left)
+            .child(right)
+            .children(overlay)
     }
 }
 
@@ -1119,6 +1257,26 @@ fn smoke() -> Result<(), String> {
     Ok(())
 }
 
+const OPEN_PALETTE: &str = if cfg!(target_os = "macos") { "cmd-k" } else { "ctrl-k" };
+
+fn app_bindings() -> Vec<KeyBinding> {
+    vec![
+        KeyBinding::new(OPEN_PALETTE, OpenPalette, None),
+        KeyBinding::new("escape", ClosePalette, None),
+        KeyBinding::new("down", PaletteDown, Some("Palette")),
+        KeyBinding::new("up", PaletteUp, Some("Palette")),
+    ]
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn app_key_bindings_are_valid_keystrokes() {
+        // KeyBinding::new panics on a keystroke GPUI cannot parse; that once killed the app at startup.
+        assert_eq!(super::app_bindings().len(), 4);
+    }
+}
+
 fn main() {
     if std::env::args().any(|a| a == "--smoke") {
         if let Err(e) = smoke() {
@@ -1129,6 +1287,7 @@ fn main() {
     }
     gpui_platform::application().run(|cx: &mut App| {
         text_input::bind_keys(cx);
+        cx.bind_keys(app_bindings());
         let bounds = Bounds::centered(None, size(px(1200.), px(780.)), cx);
         cx.open_window(WindowOptions { window_bounds: Some(WindowBounds::Windowed(bounds)), ..Default::default() }, |window, cx| cx.new(|cx| AppView::new(window, cx))).unwrap();
         cx.on_window_closed(|cx, _| {
