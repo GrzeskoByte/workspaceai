@@ -2,6 +2,7 @@ pub mod api;
 pub mod chats;
 pub mod command;
 pub mod events;
+pub mod facts;
 pub mod files;
 pub mod markdown;
 pub mod model;

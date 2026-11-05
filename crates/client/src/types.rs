@@ -115,9 +115,29 @@ pub struct EngineStatus {
     pub sidecars: Vec<Sidecar>,
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Fact {
+    pub id: String,
+    #[serde(default)]
+    pub text: String,
+    /// "ws" for the workspace, otherwise a project id.
+    #[serde(default)]
+    pub scope: String,
+    /// "approved" or "suggested".
+    #[serde(default)]
+    pub status: String,
+    #[serde(default)]
+    pub source: Option<String>,
+    #[serde(default)]
+    pub created_at: i64,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
+    #[serde(default)]
+    pub facts: Vec<Fact>,
     #[serde(default)]
     pub workspace: WorkspaceInfo,
     #[serde(default)]
