@@ -722,21 +722,41 @@ impl TextInput {
     }
 }
 
-/// Key bindings for every `TextInput`: `secondary` is Cmd on macOS and Ctrl elsewhere.
+// The shortcut modifier is Cmd on macOS and Ctrl elsewhere. GPUI has no `secondary-` modifier at this revision.
+const SELECT_ALL: &str = if cfg!(target_os = "macos") { "cmd-a" } else { "ctrl-a" };
+const PASTE: &str = if cfg!(target_os = "macos") { "cmd-v" } else { "ctrl-v" };
+const COPY: &str = if cfg!(target_os = "macos") { "cmd-c" } else { "ctrl-c" };
+const CUT: &str = if cfg!(target_os = "macos") { "cmd-x" } else { "ctrl-x" };
+
+/// Key bindings for every `TextInput`.
+pub fn bindings() -> Vec<KeyBinding> {
+    let ctx = Some("TextInput");
+    vec![
+        KeyBinding::new("backspace", Backspace, ctx),
+        KeyBinding::new("delete", Delete, ctx),
+        KeyBinding::new("left", Left, ctx),
+        KeyBinding::new("right", Right, ctx),
+        KeyBinding::new("shift-left", SelectLeft, ctx),
+        KeyBinding::new("shift-right", SelectRight, ctx),
+        KeyBinding::new(SELECT_ALL, SelectAll, ctx),
+        KeyBinding::new(PASTE, Paste, ctx),
+        KeyBinding::new(COPY, Copy, ctx),
+        KeyBinding::new(CUT, Cut, ctx),
+        KeyBinding::new("home", Home, ctx),
+        KeyBinding::new("end", End, ctx),
+        KeyBinding::new("enter", Enter, ctx),
+    ]
+}
+
 pub fn bind_keys(cx: &mut App) {
-    cx.bind_keys([
-        KeyBinding::new("backspace", Backspace, Some("TextInput")),
-        KeyBinding::new("delete", Delete, Some("TextInput")),
-        KeyBinding::new("left", Left, Some("TextInput")),
-        KeyBinding::new("right", Right, Some("TextInput")),
-        KeyBinding::new("shift-left", SelectLeft, Some("TextInput")),
-        KeyBinding::new("shift-right", SelectRight, Some("TextInput")),
-        KeyBinding::new("secondary-a", SelectAll, Some("TextInput")),
-        KeyBinding::new("secondary-v", Paste, Some("TextInput")),
-        KeyBinding::new("secondary-c", Copy, Some("TextInput")),
-        KeyBinding::new("secondary-x", Cut, Some("TextInput")),
-        KeyBinding::new("home", Home, Some("TextInput")),
-        KeyBinding::new("end", End, Some("TextInput")),
-        KeyBinding::new("enter", Enter, Some("TextInput")),
-    ]);
+    cx.bind_keys(bindings());
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn every_binding_is_a_valid_keystroke() {
+        // KeyBinding::new panics on a keystroke GPUI cannot parse, which used to kill the app at startup.
+        assert_eq!(super::bindings().len(), 13);
+    }
 }
