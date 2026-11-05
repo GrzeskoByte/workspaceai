@@ -31,6 +31,7 @@ use workspaceai_client::computers;
 use workspaceai_client::connectors;
 use workspaceai_client::subscriptions::{self, SubAction};
 use workspaceai_client::command::{self, Outcome};
+use workspaceai_client::library::{self, Body};
 use workspaceai_client::markdown;
 use workspaceai_shared::commands::{insert_mention, mention_at, parse_slash, ChatCommand};
 use workspaceai_client::types::{AppState, Chat, ChatMessage, PermissionRequest, Snapshot, Subscription, UiEvent};
@@ -59,6 +60,7 @@ enum Msg {
     Models(String, ModelList),
     Files(String, Vec<String>),
     Secrets(String, Vec<String>),
+    ArtifactView(String, Result<library::View, String>),
     Subscriptions(String, Vec<Subscription>),
     ChatCreated(String, Chat),
     Error(String),
@@ -176,6 +178,13 @@ fn mutate(api: Api, ws: String, method: &'static str, path: String, body: Option
             let _ = tx.send(Msg::Error(format!("Could not save the change: {e}")));
         }
         load_snapshot(api, ws, tx);
+    });
+}
+
+fn load_artifact(api: Api, ws: String, artifact: String, tx: Sender<Msg>) {
+    spawn(move || {
+        let r = api.get(&library::content_path(&ws, &artifact, None)).map_err(|e| e.to_string()).and_then(|v| library::parse_view(&v).ok_or_else(|| "The artifact has no content.".to_string()));
+        let _ = tx.send(Msg::ArtifactView(artifact, r));
     });
 }
 
@@ -334,6 +343,7 @@ actions!(app, [OpenPalette, ClosePalette, PaletteUp, PaletteDown]);
 enum View {
     Chat,
     Settings,
+    Library,
 }
 
 struct AppView {
@@ -344,6 +354,9 @@ struct AppView {
     settings_page: &'static str,
     name_input: Entity<TextInput>,
     fact_input: Entity<TextInput>,
+    library_search: Entity<TextInput>,
+    library_sel: Option<String>,
+    library_view: Option<Result<library::View, String>>,
     secret_input: Entity<TextInput>,
     secret_names: Vec<String>,
     subs: Vec<Subscription>,
@@ -397,6 +410,8 @@ impl AppView {
             cx.notify();
         })
         .detach();
+        let library_search = cx.new(|cx| TextInput::new(cx, "Search artifacts"));
+        cx.observe(&library_search, |_, _, cx| cx.notify()).detach();
         let secret_input = cx.new(|cx| TextInput::new_masked(cx, "Paste an API key"));
         cx.observe(&secret_input, |_, _, cx| cx.notify()).detach();
         let project_input = cx.new(|cx| TextInput::new(cx, "Project name"));
@@ -465,7 +480,7 @@ impl AppView {
             }
         })
         .detach();
-        AppView { palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, secret_input, secret_names: Vec::new(), subs: Vec::new(), project_input, show_archived: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
+        AppView { palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, library_search, library_sel: None, library_view: None, secret_input, secret_names: Vec::new(), subs: Vec::new(), project_input, show_archived: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -556,6 +571,11 @@ impl AppView {
             Msg::Permissions(ws, chat, list) => {
                 if self.model.active_ws.as_deref() == Some(&ws) {
                     self.model.set_permissions(&chat, list);
+                }
+            }
+            Msg::ArtifactView(artifact, result) => {
+                if self.library_sel.as_deref() == Some(&artifact) {
+                    self.library_view = Some(result);
                 }
             }
             Msg::Subscriptions(ws, list) => {
@@ -1593,6 +1613,79 @@ impl Render for AppView {
         };
         let settings_main = div().id("settings-scroll").flex_1().min_w_0().h_full().overflow_y_scroll().child(page);
 
+        // ---- library ----
+        let tz = workspaceai_shared::schedule::local_tz();
+        let now = chrono::Utc::now();
+        let query = self.library_search.read(cx).content().to_string();
+        let lib_rows = library::rows(&m.snapshot.artifacts, &m.snapshot.projects, &query);
+        let ws_for_lib = m.active_ws.clone().unwrap_or_default();
+        let library_list = div()
+            .flex()
+            .flex_col()
+            .w(px(340.))
+            .h_full()
+            .bg(rgb(PANEL))
+            .child(div().m_2().px_3().py_2().rounded_md().bg(rgb(BG)).child(self.library_search.clone()))
+            .child(div().id("library-scroll").flex_1().min_h_0().overflow_y_scroll().px_2().children(lib_rows.iter().map(|r| {
+                let on = self.library_sel.as_deref() == Some(&r.id);
+                let (id, ws) = (r.id.clone(), ws_for_lib.clone());
+                div()
+                    .id(SharedString::from(format!("art-{}", r.id)))
+                    .flex()
+                    .flex_col()
+                    .px_3()
+                    .py_2()
+                    .rounded_md()
+                    .cursor_pointer()
+                    .bg(rgb(if on { USER_BUBBLE } else { PANEL }))
+                    .hover(|s| s.bg(rgb(USER_BUBBLE)))
+                    .child(div().child(SharedString::from(if r.title.is_empty() { "Untitled".to_string() } else { r.title.clone() })))
+                    .child(div().text_sm().text_color(rgb(MUTED)).child(SharedString::from(format!("{} · {} · {} version{} · {}", r.kind, r.project, r.versions, if r.versions == 1 { "" } else { "s" }, library::updated_text(r.updated_at, &tz, now)))))
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.library_sel = Some(id.clone());
+                        this.library_view = None;
+                        if let Some(api) = this.api.clone() {
+                            load_artifact(api, ws.clone(), id.clone(), this.tx.clone());
+                        }
+                        cx.notify();
+                    }))
+            })))
+            .when(lib_rows.is_empty(), |d| d.child(div().p_4().text_color(rgb(MUTED)).child("No artifacts yet. Ask an agent to make a doc, deck or sheet.")));
+        let selected_art = self.library_sel.as_ref().and_then(|id| m.snapshot.artifacts.iter().find(|a| &a.id == id));
+        let library_main = div().id("library-view").flex_1().min_w_0().h_full().overflow_y_scroll().p(px(28.)).flex().flex_col().gap_3().child(match (selected_art, &self.library_view) {
+            (None, _) => div().text_color(rgb(MUTED)).child("Pick an artifact on the left.").into_any_element(),
+            (Some(a), None) => div().child(SharedString::from(format!("Opening {}…", a.title))).into_any_element(),
+            (Some(a), Some(Err(e))) => div().flex().flex_col().gap_2().child(ui::page_title(&a.title, "")).child(div().text_color(rgb(0xff6b6b)).child(SharedString::from(e.clone()))).into_any_element(),
+            (Some(a), Some(Ok(v))) => div()
+                .flex()
+                .flex_col()
+                .gap_3()
+                .max_w(px(860.))
+                .child(ui::page_title(&a.title, &format!("{} · version {} · {}", a.kind, a.version, v.format)))
+                .child(match library::body_for(&v.format, &v.content) {
+                    Body::Markdown(t) => md_view::blocks(&markdown::parse(&t)).into_any_element(),
+                    Body::Text(t) => div().font_family("monospace").text_size(px(13.)).p_3().rounded_md().bg(rgb(PANEL)).child(SharedString::from(t)).into_any_element(),
+                    Body::Unsupported(why) => div().p_4().rounded_lg().bg(rgb(PANEL)).text_color(rgb(MUTED)).child(SharedString::from(why)).into_any_element(),
+                })
+                .into_any_element(),
+        });
+
+        let lib_on = self.view == View::Library;
+        let lib_button = div()
+            .id("library-btn")
+            .flex()
+            .items_center()
+            .justify_center()
+            .size(px(40.))
+            .rounded_lg()
+            .cursor_pointer()
+            .bg(rgb(if lib_on { ACCENT } else { PANEL }))
+            .child("▤")
+            .on_click(cx.listener(|this, _, _, cx| {
+                this.view = if this.view == View::Library { View::Chat } else { View::Library };
+                cx.notify();
+            }));
+        let rail = rail.child(lib_button);
         let gear_on = self.view == View::Settings;
         let rail = rail.child(
             div()
@@ -1615,7 +1708,11 @@ impl Render for AppView {
                     cx.notify();
                 })),
         );
-        let (left, right) = if gear_on { (settings_nav.into_any_element(), settings_main.into_any_element()) } else { (sidebar.into_any_element(), main.into_any_element()) };
+        let (left, right) = match self.view {
+            View::Settings => (settings_nav.into_any_element(), settings_main.into_any_element()),
+            View::Library => (library_list.into_any_element(), library_main.into_any_element()),
+            View::Chat => (sidebar.into_any_element(), main.into_any_element()),
+        };
 
         let overlay = self.palette_open.then(|| {
             let items = self.palette_items(cx);
@@ -1701,6 +1798,13 @@ fn smoke() -> Result<(), String> {
         match api.get(&providers::secrets_list_path(&ws)) {
             Ok(v) => println!("SMOKE ok: {} providers, {} stored secrets (names only)", snap.workspace.providers.len(), v["names"].as_array().map_or(0, Vec::len)),
             Err(e) => println!("SMOKE secrets: {e}"),
+        }
+        println!("SMOKE ok: {} artifacts", snap.artifacts.len());
+        if let Some(a) = snap.artifacts.first() {
+            match api.get(&library::content_path(&ws, &a.id, None)).ok().and_then(|v| library::parse_view(&v)) {
+                Some(v) => println!("SMOKE ok: first artifact {:?} is {} ({} chars)", a.title, v.format, v.content.chars().count()),
+                None => println!("SMOKE artifact content: could not read {:?}", a.title),
+            }
         }
         println!("SMOKE ok: {} connectors", snap.workspace.mcp.len());
         match api.get(&subscriptions::list_path(&ws)) {

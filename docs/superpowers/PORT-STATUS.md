@@ -18,6 +18,7 @@ Build/run: `CARGO_PROFILE_DEV_DEBUG=0 cargo run -p workspaceai-app` (needs `libx
 - Providers (Settings › Providers): list, key status from the keychain, save/remove key through a masked field (no copy/cut), remove provider (two-step); org-locked pages are read-only. Adding a custom provider is still web-only
 - Agents (Settings › Agents): subscriptions with install/sign-in/connection status, Connect/Disconnect. Signing in is still web-only
 - Connectors (Settings › Connectors): MCP servers with on/off, remove (two-step); built-in and org-locked ones protected. Adding one is still web-only
+- Library (rail ▤): searchable artifact list, newest first; Markdown shown rendered, CSV/JSON/SVG as text, HTML explained as needing the web view
 - Command palette (Ctrl+K / Cmd+K): actions, workspaces, chats, settings pages; Up/Down/Enter/Esc
 - Chat actions: rename, fork, archive, delete (two-step), full-access toggle
 
@@ -28,7 +29,7 @@ Build/run: `CARGO_PROFILE_DEV_DEBUG=0 cargo run -p workspaceai-app` (needs `libx
 4. Onboarding (detect opencode, scan, test remote/provider, templates, finish) and New workspace / join org
 5. Keyboard shortcuts beyond the palette (workspace switching by number)
 6. Home / Create (briefs, pipeline) views
-7. Library, Approvals overview, computer pairing, Project instructions (AGENTS.md editor, layers) and project model/inherit settings
+7. Approvals overview, artifact versions/export/share/delete, computer pairing, Project instructions (AGENTS.md editor, layers) and project model/inherit settings
 8. Artifacts: Open Design embedded web view (X11 shim from the spike; see `spike-webview.md` open items), artifact panel/fullscreen, browser panel
 9. Port the TypeScript supervisor/orchestrator/memory-mcp to Rust crates; remove `apps/ui`, `apps/desktop`, TS packages
 10. Packaging (Linux, macOS), CI
