@@ -118,9 +118,35 @@ pub struct Chat {
     pub yolo: Option<bool>,
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct ProviderModel {
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Provider {
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub note: String,
+    /// Name of the keychain secret that holds the API key; absent for providers that need none.
+    #[serde(default)]
+    pub key_env: Option<String>,
+    #[serde(default)]
+    pub models: Vec<ProviderModel>,
+    #[serde(default)]
+    pub is_default: Option<bool>,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceInfo {
+    #[serde(default)]
+    pub providers: Vec<Provider>,
     #[serde(default)]
     pub id: String,
     #[serde(default)]
