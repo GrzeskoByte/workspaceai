@@ -26,6 +26,7 @@ use workspaceai_client::routines;
 use workspaceai_client::settings::{self, engine_actions, EngineAction};
 use workspaceai_client::supervisor::Supervisor;
 use workspaceai_client::chats::{self, Confirm, InFlight};
+use workspaceai_client::computers;
 use workspaceai_client::command::{self, Outcome};
 use workspaceai_client::markdown;
 use workspaceai_shared::commands::{insert_mention, mention_at, parse_slash, ChatCommand};
@@ -170,6 +171,16 @@ fn mutate(api: Api, ws: String, method: &'static str, path: String, body: Option
             let _ = tx.send(Msg::Error(format!("Could not save the change: {e}")));
         }
         load_snapshot(api, ws, tx);
+    });
+}
+
+/// Like `mutate`, for changes answered by fresh app state (computers) instead of a workspace snapshot.
+fn mutate_state(api: Api, method: &'static str, path: String, body: Option<serde_json::Value>, tx: Sender<Msg>) {
+    spawn(move || {
+        if let Err(e) = api.request(method, &path, body.as_ref()) {
+            let _ = tx.send(Msg::Error(format!("Could not save the change: {e}")));
+        }
+        load_state(api, tx);
     });
 }
 
@@ -463,6 +474,7 @@ impl AppView {
                 let active = s.settings.active_workspace.clone().or_else(|| s.workspaces.first().map(|w| w.id.clone()));
                 let changed = active != self.model.active_ws;
                 self.model.workspaces = s.workspaces;
+                self.model.computers = s.computers;
                 self.model.active_ws = active.clone();
                 if changed {
                     self.model.snapshot = Snapshot::default();
@@ -618,6 +630,12 @@ impl AppView {
     fn mutate_path(&mut self, method: &'static str, path: String, body: Option<serde_json::Value>) {
         if let (Some(api), Some(ws)) = (self.api.clone(), self.model.active_ws.clone()) {
             mutate(api, ws, method, path, body, self.tx.clone());
+        }
+    }
+
+    fn mutate_computer(&mut self, method: &'static str, path: String, body: Option<serde_json::Value>) {
+        if let Some(api) = self.api.clone() {
+            mutate_state(api, method, path, body, self.tx.clone());
         }
     }
 
@@ -1231,6 +1249,42 @@ impl Render for AppView {
                     }))
                 })))
             }
+            "computers" => {
+                let ws_id = m.active_ws.clone().unwrap_or_default();
+                let tz = workspaceai_shared::schedule::local_tz();
+                let now = chrono::Utc::now();
+                let mut p = page;
+                for c in &m.computers {
+                    let allowed = computers::allowed_for(c, &ws_id);
+                    let (c_acc, ws_acc) = (c.clone(), ws_id.clone());
+                    let (id_wake, id_del) = (c.id.clone(), c.id.clone());
+                    let armed = self.confirm.is_armed(&format!("c:{}", c.id));
+                    let sw = ui::switch(format!("pc-sw-{}", c.id), allowed, false).on_click(cx.listener(move |this, _, _, cx| {
+                        this.mutate_computer("PATCH", computers::item_path(&c_acc.id), Some(computers::access_body(&c_acc, &ws_acc, !allowed)));
+                        cx.notify();
+                    }));
+                    let mut controls = div().flex().items_center().gap_3().child(div().text_sm().text_color(rgb(MUTED)).child(if allowed { "Allowed here" } else { "Not allowed here" })).child(sw);
+                    if computers::can_wake(c) {
+                        controls = controls.child(ui::button(format!("pc-wake-{}", c.id), "Wake", ACCENT).on_click(cx.listener(move |this, _, _, cx| {
+                            this.mutate_computer("POST", computers::wake_path(&id_wake), None);
+                            cx.notify();
+                        })));
+                    }
+                    controls = controls.child(ui::button(format!("pc-del-{}", c.id), if armed { "Click again to unlink" } else { "Unlink" }, if armed { 0x7a2b2b } else { ui::DANGER }).on_click(cx.listener(move |this, _, _, cx| {
+                        if this.confirm.press(&format!("c:{id_del}")) {
+                            this.mutate_computer("DELETE", computers::item_path(&id_del), None);
+                        }
+                        cx.notify();
+                    })));
+                    let last = c.activity.first().map(|a| format!("\nLatest: {}", a.text)).unwrap_or_default();
+                    let note = format!("{} · {} · {}{}", computers::status_text(c, &tz, now), computers::capability_text(&c.capabilities), c.os, last);
+                    p = p.child(ui::row(&c.name, &note, controls));
+                }
+                if m.computers.is_empty() {
+                    p = p.child(div().text_color(rgb(MUTED)).child("No computers linked yet. Pair one from the web app for now."));
+                }
+                p
+            }
             "projects" => {
                 let ws_id = m.active_ws.clone().unwrap_or_default();
                 let mut p = page
@@ -1459,7 +1513,7 @@ fn smoke() -> Result<(), String> {
     let (info, _sup) = Supervisor::start(&repo_root(), &node_binary())?;
     let api = Api::new(&info);
     let state: AppState = fetch(&api, "/api/state")?;
-    println!("SMOKE ok: {} workspaces, active {:?}", state.workspaces.len(), state.settings.active_workspace);
+    println!("SMOKE ok: {} workspaces, active {:?}, {} computers", state.workspaces.len(), state.settings.active_workspace, state.computers.len());
     if let Some(ws) = state.settings.active_workspace.or_else(|| state.workspaces.first().map(|w| w.id.clone())) {
         let snap: Snapshot = fetch(&api, &format!("/api/ws/{}/snapshot", seg(&ws)))?;
         println!("SMOKE ok: {} projects, {} chats", snap.projects.len(), snap.chats.len());

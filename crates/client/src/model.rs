@@ -1,7 +1,7 @@
 //! What the native UI shows, as plain data. `apply` folds supervisor events in; the UI only renders this and
 //! reacts to the `needs` flags by refetching.
 
-use crate::types::{Chat, ChatMessage, PermissionRequest, Project, Snapshot, ToolStep, UiEvent, WorkspaceSummary};
+use crate::types::{Chat, ChatMessage, Computer, PermissionRequest, Project, Snapshot, ToolStep, UiEvent, WorkspaceSummary};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -39,6 +39,7 @@ pub struct SidebarRow {
 #[derive(Debug, Clone, Default)]
 pub struct Model {
     pub workspaces: Vec<WorkspaceSummary>,
+    pub computers: Vec<Computer>,
     pub active_ws: Option<String>,
     pub snapshot: Snapshot,
     pub open_chat_id: Option<String>,

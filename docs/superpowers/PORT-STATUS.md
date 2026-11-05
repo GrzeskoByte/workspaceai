@@ -14,6 +14,7 @@ Build/run: `CARGO_PROFILE_DEV_DEBUG=0 cargo run -p workspaceai-app` (needs `libx
 - Settings shell (gear in the rail): General (name, read-only instructions/model), Memory switches + facts (add, approve, delete, delete all), Engine (status, start/stop/restart); other pages show a placeholder
 - Routines (Settings › Routines): list with next run and last run, Run now, Pause/Resume, Delete, and create with a live "understood as…" preview (uses the ported schedule parser)
 - Projects (Settings › Projects): tree with chat counts, create, subproject, rename, archive/restore, delete (two-step; General protected)
+- Computers (Settings › Computers): status, capabilities, per-workspace access switch (keeps other workspaces' access), Wake, Unlink (two-step). Pairing new computers is still web-only
 - Command palette (Ctrl+K / Cmd+K): actions, workspaces, chats, settings pages; Up/Down/Enter/Esc
 - Chat actions: rename, fork, archive, delete (two-step), full-access toggle
 
@@ -24,7 +25,7 @@ Build/run: `CARGO_PROFILE_DEV_DEBUG=0 cargo run -p workspaceai-app` (needs `libx
 4. Onboarding (detect opencode, scan, test remote/provider, templates, finish) and New workspace / join org
 5. Keyboard shortcuts beyond the palette (workspace switching by number)
 6. Home / Create (briefs, pipeline) views
-7. Library, Approvals overview, Computers, Project instructions (AGENTS.md editor, layers) and project model/inherit settings
+7. Library, Approvals overview, computer pairing, Project instructions (AGENTS.md editor, layers) and project model/inherit settings
 8. Artifacts: Open Design embedded web view (X11 shim from the spike; see `spike-webview.md` open items), artifact panel/fullscreen, browser panel
 9. Port the TypeScript supervisor/orchestrator/memory-mcp to Rust crates; remove `apps/ui`, `apps/desktop`, TS packages
 10. Packaging (Linux, macOS), CI
