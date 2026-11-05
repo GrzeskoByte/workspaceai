@@ -1,9 +1,9 @@
-# Harness — Design Document
+# WorkspaceAI — Design Document
 2026-10-28 · @Greg
 ## Summary
-The harness is a desktop app modelled on Claude's desktop app. It does no agent work itself: **opencode** runs the agent and **Open Design** makes and manages the artifacts. The harness adds what neither has: isolated workspaces (personal vs organization), a project → chat hierarchy, layered instructions, memory, and a loop builder.
+WorkspaceAI is a desktop app modelled on Claude's desktop app. It does no agent work itself: **opencode** runs the agent and **Open Design** makes and manages the artifacts. WorkspaceAI adds what neither has: isolated workspaces (personal vs organization), a project → chat hierarchy, layered instructions, memory, and a loop builder.
 | Layer | Owner | Responsibility |
-| Shell and UX | Harness | Workspaces, projects, chats, settings, themes, loops, memory |
+| Shell and UX | WorkspaceAI | Workspaces, projects, chats, settings, themes, loops, memory |
 | Agent runtime | opencode | Sessions, tools, model providers, MCP, agents, file edits |
 | Artifacts | Open Design | Brief → direction → design system → artifact, preview, critique, export, handoff |
 
@@ -14,15 +14,15 @@ The harness is a desktop app modelled on Claude's desktop app. It does no agent 
 - Build repeatable agent loops as graphs and run them on demand or on a schedule.
 **Non-goals for v1**
 - Forking opencode or Open Design; both are run unmodified and upgraded on their own schedules.
-- Real-time multi-user editing inside the harness (team sharing goes through artifact links).
+- Real-time multi-user editing inside WorkspaceAI (team sharing goes through artifact links).
 - A hosted cloud service; everything runs on the user's machine, with org policy pulled from the organization.
 ## Requirements
 Every requirement given for this project, written so it can be checked. Covered in points to the section of this document that specifies it and to the place in the prototype on the design canvas.
 ### Platform
 | ID | Requirement | How to check | Covered in |
 | R-01 | A desktop interface modelled on Claude's desktop app: workspace rail, sidebar with projects and chats, chat view, artifact side panel, settings. | All five surfaces exist and work together in one window. | UI map · Prototype main window |
-| R-02 | Universal: not tied to one model vendor; any opencode provider, local model or MCP server can be used. | A workspace runs with Anthropic, Ollama and a custom OpenAI-compatible endpoint. | opencode as the harness |
-| R-03 | opencode is the harness: every session, tool call, model request, MCP call and agent runs through `opencode serve`, used unmodified. | No agent work happens outside opencode; upgrading opencode needs no harness fork. | opencode as the harness |
+| R-02 | Universal: not tied to one model vendor; any opencode provider, local model or MCP server can be used. | A workspace runs with Anthropic, Ollama and a custom OpenAI-compatible endpoint. | opencode as WorkspaceAI |
+| R-03 | opencode is the harness: every session, tool call, model request, MCP call and agent runs through `opencode serve`, used unmodified. | No agent work happens outside opencode; upgrading opencode needs no workspaceai fork. | opencode as WorkspaceAI |
 | R-04 | Open Design is the artifacts manager, used unmodified through its daemon and MCP tools. | Every artifact is created, versioned and exported by Open Design. | Open Design as the artifacts manager |
 
 ### Workspaces
@@ -35,7 +35,7 @@ Every requirement given for this project, written so it can be checked. Covered 
 ### Projects, chats and artifacts
 | ID | Requirement | How to check | Covered in |
 | R-09 | Hierarchy is workspace → project → chat. | Every chat shows its project path. | Projects and nesting |
-| R-10 | A chat is never stranded: it always belongs to a project. Quick chats go to the workspace's General project; a chat can be moved but not detached; a project with chats cannot be deleted until they are moved or archived with it. | No state in the app shows a chat without a project. | Projects and nesting · Home project picker, chat menu |
+| R-10 | A chat is never stranded: it always belongs to a project. Quick chats go to the workspace's General project; a chat can be moved but not detached; deleting a project deletes its chats with it, after a confirmation. | No state in the app shows a chat without a project. | Projects and nesting · Home project picker, chat menu |
 | R-11 | Projects support sub-projects that nest like folders, to any depth. | A sub-project can be added under any project from the tree. | Projects and nesting · tree (+) |
 | R-12 | Custom instructions at workspace, project and sub-project level (AGENTS.md); lower levels inherit from parents and the narrowest layer wins; inheritance can be turned off per project. | A chat in a sub-project starts with all inherited layers, shown on the Instructions tab. | Memory, instructions and loops · Project › Instructions |
 | R-13 | Artifacts belong to projects too: an artifact is placed in the project or sub-project of the chat it came from, appears under that chat in the tree, moves with the chat, and rolls up into parent projects' Artifacts tab. Artifacts made from the library must pick a project. | A doc made in a sub-project's chat appears inside that sub-project. | Artifacts belong to projects too · tree, Project › Artifacts |
@@ -45,21 +45,21 @@ Every requirement given for this project, written so it can be checked. Covered 
 ### opencode integration
 | ID | Requirement | How to check | Covered in |
 | R-16 | Chats are opencode sessions, one to one; the session id is visible and fork, rename and delete map to the session API. | The chat header shows `ses_…`; a fork creates a new session. | Sessions are chats · chat header and menu |
-| R-17 | opencode can be started by the harness for each workspace or connected to an already running server (URL, username, password, connection test). | Both modes in onboarding and Settings › Engine; connecting requires a successful test. | Starting or connecting opencode · Onboarding, Engine |
+| R-17 | opencode can be started by WorkspaceAI for each workspace or connected to an already running server (URL, username, password, connection test). | Both modes in onboarding and Settings › Engine; connecting requires a successful test. | Starting or connecting opencode · Onboarding, Engine |
 | R-18 | Existing opencode sessions can be imported at first run; their folders become projects and nested folders become sub-projects; any folder or session can be skipped. | Imported chats land in the right projects with their history. | Sessions are chats · Onboarding › Sessions |
-| R-19 | Sessions stay in sync with the opencode TUI both ways, and any chat can be opened in the TUI. | A session started in the TUI appears in harness; "Open in opencode TUI" gives the attach command. | Sessions are chats |
-| R-20 | Custom model providers are configurable per workspace and written to that workspace's opencode.json; keys are referenced, never stored in the file; connections can be tested; providers already set up in opencode can be reused. | Add custom provider writes a valid `provider` block and passes the test. | opencode as the harness · Settings › Model providers |
-| R-21 | Web search is available as an option per workspace: off, opencode built-in (Exa), an MCP search provider (Tavily, Brave, Firecrawl) or self-hosted SearXNG, plus page reading (webfetch) and ask-before-search; each chat can turn it off; an organization can lock the choice; answers list the pages used. | Onboarding › Web search and Settings › Web search set it; the 🌐 Web chip turns it off per chat. | Web search · Onboarding, Settings, composer |
+| R-19 | Sessions stay in sync with the opencode TUI both ways, and any chat can be opened in the TUI. | A session started in the TUI appears in workspaceai; "Open in opencode TUI" gives the attach command. | Sessions are chats |
+| R-20 | Custom model providers are configurable per workspace and written to that workspace's opencode.json; keys are referenced, never stored in the file; connections can be tested; providers already set up in opencode can be reused. | Add custom provider writes a valid `provider` block and passes the test. | opencode as WorkspaceAI · Settings › Model providers |
+| R-21 | Web search is available as an option per workspace: off, opencode built-in (Exa), an MCP search provider (Tavily, Brave, Firecrawl) or self-hosted SearXNG, plus page reading (webfetch) and ask-before-search; new chats start with it off and each chat can turn it on; an organization can lock the choice; answers list the pages used. | Onboarding › Web search and Settings › Web search set it; the 🌐 Web chip turns it on per chat. | Web search · Onboarding, Settings, composer |
 
 ### Memory
 | ID | Requirement | How to check | Covered in |
 | R-22 | Memory per workspace and per project; the user approves what is remembered and can add or forget facts. | "Remember this" and the Memory tab add and remove facts in the right scope. | Memory, instructions and loops · Memory |
-| R-23 | The memory backend is chosen per workspace: Facts, Graphify, Graphify + facts, or a custom memory MCP. Graphify maps chosen folders, can watch for changes, is queried over MCP, shows communities and sends AMBIGUOUS links to a review queue, using only the workspace's allowed providers. | Each workspace can show a different backend; the Memory screen queries and rebuilds the graph. | Memory, instructions and loops · Onboarding › Memory, Memory screen |
+| R-23 | The memory backend is chosen per workspace: Facts, Graphify, Graphify + facts, or a custom memory MCP. Graphify maps chosen folders, can watch for changes, is queried over MCP, shows communities and sends AMBIGUOUS links to a review queue, using only the workspace's allowed providers. On a project map each chat lists the graph nodes it is about, and opening one shows it on the Memory screen. | Each workspace can show a different backend; the Memory screen queries and rebuilds the graph. | Memory, instructions and loops · Onboarding › Memory, Memory screen |
 
 ### Automation
 | ID | Requirement | How to check | Covered in |
 | R-24 | Loops and graphs are built by drag and drop from a palette of predefined blocks chosen from graph-engineering research. | A graph can be built without typing code. | Graph engineering with BPMN 2.0 · Graph editor |
-| R-25 | Graph modelling follows BPMN 2.0 and is clearly defined: element set, lanes, sequence and data flows, model-check rules, token execution semantics, BPMN XML import and export, harness extension for agent tasks. | The editor rejects a model that breaks a rule; export opens in a standard BPMN tool. | Graph engineering with BPMN 2.0 |
+| R-25 | Graph modelling follows BPMN 2.0 and is clearly defined: element set, lanes, sequence and data flows, model-check rules, token execution semantics, BPMN XML import and export, workspaceai extension for agent tasks. | The editor rejects a model that breaks a rule; export opens in a standard BPMN tool. | Graph engineering with BPMN 2.0 |
 | R-26 | Ready-made agent patterns: prompt chain, router, parallel + vote, orchestrator–workers, evaluator–optimizer, human in the loop. | Each loads as a valid BPMN graph. | Agent patterns as BPMN · Graph editor toolbar |
 | R-27 | Schedules and routines: written in plain words and stored as cron with a time zone, or triggered by events; tied to a workspace and project; runs on the cloud, a linked computer or an org runner; approval and notification settings; week view, run history, run now, pause. | A routine created in words shows its parsed schedule and appears on the week view. | Routines and schedules · Routines |
 | R-28 | Computer management: pair, rename, wake and unlink computers; set capabilities, allowed apps, per-workspace access and folders, and ask-first actions; see activity and a live view that can be stopped or taken over. | Each control on the Computers screen changes its state. | Computers · Computers |
@@ -80,13 +80,13 @@ Every requirement given for this project, written so it can be checked. Covered 
 
 ### Open-source components
 | ID | Requirement | How to check | Covered in |
-| R-37 | The graph editor is built on bpmn-js, with the harness element set, inspector and a moddle extension for `harness:` attributes; the bpmn.io logo stays visible on the canvas, as its licence requires. | XML saved by the editor opens in Camunda Modeler or bpmn.io. | Components we build on · Graph editor |
+| R-37 | The graph editor is built on bpmn-js, with WorkspaceAI element set, inspector and a moddle extension for `harness:` attributes; the bpmn.io logo stays visible on the canvas, as its licence requires. | XML saved by the editor opens in Camunda Modeler or bpmn.io. | Components we build on · Graph editor |
 | R-38 | Graphs are executed by bpmn-engine: state is saved after every activity, a run can be paused, resumed and recovered after a crash, and user tasks wait for a signal. | Quitting the app mid-run and reopening it resumes from the last completed step. | Components we build on · Graph editor › Run |
-| R-39 | The harness is an ACP client: each workspace lists the ACP agents it may use, chats and agent tasks can run on them, they still belong to projects, file and terminal access is limited to the project folder, and permission requests appear in the chat. An organization can restrict the list. | A chat on an ACP agent streams replies and asks before writing files. | Components we build on · Settings › Agents (ACP), agent menu |
+| R-39 | WorkspaceAI is an ACP client: each workspace lists the ACP agents it may use, chats and agent tasks can run on them, they still belong to projects, file and terminal access is limited to the project folder, and permission requests appear in the chat. An organization can restrict the list. Pi runs through the pi-acp adapter and does its own file and terminal work, so the folder limit and permission requests do not cover it. | A chat on an ACP agent streams replies and asks before writing files. | Components we build on · Settings › Agents (ACP), agent menu |
 | R-40 | LiteLLM proxy is used only in its MIT-licensed form (nothing under its `enterprise/` folder) as the organization's model gateway and as a local provider preset. | The org workspace reaches all allowed models through one gateway URL. | Components we build on · Settings › Model providers |
 | R-41 | Browser steps in graphs and browsing in chats use Playwright MCP. | A Browser step opens a page and returns what it read. | Components we build on · Graph editor palette, Connectors |
 | R-42 | The desktop shell is Tauri 2; opencode, the Open Design daemon and the orchestrator run as sidecars it starts and stops. | Quitting the app stops every sidecar. | Components we build on · Settings › Engine |
-| R-43 | Routines written in plain words are parsed with chrono-node, plus a harness layer for repeats, and the interpretation (schedule, next run, time zone, matched words) is shown before saving. | “tomorrow at 9”, “every 2 hours 9–18 weekdays” and “first day of each month at noon” parse correctly. | Components we build on · Routines |
+| R-43 | Routines written in plain words are parsed with chrono-node, plus a workspaceai layer for repeats, and the interpretation (schedule, next run, time zone, matched words) is shown before saving. | “tomorrow at 9”, “every 2 hours 9–18 weekdays” and “first day of each month at noon” parse correctly. | Components we build on · Routines |
 | R-44 | The ⌘K palette is built on cmdk: grouped results, fuzzy match, arrow keys, Enter and Esc; it searches only the current workspace (plus workspace names). | Every action is reachable from the keyboard. | Components we build on · Command palette |
 | R-45 | Only open-source components are used, and their licence obligations are recorded and met (for example the bpmn.io logo, and AGPL tools such as SearXNG run as separate, unmodified services). | The components table lists each licence and obligation. | Components we build on |
 
@@ -95,8 +95,8 @@ Every requirement given for this project, written so it can be checked. Covered 
 [embed {'id': '.14118', 'h': '77932c61', 'caption': 'architecture · shell, supervisor, two isolated workspaces', 'ref': 'node/1c8b531f-d8d5'}]
 The shell talks only to the supervisor and to the active workspace's processes. Inside a workspace, opencode is the hub: Open Design uses it as its agent and exposes artifacts back to it over MCP, the memory service is another MCP server, and the loop runner drives opencode sessions. Model calls leave only through the providers that workspace allows.
 ## Components we build on
-The harness keeps its own code to the shell, the workspace supervisor and the glue. Everything else is an existing open-source project, used unmodified.
-| Component | Role in the harness | Licence | Obligations and limits | Requirement |
+WorkspaceAI keeps its own code to the shell, the workspace supervisor and the glue. Everything else is an existing open-source project, used unmodified.
+| Component | Role in WorkspaceAI | Licence | Obligations and limits | Requirement |
 | opencode | Agent runtime, sessions, providers, MCP | MIT | — | R-03 |
 | Open Design | Artifacts manager | see Open questions | Licence still to confirm | R-04 |
 | bpmn-js | BPMN modeller in the graph editor | bpmn.io licence (MIT-style) | The bpmn.io logo must stay visible and uncovered | R-37 |
@@ -112,27 +112,27 @@ The harness keeps its own code to the shell, the workspace supervisor and the gl
 | SearXNG | Self-hosted web search option | AGPL-3.0 | Run as a separate, unmodified service | R-21 |
 
 ### Graph editor: bpmn-js
-- The editor is a bpmn-js Modeler. Its palette provider offers exactly the harness element set, including the Browser step and the agent task; its context pad gives connect, replace and delete; the harness inspector replaces the stock properties panel.
+- The editor is a bpmn-js Modeler. Its palette provider offers exactly WorkspaceAI element set, including the Browser step and the agent task; its context pad gives connect, replace and delete; WorkspaceAI inspector replaces the stock properties panel.
 - A moddle extension defines the `harness:` namespace (`type`, `runner`, `agent`, `model`, `tools`, `prompt`, `askFirst`, `maxLoops`, `mcp`), so these attributes survive `saveXML` and `importXML` and other tools ignore them.
 - Lanes are bpmn-js lanes in one participant. Files imported without diagram layout are laid out with bpmn-auto-layout.
 - Model-check rules from Graph engineering with BPMN 2.0 are implemented as a bpmnlint plugin, so the same rules run in the editor, before a run and in CI.
 - The canvas is styled with the design system's tokens. The bpmn.io logo stays visible in a corner of the canvas.
 ### Graph runs: bpmn-engine
-- The orchestrator (a Node sidecar) loads the saved XML into bpmn-engine and runs it with a harness extension that reads the `harness:` attributes.
+- The orchestrator (a Node sidecar) loads the saved XML into bpmn-engine and runs it with a workspaceai extension that reads the `harness:` attributes.
 - Services map tasks to work: an agent task becomes a prompt in an opencode session or, with `harness:runner="acp:<id>"`, in an ACP agent; a service task calls one MCP tool; a Browser step calls Playwright MCP; a script task runs in the sandbox; send and receive tasks use connectors.
 - Conditions on sequence flows are engine expressions over the run variables. Timers and boundary events use the engine's own support.
-- A user task raises `activity.wait`; the harness shows it in the chat and the Routines view and calls `signal()` with the answer. A rejection ends the run at that task.
+- A user task raises `activity.wait`; WorkspaceAI shows it in the chat and the Routines view and calls `signal()` with the answer. A rejection ends the run at that task.
 - After every `activity.end` the orchestrator saves `engine.getState()` to `.harness/runs/<run-id>.json`. Pause stops the engine and keeps that state; resume and crash recovery use `recover(state)` followed by `resume()`.
 - A dry run is the same engine with every service replaced by sample outputs, so it follows the exact path a real run would.
 ### Other agents: ACP
-- The harness is an ACP client. For a chat or agent task on an ACP agent it starts the agent's command as a subprocess in the project folder and speaks JSON-RPC over stdio: `initialize`, `authenticate` if needed, `session/new` (with the workspace's MCP servers, so memory and connectors stay per workspace), `session/prompt`, `session/cancel` for Stop.
-- `session/update` notifications stream message chunks, tool calls and plans into the chat. `session/request_permission` becomes an approval in the chat. The harness offers the client file and terminal capabilities, limited to the project folder.
-- Chats on ACP agents still belong to a project. The harness keeps their transcript; reopening uses `session/load` when the agent supports it and otherwise starts a new session with the saved history as context.
+- WorkspaceAI is an ACP client. For a chat or agent task on an ACP agent it starts the agent's command as a subprocess in the project folder and speaks JSON-RPC over stdio: `initialize`, `authenticate` if needed, `session/new` (with the workspace's MCP servers, so memory and connectors stay per workspace), `session/prompt`, `session/cancel` for Stop.
+- `session/update` notifications stream message chunks, tool calls and plans into the chat. `session/request_permission` becomes an approval in the chat. WorkspaceAI offers the client file and terminal capabilities, limited to the project folder.
+- Chats on ACP agents still belong to a project. WorkspaceAI keeps their transcript; reopening uses `session/load` when the agent supports it and otherwise starts a new session with the saved history as context.
 - opencode itself stays on `opencode serve`, which exposes config, providers and events that ACP does not; `opencode acp` exists and is used to test parity.
 - Agents are listed per workspace in Settings › Agents (ACP), with one default. An organization policy can allow only opencode.
 ### Organization gateway: LiteLLM proxy
 - Only the MIT-licensed proxy is used: one OpenAI-compatible endpoint in front of many backends, with routing, fallbacks, retries and load balancing.
-- Nothing under LiteLLM's `enterprise/` folder is used. LiteLLM lists SSO, audit logs, RBAC, virtual keys and budgets as enterprise additions, so SSO stays with the organization's identity provider (for example Keycloak), and auditing stays in the harness audit log.
+- Nothing under LiteLLM's `enterprise/` folder is used. LiteLLM lists SSO, audit logs, RBAC, virtual keys and budgets as enterprise additions, so SSO stays with the organization's identity provider (for example Keycloak), and auditing stays in WorkspaceAI audit log.
 - The organization runs the proxy; its workspace's opencode.json points at it as an `@ai-sdk/openai-compatible` provider with a key reference. Personal users can run it locally through the LiteLLM proxy preset (`http://localhost:4000/v1`).
 ### Browser: Playwright MCP
 - Added to a workspace's `mcp` block as a local server (`npx @playwright/mcp`), headless by default, with a browser profile folder per workspace so sign-ins never cross workspaces.
@@ -140,9 +140,9 @@ The harness keeps its own code to the shell, the workspace supervisor and the gl
 ### Desktop shell: Tauri 2
 - Tauri 2 provides the window, menus, deep links (for the SSO callback), updates and access to the OS keychain from Rust.
 - opencode ships as a sidecar binary; the Open Design daemon and the orchestrator run as Node sidecars. The supervisor starts one set per workspace, and quitting the app stops them all.
-- This replaces Open Design's own Electron shell, which the harness does not use.
+- This replaces Open Design's own Electron shell, which WorkspaceAI does not use.
 ### Routines: chrono-node
-- chrono-node turns phrases such as “tomorrow at 9”, “next Monday at 10” or “in 3 hours” into a date and time. A small harness layer handles repeats (“every”, “weekdays”, “weekends”, “every 2 hours 9–18”, “first day of each month”) and events (“on push to main”, “when an email arrives”).
+- chrono-node turns phrases such as “tomorrow at 9”, “next Monday at 10” or “in 3 hours” into a date and time. A small workspaceai layer handles repeats (“every”, “weekdays”, “weekends”, “every 2 hours 9–18”, “first day of each month”) and events (“on push to main”, “when an email arrives”).
 - The editor shows what it understood — schedule, cron, once or repeating, next run, time zone and the matched words — before saving.
 ### Command palette: cmdk
 - The ⌘K palette is a cmdk command menu: results grouped as Actions, Workspaces, Projects, Chats, Artifacts and Screens; fuzzy matching; ↑↓, Enter and Esc.
@@ -160,7 +160,7 @@ A workspace is a sealed unit: its own opencode server, its own Open Design daemo
 
 **Personal vs organization**
 - **Personal**: the user owns everything. Any opencode provider, own API keys, local models, any MCP server.
-- **Organization**: joined through SSO (OIDC; e.g. MyAccessID via the org's Keycloak). The org publishes a signed `policy.json`: allowed providers and models, blocked features (personal keys, external sharing), data residency, retention and logging. The harness enforces it by writing the workspace's opencode.json from policy and refusing edits outside it.
+- **Organization**: joined through SSO (OIDC; e.g. MyAccessID via the org's Keycloak). The org publishes a signed `policy.json`: allowed providers and models, blocked features (personal keys, external sharing), data residency, retention and logging. WorkspaceAI enforces it by writing the workspace's opencode.json from policy and refusing edits outside it.
 - **Team**: a shared space the user manages, without an org policy.
 Each workspace runs as its own OS process group with its own environment, so one workspace's environment variables (API keys, proxy settings) never reach another's tools.
 ## Projects and nesting
@@ -174,7 +174,7 @@ Projects nest like folders. A project maps to a folder on disk; a sub-project is
 | Moving | Drag it onto another project; its folder moves with it |
 | Archiving | Hides it and everything inside; nothing is deleted |
 
-In opencode terms a chat runs with its project's folder as the working directory, so opencode reads that folder's AGENTS.md; the harness prepends the parent layers.
+In opencode terms a chat runs with its project's folder as the working directory, so opencode reads that folder's AGENTS.md; WorkspaceAI prepends the parent layers.
 ### Artifacts belong to projects too
 An artifact is never loose either. It is stored with two links: **project** (where it lives) and **origin chat** (the opencode session that made it, if any).
 - **Placement follows the chat.** An artifact made in a chat goes to that chat's project, at any depth. A doc made in a chat in Castform › Simulation engine is a child of the Simulation engine sub-project, not of Castform.
@@ -184,13 +184,13 @@ An artifact is never loose either. It is stored with two links: **project** (whe
 - **Provenance in the viewer.** The artifact panel header links to the project path and to the origin chat, so the conversation that produced a version is one click away. Revisions made from a different chat keep the original project and add that chat to the version history.
 - **Inheritance.** Generation uses the instructions, memory and design system of the artifact's project, so an artifact in a sub-project follows the sub-project's AGENTS.md and overrides.
 - **Storage.** Open Design keeps the files in the project folder (`.harness/artifacts/<id>/`) with a manifest holding `project`, `originSession` (`ses_…`) and versions, so moving a project folder carries its artifacts along.
-## opencode as the harness
-Every chat, tool call and model request goes through `opencode serve`, one instance per workspace bound to `127.0.0.1` on its own port and protected with `OPENCODE_SERVER_PASSWORD`. The harness is a client of its HTTP API, the same way opencode's own TUI is.
-| Harness concept | opencode mechanism |
+## opencode as WorkspaceAI
+Every chat, tool call and model request goes through `opencode serve`, one instance per workspace bound to `127.0.0.1` on its own port and protected with `OPENCODE_SERVER_PASSWORD`. WorkspaceAI is a client of its HTTP API, the same way opencode's own TUI is.
+| WorkspaceAI concept | opencode mechanism |
 | Chat | A session: create, list, fork, abort, revert, summarize; messages via `/session/:id/message` or `/prompt_async` |
 | Live streaming, tool steps, permissions | `GET /event` SSE stream; permission requests answered through the session API |
 | Model picker | `GET /config/providers` (providers and default models) and `GET /provider` |
-| Custom provider | `provider` block in the workspace's opencode.json, written by the harness, then `PATCH /config` |
+| Custom provider | `provider` block in the workspace's opencode.json, written by WorkspaceAI, then `PATCH /config` |
 | Project | The folder opencode runs in; `AGENTS.md` at its root holds the project instructions |
 | Connectors / MCP | The `mcp` block of opencode.json, per workspace |
 | Loop agent node | An opencode agent (model, prompt, tools); exportable as an agent file |
@@ -209,19 +209,19 @@ Every chat, tool call and model request goes through `opencode serve`, one insta
   }
 }
 ```
-Keys never enter the file: `apiKey` holds an `{env:…}` or `{file:…}` reference, and the harness injects the value from the keychain into that workspace's process environment. `@ai-sdk/openai` covers `/v1/responses` endpoints; any other AI SDK package can be named in `npm`.
+Keys never enter the file: `apiKey` holds an `{env:…}` or `{file:…}` reference, and WorkspaceAI injects the value from the keychain into that workspace's process environment. `@ai-sdk/openai` covers `/v1/responses` endpoints; any other AI SDK package can be named in `npm`.
 **Lifecycle.** The workspace supervisor starts the server on first use, health-checks it, restarts it on crash with backoff, and stops it after a configurable idle time. Upgrading opencode is a version pin per workspace, so an org can hold a version while personal moves ahead.
 ### Starting or connecting opencode
-A chat in harness is an opencode session, so each workspace chooses where its sessions live:
-| Mode | What harness does | When to use it |
+A chat in workspaceai is an opencode session, so each workspace chooses where its sessions live:
+| Mode | What workspaceai does | When to use it |
 | Managed (default) | Starts `opencode serve` for the workspace on 127.0.0.1 with a random `OPENCODE_SERVER_PASSWORD`, using the opencode on this computer or a bundled build | Most people; one server per workspace keeps workspaces isolated |
-| Connect to a server | Talks to an `opencode serve` you already run, local or remote, with basic auth (username, default `opencode`, and password from the keychain); health-checked through `/global/health` | You already use opencode, run it on a dev box or GPU host, or want the TUI and harness on the same sessions |
+| Connect to a server | Talks to an `opencode serve` you already run, local or remote, with basic auth (username, default `opencode`, and password from the keychain); health-checked through `/global/health` | You already use opencode, run it on a dev box or GPU host, or want the TUI and workspaceai on the same sessions |
 
 Remote servers must be reached over HTTPS or an SSH tunnel. Switching mode in Settings › Engine restarts the workspace's connection; chats stay because they belong to the server.
 ### Sessions are chats
 - **One to one.** Every chat maps to one session id (`ses_…`), shown in the chat header. Fork, rename, delete and revert call the session API directly.
 - **Import on first run.** Onboarding lists the sessions opencode already has (from the connected server, or from this computer's opencode data in managed mode). Each session's working folder becomes a project and nested folders become sub-projects, so imported chats are never stranded. The user can skip any folder or session, or start fresh.
-- **Two-way sync.** With sync on (default), sessions started in the opencode TUI appear in the right project in harness, and chats started in harness appear in the TUI. Updates arrive over the `/event` stream.
+- **Two-way sync.** With sync on (default), sessions started in the opencode TUI appear in the right project in workspaceai, and chats started in workspaceai appear in the TUI. Updates arrive over the `/event` stream.
 - **Open in the TUI.** Any chat can be continued in the terminal with `opencode attach <server-url> --session <id>`; the chat menu copies the command.
 - **Providers come along.** When a server already has providers configured, onboarding offers From opencode as the model choice and reuses them instead of asking for keys again.
 ### Web search
@@ -237,12 +237,12 @@ opencode has two web tools: `webfetch` reads one URL and is on by default; `webs
 - Answers that used the web list the pages read under the reply, and the tool steps show each search and fetch.
 - An organization can lock the choice (for example SearXNG only) through its policy; the toggle still lets a user turn search off for a chat.
 ## Open Design as the artifacts manager
-Open Design owns every artifact: how it's made, previewed, critiqued, versioned and exported. The harness embeds its pipeline as the New artifact and Generating screens and points it at the workspace's opencode as its agent. Open Design already lists OpenCode among its supported agent CLIs, so no adapter beyond configuration is needed.
+Open Design owns every artifact: how it's made, previewed, critiqued, versioned and exported. WorkspaceAI embeds its pipeline as the New artifact and Generating screens and points it at the workspace's opencode as its agent. Open Design already lists OpenCode among its supported agent CLIs, so no adapter beyond configuration is needed.
 **Pipeline** (Open Design's, kept as is): brief → questions → direction → design system → artifact → critique → handoff → memory.
-| Open Design piece | How the harness uses it |
-| Local daemon (Express + SQLite on 127.0.0.1) | One per workspace, data dir inside the workspace folder; the harness proxies its API to the UI |
+| Open Design piece | How WorkspaceAI uses it |
+| Local daemon (Express + SQLite on 127.0.0.1) | One per workspace, data dir inside the workspace folder; WorkspaceAI proxies its API to the UI |
 | Output modes (`od.mode`): prototype, deck, live artifact, image, video, design system | The artifact types in the library, next to the harness's own Doc and Sheet types |
-| Design systems (`DESIGN.md` + tokens.css, manifest.json) | Per-workspace library; the Claude Warm Editorial system ships as the default; org systems stay in the org workspace |
+| Design systems (`DESIGN.md` + tokens.css, manifest.json) | Per-workspace library with its own screen; the Claude Warm Editorial system ships as the default; a workspace's own systems are `DesignSystem` artifacts; org systems stay in the org workspace |
 | Design templates (by mode and scenario) | The template gallery on the New artifact screen |
 | Skills (`SKILL.md`) | Merged with opencode skills in the workspace's Skills settings |
 | Sandboxed iframe preview, tweaks manifest | Generating screen preview and Tweaks tab; live artifacts re-render without reload |
@@ -260,7 +260,7 @@ Open Design's licence and API stability need checking before shipping (see Open 
 - Workspace instructions — set in workspace settings, stored in harness.json, sent as a system prefix.
 - Project instructions — the project's `AGENTS.md`, edited in place on the Project screen, read natively by opencode.
 - Chat instructions — set from the composer's menu, stored on the session.
-**Memory** is a harness service, one store per workspace with a project scope inside it, served to opencode as an MCP server (`memory.search`, `memory.read`, `memory.write`). Chats read memory on demand instead of stuffing it into every prompt. New memories arrive as suggestions the user approves on the Project › Memory tab; nothing crosses workspaces. Open Design's pipeline ends by offering to save design decisions (direction, accent, tone) to project memory.
+**Memory** is a workspaceai service, one store per workspace with a project scope inside it, served to opencode as an MCP server (`memory.search`, `memory.read`, `memory.write`). Chats read memory on demand instead of stuffing it into every prompt. New memories arrive as suggestions the user approves on the Project › Memory tab; nothing crosses workspaces. Open Design's pipeline ends by offering to save design decisions (direction, accent, tone) to project memory.
 **Memory backends are chosen per workspace.** Whatever the backend, opencode sees it as one MCP server.
 | Backend | What it keeps | Good for |
 | Facts (default) | Short statements the user approves, as Markdown files | Preferences, decisions, people |
@@ -275,16 +275,16 @@ Graphify specifics:
 - Links Graphify marks AMBIGUOUS go to a review queue on the Memory screen; the user keeps or drops each one.
 **Loops** are BPMN 2.0 processes saved in the project (`.harness/graphs/<name>.bpmn`); the element set, lanes, rules and execution are defined in Graph engineering with BPMN 2.0 below. Each run has its own opencode session, so the run is one reviewable transcript, and agent tasks can be exported as opencode agent files so the same step runs from the opencode TUI.
 ## Graph engineering with BPMN 2.0
-Every loop and graph is a BPMN 2.0 process. Users drag elements from a palette into swimlanes and connect them; the harness stores the model as standard BPMN 2.0 XML and runs it with token semantics. Using an existing standard means one notation for people and agents, a precise meaning for each shape, and files that open in any BPMN tool (Camunda Modeler, bpmn.io). Agent patterns from Anthropic, LangGraph, AWS Step Functions and Dify are expressed as BPMN fragments, not as a custom block language.
+Every loop and graph is a BPMN 2.0 process. Users drag elements from a palette into swimlanes and connect them; WorkspaceAI stores the model as standard BPMN 2.0 XML and runs it with token semantics. Using an existing standard means one notation for people and agents, a precise meaning for each shape, and files that open in any BPMN tool (Camunda Modeler, bpmn.io). Agent patterns from Anthropic, LangGraph, AWS Step Functions and Dify are expressed as BPMN fragments, not as a custom block language.
 ### Pool and lanes
 A graph is one pool (the process) with three lanes. The lane says who performs a step, which decides approvals and audit.
 | Lane | Who acts | Typical elements |
-| You | The user, through the harness UI | User tasks (approve, answer, edit), message start events |
+| You | The user, through WorkspaceAI UI | User tasks (approve, answer, edit), message start events |
 | Agent · opencode | An opencode session in the project folder | Agent tasks, business rule tasks (judge, classify), sub-processes |
-| Harness | The orchestrator itself, with no model call | Service, script, send and receive tasks, timers, data stores |
+| WorkspaceAI | The orchestrator itself, with no model call | Service, script, send and receive tasks, timers, data stores |
 
 ### Element set
-| BPMN element | Notation | Meaning in the harness |
+| BPMN element | Notation | Meaning in WorkspaceAI |
 | Start event: none | Thin circle | Run by hand or from a chat |
 | Start event: timer | Thin circle with clock | Scheduled by a routine (cron + time zone) |
 | Start event: message | Thin circle with envelope | File change, git event, webhook or incoming message |
@@ -292,7 +292,7 @@ A graph is one pool (the process) with three lanes. The lane says who performs a
 | Intermediate timer (catch) | Double circle with clock | Wait for a duration or until a time |
 | Intermediate message (catch / throw) | Double circle with envelope | Wait for, or send, a message |
 | End event: none / error / terminate | Thick circle; with bolt; filled | Finish; finish with an error; stop every branch |
-| Agent task (harness extension) | Rounded box, spark icon | One opencode prompt with the chosen agent, model and tools |
+| Agent task (workspaceai extension) | Rounded box, spark icon | One opencode prompt with the chosen agent, model and tools |
 | User task | Rounded box, person icon | Approval, a question or an edit; pauses the token |
 | Service task | Rounded box, gear icon | MCP tool, HTTP call, connector or computer action |
 | Script task | Rounded box, script icon | Shell command or code in a sandbox |
@@ -334,7 +334,7 @@ A graph is one pool (the process) with three lanes. The lane says who performs a
 - Warnings: a task with several incoming flows and no gateway (implicit merge), a user task outside the You lane, an agent task with no model.
 ### Storage, import and export
 - Graphs are saved as BPMN 2.0 XML in the project (`.harness/graphs/<name>.bpmn`) with the diagram interchange section, so the layout is kept.
-- Harness-specific settings live in a `harness:` extension namespace: `harness:type="agent"` on a task, plus agent, model, tools, prompt, ask-first and loop maximum. Other BPMN tools ignore these and still open the file.
+- WorkspaceAI-specific settings live in a `harness:` extension namespace: `harness:type="agent"` on a task, plus agent, model, tools, prompt, ask-first and loop maximum. Other BPMN tools ignore these and still open the file.
 - Import accepts any BPMN 2.0 file; unsupported elements (for example compensation or choreography) are shown greyed and block running until replaced.
 - An agent task can be exported as an opencode agent file, so the same step can run from the opencode TUI.
 ## Routines and schedules
@@ -348,16 +348,16 @@ A routine is a saved prompt or graph plus a trigger. It shows on a week view wit
 | If the computer is asleep | Run when it wakes, wake it (if allowed), or skip |
 | When done | Notify by push, email or chat |
 
-Routines can be typed in plain words; the harness shows how it understood them (schedule, cron, output, project) before saving.
+Routines can be typed in plain words; WorkspaceAI shows how it understood them (schedule, cron, output, project) before saving.
 ## Computers
-The harness can act on computers the user links through the desktop app. Each computer is configured once, and each workspace separately decides whether it may use it.
+WorkspaceAI can act on computers the user links through the desktop app. Each computer is configured once, and each workspace separately decides whether it may use it.
 - **Per computer**: what the agent may do — read and edit files, run commands, use the built-in browser, computer use (screen control in allowed apps), and wake for routines.
 - **Per workspace**: which computers it may use and which folders on each, read-only or read-write. An org can provide managed runners and forbid personal devices.
 - **Always ask first**: deleting files, sending messages, purchases, installing software, system settings, opening new apps.
 - **Live view**: while computer use runs, the user sees the screen, the next action in words, and can stop or take over at any moment.
 - **Pairing**: a short code entered in the desktop app on the other computer; a new computer gets no workspace until the user allows one.
 ## UI map
-Every screen is on the [Workspace Harness design canvas](https://claude.ai/artifact/HNqqnUV8DiJy6LWQ4r57ms); the visual language is the [Claude Warm Editorial design system](https://claude.ai/artifact/W8px5omr6VTs7L5WBvyrm9), with the opencode dark palette as an alternate theme.
+Every screen is on the [Workspace WorkspaceAI design canvas](https://claude.ai/artifact/HNqqnUV8DiJy6LWQ4r57ms); the visual language is the [Claude Warm Editorial design system](https://claude.ai/artifact/W8px5omr6VTs7L5WBvyrm9), with the opencode dark palette as an alternate theme.
 | Screen | What it does | Backed by | Status |
 | Prototype (one window, shared state) | The whole flow from onboarding to every screen below; press Play on the canvas | All | Designed, every control works |
 | Onboarding | Start opencode or connect to a running server, import earlier opencode sessions (folders become projects), workspace, model (or reuse opencode's providers), web search, memory backend, first project with AGENTS.md, theme; or skip to demo data. Work workspaces are added later from + in the rail | Supervisor, opencode | Designed, interactive |
@@ -378,8 +378,8 @@ Every screen is on the [Workspace Harness design canvas](https://claude.ai/artif
 ## Security and data
 - **Secrets**: API keys and tokens live in the OS keychain under a per-workspace prefix. Config files only ever hold `{env:…}` or `{file:…}` references.
 - **Local servers**: opencode and Open Design bind to 127.0.0.1 only. Each opencode server has a random password per launch, held by the supervisor; Open Design's preview routes stay loopback-only.
-- **Preview sandbox**: artifact previews run in a sandboxed iframe with no network and no access to the harness origin. Published share links serve a static export, never the live daemon.
-- **Org policy**: signed by the org, fetched at sign-in and on a timer. It can lock providers, models, MCP servers, external sharing, retention and logging. A policy the harness can't verify keeps the last good one and blocks sending.
+- **Preview sandbox**: artifact previews run in a sandboxed iframe with no network and no access to WorkspaceAI origin. Published share links serve a static export, never the live daemon.
+- **Org policy**: signed by the org, fetched at sign-in and on a timer. It can lock providers, models, MCP servers, external sharing, retention and logging. A policy WorkspaceAI can't verify keeps the last good one and blocks sending.
 - **Data residency**: an org workspace can only talk to the endpoints its policy names; the supervisor sets a per-process proxy allow-list to enforce it.
 - **Audit**: the org workspace keeps a local append-only log of sign-ins, provider calls (model, tokens, no content unless policy says so), tool runs, exports and shares, uploaded to the org on its schedule.
 - **Permissions**: opencode's permission requests (edits, bash, network) surface as approval prompts; loops can pre-approve per node, never globally.
@@ -392,9 +392,9 @@ Every screen is on the [Workspace Harness design canvas](https://claude.ai/artif
 - **Org**: SSO join, signed policy, provider lock, audit log, residency allow-list. Exit: an org admin can lock providers and see the audit trail.
 - **Automation**: BPMN 2.0 graph editor with model check and XML import/export, token-based orchestrator, approvals, routines, computers and computer use. Exit: a routine runs a BPMN graph on a linked computer and stops for approval.
 | Risk | Effect | Mitigation |
-| opencode or Open Design APIs change | Harness breaks on upgrade | Pin versions per workspace; generate clients from their OpenAPI specs; contract tests in CI |
+| opencode or Open Design APIs change | WorkspaceAI breaks on upgrade | Pin versions per workspace; generate clients from their OpenAPI specs; contract tests in CI |
 | Two daemons per workspace use too much memory | Slow machine with many workspaces | Start on demand, stop when idle, cap running workspaces |
-| Open Design licence doesn't allow embedding | Can't ship it | Check before phase 3; fall back to running it as a separate install the harness connects to |
+| Open Design licence doesn't allow embedding | Can't ship it | Check before phase 3; fall back to running it as a separate install WorkspaceAI connects to |
 | Org policy bypass through a local MCP server | Data leaves allowed endpoints | Proxy allow-list per workspace process; policy can lock the `mcp` block |
 
 **Open questions**

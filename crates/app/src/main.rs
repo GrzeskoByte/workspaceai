@@ -15,12 +15,13 @@ use std::time::Duration;
 use text_input::{TextInput, TextInputEvent};
 use workspaceai_client::api::Api;
 use workspaceai_client::events;
+use workspaceai_client::files;
 use workspaceai_client::model::{Connection, Model, RowKind};
 use workspaceai_client::models::ModelList;
 use workspaceai_client::supervisor::Supervisor;
 use workspaceai_client::command::{self, Outcome};
 use workspaceai_client::markdown;
-use workspaceai_shared::commands::{parse_slash, ChatCommand};
+use workspaceai_shared::commands::{insert_mention, mention_at, parse_slash, ChatCommand};
 use workspaceai_client::types::{AppState, Chat, ChatMessage, PermissionRequest, Snapshot, UiEvent};
 
 const BG: u32 = 0x1b1b1f;
@@ -44,6 +45,7 @@ enum Msg {
     Commands(String, String, Vec<ChatCommand>),
     CommandDone(Outcome),
     Models(String, ModelList),
+    Files(String, Vec<String>),
     ChatCreated(String, Chat),
     Error(String),
 }
@@ -103,6 +105,14 @@ fn load_permissions(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
         // A failure here only means no cards until the next event; it is not worth a toast.
         if let Ok(list) = r {
             let _ = tx.send(Msg::Permissions(ws, chat, list));
+        }
+    });
+}
+
+fn search_files(api: Api, ws: String, project: String, query: String, tx: Sender<Msg>) {
+    spawn(move || {
+        if let Ok(v) = api.get(&files::search_path(&ws, &project, &query)) {
+            let _ = tx.send(Msg::Files(query, files::parse_files(&v)));
         }
     });
 }
@@ -218,6 +228,9 @@ struct AppView {
     commands: Vec<ChatCommand>,
     models: ModelList,
     picker_open: bool,
+    /// Files matching the `@` reference being typed, and the query they answer.
+    files: Vec<String>,
+    last_query: Option<String>,
     /// Information from a command (status, usage, help), shown above the composer until dismissed.
     panel: Option<(String, String)>,
 }
@@ -239,7 +252,11 @@ impl AppView {
             }
         })
         .detach();
-        cx.observe(&input, |_, _, cx| cx.notify()).detach();
+        cx.observe(&input, |this, _, cx| {
+            this.on_input_changed(cx);
+            cx.notify();
+        })
+        .detach();
         window.focus(&input.focus_handle(cx), cx);
         cx.spawn(async move |this, cx| loop {
             cx.background_executor().timer(Duration::from_millis(50)).await;
@@ -248,7 +265,7 @@ impl AppView {
             }
         })
         .detach();
-        AppView { model: Model::default(), rx, tx, api: None, _supervisor: None, input, scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, panel: None }
+        AppView { model: Model::default(), rx, tx, api: None, _supervisor: None, input, scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -339,6 +356,11 @@ impl AppView {
                     self.model.set_permissions(&chat, list);
                 }
             }
+            Msg::Files(query, list) => {
+                if self.last_query.as_deref() == Some(&query) {
+                    self.files = list;
+                }
+            }
             Msg::Models(ws, list) => {
                 if self.model.active_ws.as_deref() == Some(&ws) {
                     self.models = list;
@@ -387,6 +409,27 @@ impl AppView {
         let (Some(api), Some(ws), Some(chat)) = (self.api.clone(), self.model.active_ws.clone(), self.model.open_chat_id.clone()) else { return };
         self.model.drop_permission(&chat, request);
         answer_permission(api, ws, chat, request.to_string(), decision, self.tx.clone());
+    }
+
+    /// Starts a file search when the text under the caret is a new `@` reference.
+    fn on_input_changed(&mut self, cx: &mut Context<Self>) {
+        let (text, caret) = {
+            let i = self.input.read(cx);
+            (i.content().to_string(), i.caret())
+        };
+        let query = mention_at(&text, caret).map(|m| m.query);
+        if query.is_none() {
+            self.files.clear();
+            self.last_query = None;
+            return;
+        }
+        if !files::needs_search(self.last_query.as_deref(), query.as_deref()) {
+            return;
+        }
+        self.last_query = query.clone();
+        if let (Some(api), Some(ws), Some(project)) = (self.api.clone(), self.model.active_ws.clone(), self.open_chat_info().map(|c| c.project.clone())) {
+            search_files(api, ws, project, query.unwrap_or_default(), self.tx.clone());
+        }
     }
 
     fn open_chat_info(&self) -> Option<&Chat> {
@@ -720,6 +763,31 @@ impl Render for AppView {
                     }))
             }))
         });
+        let caret = self.input.read(cx).caret();
+        let mention = mention_at(&typed, caret);
+        let file_box = mention.clone().filter(|_| !self.files.is_empty()).map(|men| {
+            div().mx_3().mt_2().p_1().rounded_md().bg(rgb(PANEL)).max_h(px(220.)).id("file-list").overflow_y_scroll().flex().flex_col().children(self.files.iter().map(|path| {
+                let path = path.clone();
+                let (typed, start) = (typed.clone(), men.start);
+                div()
+                    .id(SharedString::from(format!("file-{path}")))
+                    .px_2()
+                    .py_1()
+                    .rounded_md()
+                    .cursor_pointer()
+                    .text_sm()
+                    .font_family("monospace")
+                    .hover(|s| s.bg(rgb(USER_BUBBLE)))
+                    .child(SharedString::from(path.clone()))
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        let (text, new_caret) = insert_mention(&typed, start, caret, &path, false);
+                        this.input.update(cx, |i, cx| i.set_content_at(&text, new_caret, cx));
+                        this.files.clear();
+                        this.last_query = None;
+                        window.focus(&this.input.focus_handle(cx), cx);
+                    }))
+            }))
+        });
         let panel = self.panel.clone().map(|(title, body)| {
             div()
                 .id("panel")
@@ -739,7 +807,7 @@ impl Render for AppView {
 
         let composer = div().p_3().child(div().px_3().py_2().rounded_lg().bg(rgb(PANEL)).text_size(px(15.)).line_height(px(22.)).child(self.input.clone()));
 
-        let main = div().flex().flex_col().flex_1().min_w_0().h_full().child(header).children(picker).child(messages).children(toast).children(panel).children(suggest_box).child(composer);
+        let main = div().flex().flex_col().flex_1().min_w_0().h_full().child(header).children(picker).child(messages).children(toast).children(panel).children(suggest_box).children(file_box).child(composer);
 
         div().flex().size_full().bg(rgb(BG)).text_color(rgb(TEXT)).child(rail).child(sidebar).child(main)
     }
@@ -754,6 +822,12 @@ fn smoke() -> Result<(), String> {
     if let Some(ws) = state.settings.active_workspace.or_else(|| state.workspaces.first().map(|w| w.id.clone())) {
         let snap: Snapshot = fetch(&api, &format!("/api/ws/{ws}/snapshot"))?;
         println!("SMOKE ok: {} projects, {} chats", snap.projects.len(), snap.chats.len());
+        if let Some(p) = snap.projects.iter().find(|p| !p.archived) {
+            match api.get(&files::search_path(&ws, &p.id, "")) {
+                Ok(v) => println!("SMOKE ok: {} files for an empty @ query in {:?}", files::parse_files(&v).len(), p.name),
+                Err(e) => println!("SMOKE files: {e}"),
+            }
+        }
         match fetch::<ModelList>(&api, &format!("/api/ws/{ws}/models")) {
             Ok(m) => println!("SMOKE ok: {} opencode models, {} other agents", m.options_for("opencode").len(), m.agents.len()),
             Err(e) => println!("SMOKE models: {e}"),
