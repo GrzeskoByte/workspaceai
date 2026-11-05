@@ -132,6 +132,13 @@ pub enum UiEvent {
     ChatDone { workspace: String, chat: String, outcome: String },
     #[serde(rename = "chat.permission")]
     ChatPermission { workspace: String, chat: String, request: PermissionRequest },
+    #[serde(rename = "chat.permission.clear")]
+    ChatPermissionClear {
+        workspace: String,
+        chat: String,
+        #[serde(rename = "requestId", default)]
+        request_id: Option<String>,
+    },
     #[serde(rename = "toast")]
     Toast { text: String },
     #[serde(other)]

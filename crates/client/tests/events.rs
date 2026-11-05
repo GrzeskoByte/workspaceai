@@ -56,3 +56,17 @@ fn stream_reports_an_unreachable_supervisor() {
     let err = stream(&api, |_| {}).unwrap_err();
     assert!(!err.contains("s3cr3t-token"), "error text must not leak the token: {err}");
 }
+
+#[test]
+fn permission_request_and_clear_events_parse() {
+    let req = parse_sse_line(r#"data: {"type":"chat.permission","workspace":"w","chat":"c","request":{"id":"r1","sid":"s","title":"Run bash","detail":"ls"}}"#).unwrap();
+    assert!(matches!(req, UiEvent::ChatPermission { ref request, .. } if request.id == "r1" && request.detail == "ls"));
+    assert_eq!(
+        parse_sse_line(r#"data: {"type":"chat.permission.clear","workspace":"w","chat":"c","requestId":"r1"}"#),
+        Some(UiEvent::ChatPermissionClear { workspace: "w".into(), chat: "c".into(), request_id: Some("r1".into()) })
+    );
+    assert_eq!(
+        parse_sse_line(r#"data: {"type":"chat.permission.clear","workspace":"w","chat":"c"}"#),
+        Some(UiEvent::ChatPermissionClear { workspace: "w".into(), chat: "c".into(), request_id: None })
+    );
+}

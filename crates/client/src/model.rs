@@ -1,7 +1,8 @@
 //! What the native UI shows, as plain data. `apply` folds supervisor events in; the UI only renders this and
 //! reacts to the `needs` flags by refetching.
 
-use crate::types::{Chat, ChatMessage, Project, Snapshot, ToolStep, UiEvent, WorkspaceSummary};
+use crate::types::{Chat, ChatMessage, PermissionRequest, Project, Snapshot, ToolStep, UiEvent, WorkspaceSummary};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum Connection {
@@ -42,6 +43,8 @@ pub struct Model {
     pub snapshot: Snapshot,
     pub open_chat_id: Option<String>,
     pub messages: Vec<ChatMessage>,
+    /// Permission requests an agent is waiting on, per chat.
+    pub permissions: HashMap<String, Vec<PermissionRequest>>,
     pub status: Connection,
     pub needs: Needs,
     pub toast: Option<String>,
@@ -88,6 +91,7 @@ impl Model {
             UiEvent::ChatDone { workspace, chat, .. } => {
                 if self.active_ws.as_deref() == Some(&workspace) {
                     self.snapshot.chat_activity.remove(&chat);
+                    self.permissions.remove(&chat);
                     self.needs.snapshot = true;
                     if self.is_open(&workspace, &chat) {
                         self.needs.messages = true;
@@ -101,11 +105,45 @@ impl Model {
             }
             UiEvent::State { .. } => self.needs.state = true,
             UiEvent::Toast { text } => self.toast = Some(text),
-            UiEvent::ChatPermission { .. } => {
-                self.toast = Some("An agent is waiting for permission. Approvals are not in the native app yet.".into());
+            UiEvent::ChatPermission { workspace, chat, request } => {
+                if self.active_ws.as_deref() == Some(&workspace) {
+                    let list = self.permissions.entry(chat).or_default();
+                    list.retain(|p| p.id != request.id);
+                    list.push(request);
+                }
+            }
+            UiEvent::ChatPermissionClear { workspace, chat, request_id } => {
+                if self.active_ws.as_deref() == Some(&workspace) {
+                    match request_id {
+                        Some(id) => self.drop_permission(&chat, &id),
+                        None => {
+                            self.permissions.remove(&chat);
+                        }
+                    }
+                }
             }
             UiEvent::Other => {}
         }
+    }
+
+    /// Requests the open chat's agent is waiting on.
+    pub fn pending_permissions(&self) -> &[PermissionRequest] {
+        self.open_chat_id.as_ref().and_then(|c| self.permissions.get(c)).map_or(&[], |v| v.as_slice())
+    }
+
+    pub fn drop_permission(&mut self, chat: &str, id: &str) {
+        if let Some(list) = self.permissions.get_mut(chat) {
+            list.retain(|p| p.id != id);
+        }
+    }
+
+    /// Replaces what the engine reports as pending (it survives restarts and missed events).
+    pub fn set_permissions(&mut self, chat: &str, list: Vec<PermissionRequest>) {
+        self.permissions.insert(chat.to_string(), list);
+    }
+
+    pub fn open_chat_working(&self) -> bool {
+        self.open_chat_id.as_ref().is_some_and(|c| self.snapshot.chat_activity.contains_key(c))
     }
 
     /// Projects as a tree (General first), each followed by its chats newest first, then its subprojects.
