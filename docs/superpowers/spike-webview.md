@@ -9,11 +9,12 @@
 | Check | X11 (this machine, `DISPLAY=:0`) | Wayland |
 |---|---|---|
 | GPUI window opens | pass | not tested (no Wayland session here) |
-| Attempt A: `wry` child web view built from GPUI's window handle | **fails as is**: "the window handle kind is not supported" (GPUI gives an XCB handle, wry on Linux accepts only Xlib) | expected to fail: wry child embedding on Linux is X11 only |
+| Attempt A: `wry` child web view built from GPUI's window handle | **failed as is** in an earlier run of the spike (the committed code always uses the shim, so this is not reproducible from it): "the window handle kind is not supported" (GPUI gives an XCB handle, wry on Linux accepts only Xlib) | expected to fail: wry child embedding on Linux is X11 only |
 | Attempt A′: same, with the XCB window id re-labelled as an Xlib handle (`XlibShim`) | **pass**: web view created | n/a |
 | JS runs in the web view, IPC reaches Rust | pass (`RESULT js: ok`) | n/a |
-| Sandbox rule: `<iframe sandbox="allow-scripts">` cannot read the parent | pass (`SecurityError`) | n/a |
-| Web view visible, correctly placed, resizes with the window, focus moves between GPUI inputs and the page | **not verified**: the run was headless to me (no screenshot); needs a human look | not tested |
+| Sandbox rule: `<iframe sandbox="allow-scripts">` cannot read the parent | pass for a `srcdoc` iframe inside a `with_html` page (`SecurityError`). Weak evidence: a sandboxed iframe without `allow-same-origin` always gets an opaque origin, so this is guaranteed. **Not tested:** a page served from `http://127.0.0.1:<port>` as plan step 5 asks, which is how Open Design pages will load | n/a |
+| Web view visible and correctly placed | **not verified**: no screenshot was taken; needs a human look | not tested |
+| Web view resizes with the window; focus moves between GPUI inputs and the page | **not implemented** in the spike (fixed 900x560 bounds, no resize handling, no GPUI text input), so these are open work, not just unchecked | not tested |
 | Attempt B: web view in its own native window | not run | not run |
 
 ## What the spike shows

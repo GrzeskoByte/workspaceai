@@ -123,3 +123,40 @@ fn format_when_labels_today_and_tomorrow() {
     assert_eq!(format_when(ms + 86_400_000, TZ, now().timestamp_millis()), "Tomorrow 13:00");
     assert_eq!(format_when(ms + 3 * 86_400_000, TZ, now().timestamp_millis()), "Sun 1 Nov 13:00");
 }
+
+// --- final-review fixes ---
+
+#[test]
+fn huge_relative_amounts_fail_instead_of_panicking() {
+    for s in ["in 99999999 weeks", "in 999999999 days", "in 99999999999 hours", "in 99999999999999999999 minutes"] {
+        assert!(!parse(s).ok, "{s}");
+    }
+    let _ = parse("in 99999 weeks"); // far but representable: must not panic either way
+}
+
+#[test]
+fn next_weekday_means_the_following_calendar_week() {
+    // now is Thursday 29 Oct; chrono-node (the TS parser) reads "next Friday" as 6 Nov, not tomorrow.
+    assert_eq!(iso(parse("next friday at 9").next.unwrap()), "2026-11-06T08:00:00Z");
+    assert_eq!(iso(parse("next saturday at 9").next.unwrap()), "2026-11-07T08:00:00Z");
+    assert_eq!(iso(parse("next sunday at 9").next.unwrap()), "2026-11-08T08:00:00Z");
+}
+
+#[test]
+fn in_n_days_keeps_the_time_of_day() {
+    let r = parse("in 2 days at 9");
+    assert_eq!(iso(r.next.unwrap()), "2026-10-31T08:00:00Z");
+    assert!(r.matched.iter().any(|m| m.contains("at 9")), "{:?}", r.matched);
+}
+
+#[test]
+fn dot_is_a_time_separator() {
+    assert_eq!(parse("every weekday at 9.30").cron, "30 9 * * 1-5");
+    assert_eq!(parse("tomorrow at 9.30").cron, "30 9 30 10 *");
+}
+
+#[test]
+fn huge_or_non_ascii_digits_never_become_every_minute() {
+    assert!(!parse("every 99999999999 minutes").ok);
+    assert_eq!(parse("every １５ minutes").cron, "0 9 * * *");
+}

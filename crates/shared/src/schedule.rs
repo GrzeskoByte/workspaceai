@@ -133,7 +133,7 @@ fn meridiem(hour: u32, ampm: Option<&str>) -> u32 {
 /// A clock time in `lower` ("at 9", "9:30", "8am") or a named one ("noon", "evening").
 // ponytail: narrow time grammar instead of chrono-node, swap for a date crate if routines need more phrases
 fn time_of(lower: &str) -> Option<TimeOfDay> {
-    let clock = re!(r"\b(?:at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?|(\d{1,2}):(\d{2})\s*(am|pm)?|(\d{1,2})\s*(am|pm))\b");
+    let clock = re!(r"\b(?:at\s+([0-9]{1,2})(?:[:.]([0-9]{2}))?\s*(am|pm)?|([0-9]{1,2}):([0-9]{2})\s*(am|pm)?|([0-9]{1,2})\s*(am|pm))\b");
     if let Some(c) = clock.captures(lower) {
         let m = c.get(0).unwrap();
         let num = |i: usize| c.get(i).and_then(|g| g.as_str().parse::<u32>().ok());
@@ -320,10 +320,11 @@ pub fn parse_schedule(phrase: &str, tz: Option<&str>, now: DateTime<Utc>) -> Par
     let on_dow = if dow_human.is_empty() { String::new() } else { format!(" on {dow_human}") };
 
     // Every N minutes / hours, optionally inside an hour window.
-    let every_n = re!(r"\bevery\s+(\d+)\s*(minutes?|mins?|hours?|hrs?|h)\b").captures(&lower);
-    let window = re!(r"\b(\d{1,2})(?::00)?\s*-\s*(\d{1,2})(?::00)?\b").captures(&lower);
+    let every_n = re!(r"\bevery\s+([0-9]+)\s*(minutes?|mins?|hours?|hrs?|h)\b").captures(&lower);
+    let window = re!(r"\b([0-9]{1,2})(?::00)?\s*-\s*([0-9]{1,2})(?::00)?\b").captures(&lower);
     if every_n.is_some() || re!(r"\bevery hour\b|\bhourly\b|\bevery minute\b").is_match(&lower) {
-        let n: u32 = every_n.as_ref().and_then(|c| c[1].parse().ok()).unwrap_or(1);
+        // A number too big to parse is out of range below, never "1".
+        let n: u32 = every_n.as_ref().map_or(1, |c| c[1].parse().unwrap_or(u32::MAX));
         let minutes = match &every_n {
             Some(c) => c[2].starts_with('m'),
             None => lower.contains("minute"),
@@ -357,7 +358,7 @@ pub fn parse_schedule(phrase: &str, tz: Option<&str>, now: DateTime<Utc>) -> Par
 
     // Monthly: "first day of each month", "the 15th of every month", "monthly".
     let first_day = re!(r"\bfirst day of (?:each|every|the) month\b").find(&lower);
-    let nth = re!(r"\b(?:on )?the (\d{1,2})(?:st|nd|rd|th)?(?: day)? of (?:each|every|the) month\b|\bevery month on the (\d{1,2})(?:st|nd|rd|th)?\b").captures(&lower);
+    let nth = re!(r"\b(?:on )?the ([0-9]{1,2})(?:st|nd|rd|th)?(?: day)? of (?:each|every|the) month\b|\bevery month on the ([0-9]{1,2})(?:st|nd|rd|th)?\b").captures(&lower);
     if first_day.is_some() || nth.is_some() || re!(r"\bmonthly\b").is_match(&lower) {
         let dom: u32 = if first_day.is_some() {
             1
@@ -396,36 +397,45 @@ pub fn parse_schedule(phrase: &str, tz: Option<&str>, now: DateTime<Utc>) -> Par
 
     // One-off: tomorrow at 9, next Monday at 10, in 3 hours.
     // ponytail: narrow date grammar, swap for a date crate if routines need more phrases
-    let date = re!(r"\b(tomorrow|today|next\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tues|tue|wed|thurs|thur|thu|fri|sat)|in\s+(\d+)\s*(minutes?|mins?|hours?|hrs?|days?|weeks?))\b").captures(&lower);
+    let date = re!(r"\b(tomorrow|today|next\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tues|tue|wed|thurs|thur|thu|fri|sat)|in\s+([0-9]+)\s*(minutes?|mins?|hours?|hrs?|days?|weeks?))\b").captures(&lower);
     let Some(d) = date else {
         return fail(&tz_name, matched, "I couldn’t find a time in that. Try “every weekday at 9” or “tomorrow at 10”.");
     };
     let word = d.get(1).unwrap().as_str();
     let today = now.with_timezone(&tzv).date_naive();
     let when = if let Some(n) = d.get(3) {
-        let n: i64 = n.as_str().parse().unwrap_or(0);
+        const TOO_FAR: &str = "That is too far away.";
+        let Ok(n) = n.as_str().parse::<i64>() else { return fail(&tz_name, matched, TOO_FAR) };
         let unit = d.get(4).unwrap().as_str();
         let delta = if unit.starts_with('m') {
-            Duration::minutes(n)
+            Duration::try_minutes(n)
         } else if unit.starts_with('h') {
-            Duration::hours(n)
+            Duration::try_hours(n)
         } else if unit.starts_with('d') {
-            Duration::days(n)
+            Duration::try_days(n)
         } else {
-            Duration::weeks(n)
+            Duration::try_weeks(n)
         };
+        let Some(plain) = delta.and_then(|x| now.checked_add_signed(x)) else { return fail(&tz_name, matched, TOO_FAR) };
         matched.push(d.get(0).unwrap().as_str().to_string());
-        Some(now + delta)
+        match &tm {
+            // "in 2 days at 9": whole days keep the clock time the user asked for.
+            Some(x) if unit.starts_with('d') || unit.starts_with('w') => {
+                matched.extend(tm_text.clone());
+                local_to_utc(tzv, plain.with_timezone(&tzv).date_naive(), x.hour, x.minute)
+            }
+            _ => Some(plain),
+        }
     } else {
         let date = if word == "today" {
             today
         } else if word == "tomorrow" {
             today + Duration::days(1)
         } else {
+            // "next Friday" is Friday of the following Monday–Sunday week, as chrono-node reads it.
             let target = day_number(d.get(2).unwrap().as_str()).unwrap_or(0) as i64;
-            let current = today.weekday().num_days_from_sunday() as i64;
-            let ahead = (target - current).rem_euclid(7);
-            today + Duration::days(if ahead == 0 { 7 } else { ahead })
+            let monday = today - Duration::days(today.weekday().num_days_from_monday() as i64);
+            monday + Duration::days(7 + (target + 6) % 7)
         };
         let (h, m) = tm.as_ref().map_or((12, 0), |x| (x.hour, x.minute));
         // One matched span for "tomorrow at 9" when the time follows the date directly.
