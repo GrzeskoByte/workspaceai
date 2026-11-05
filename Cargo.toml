@@ -1,0 +1,5 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+# The Tauri shell stays until phase 3; the spike pulls git deps and ships nothing.
+exclude = ["apps/desktop/src-tauri", "crates/spike"]
