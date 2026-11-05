@@ -311,9 +311,45 @@ pub struct Routine {
     pub last_fired: Option<i64>,
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct ArtifactVersion {
+    #[serde(default)]
+    pub v: u32,
+    #[serde(default)]
+    pub at: i64,
+    #[serde(default)]
+    pub note: String,
+    /// "markdown", "html", "csv", "svg" or "json"; absent on old versions.
+    #[serde(default)]
+    pub format: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Artifact {
+    pub id: String,
+    #[serde(default)]
+    pub project: String,
+    #[serde(default)]
+    pub chat: Option<String>,
+    /// Doc, Deck, Prototype, Sheet, … (the JSON field is `type`).
+    #[serde(rename = "type", default)]
+    pub kind: String,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub version: u32,
+    #[serde(default)]
+    pub versions: Vec<ArtifactVersion>,
+    #[serde(default)]
+    pub updated_at: i64,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
+    #[serde(default)]
+    pub artifacts: Vec<Artifact>,
     #[serde(default)]
     pub routines: Vec<Routine>,
     #[serde(default)]

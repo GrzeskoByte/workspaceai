@@ -6,6 +6,7 @@ pub mod connectors;
 pub mod events;
 pub mod facts;
 pub mod files;
+pub mod library;
 pub mod markdown;
 pub mod model;
 pub mod models;
