@@ -8,6 +8,7 @@ pub mod markdown;
 pub mod model;
 pub mod models;
 pub mod palette;
+pub mod projects;
 pub mod routines;
 pub mod settings;
 pub mod supervisor;
