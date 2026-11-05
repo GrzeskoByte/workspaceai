@@ -64,6 +64,9 @@ pub struct Chat {
     pub model: String,
     #[serde(default)]
     pub effort: Option<String>,
+    /// Full permissions: tool calls run without asking in this chat.
+    #[serde(default)]
+    pub yolo: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]

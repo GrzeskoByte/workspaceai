@@ -5,7 +5,7 @@ fn project(id: &str, name: &str, parent: Option<&str>, archived: bool, general: 
     Project { id: id.into(), name: name.into(), parent: parent.map(Into::into), archived, is_general: general.then_some(true) }
 }
 fn chat(id: &str, project: &str, title: &str, updated: i64, archived: bool) -> Chat {
-    Chat { id: id.into(), project: project.into(), title: title.into(), archived, updated_at: updated, agent: String::new(), model: String::new(), effort: None }
+    Chat { id: id.into(), project: project.into(), title: title.into(), archived, updated_at: updated, agent: String::new(), model: String::new(), effort: None, yolo: None }
 }
 fn msg(id: &str, role: &str, text: &str) -> ChatMessage {
     ChatMessage { id: id.into(), role: role.into(), text: text.into(), tools: vec![], error: None, created_at: 0 }

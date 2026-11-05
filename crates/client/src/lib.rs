@@ -1,4 +1,5 @@
 pub mod api;
+pub mod chats;
 pub mod command;
 pub mod events;
 pub mod files;
