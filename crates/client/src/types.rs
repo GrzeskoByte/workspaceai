@@ -57,6 +57,13 @@ pub struct Chat {
     pub archived: bool,
     #[serde(default)]
     pub updated_at: i64,
+    /// opencode or an ACP agent id; empty when the supervisor did not say.
+    #[serde(default)]
+    pub agent: String,
+    #[serde(default)]
+    pub model: String,
+    #[serde(default)]
+    pub effort: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
