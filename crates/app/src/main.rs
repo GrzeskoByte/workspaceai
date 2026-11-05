@@ -19,6 +19,7 @@ use workspaceai_client::files;
 use workspaceai_client::model::{Connection, Model, RowKind};
 use workspaceai_client::models::ModelList;
 use workspaceai_client::supervisor::Supervisor;
+use workspaceai_client::chats::{self, Confirm};
 use workspaceai_client::command::{self, Outcome};
 use workspaceai_client::markdown;
 use workspaceai_shared::commands::{insert_mention, mention_at, parse_slash, ChatCommand};
@@ -113,6 +114,25 @@ fn search_files(api: Api, ws: String, project: String, query: String, tx: Sender
     spawn(move || {
         if let Ok(v) = api.get(&files::search_path(&ws, &project, &query)) {
             let _ = tx.send(Msg::Files(query, files::parse_files(&v)));
+        }
+    });
+}
+
+fn fork_chat(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
+    spawn(move || {
+        let r = api.post(&format!("/api/ws/{ws}/chats/{chat}/fork"), None).map_err(|e| e.to_string()).and_then(|v| serde_json::from_value::<Chat>(v).map_err(|e| e.to_string()));
+        let _ = tx.send(match r {
+            Ok(c) => Msg::ChatCreated(ws, c),
+            Err(e) => Msg::Error(e),
+        });
+    });
+}
+
+fn delete_chat(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
+    spawn(move || match api.del(&format!("/api/ws/{ws}/chats/{chat}")) {
+        Ok(_) => load_snapshot(api, ws, tx),
+        Err(e) => {
+            let _ = tx.send(Msg::Error(e.to_string()));
         }
     });
 }
@@ -223,6 +243,9 @@ struct AppView {
     api: Option<Api>,
     _supervisor: Option<Supervisor>,
     input: Entity<TextInput>,
+    rename_input: Entity<TextInput>,
+    renaming: bool,
+    confirm: Confirm,
     scroll: ScrollHandle,
     local_id: u64,
     commands: Vec<ChatCommand>,
@@ -246,6 +269,17 @@ impl AppView {
             });
         });
         let input = cx.new(|cx| TextInput::new(cx, "Message…"));
+        let rename_input = cx.new(|cx| TextInput::new(cx, "Chat title"));
+        cx.subscribe_in(&rename_input, window, |this, input, event: &TextInputEvent, window, cx| {
+            if *event == TextInputEvent::Submit {
+                let title = input.read(cx).content().to_string();
+                this.rename_to(&title);
+                this.renaming = false;
+                window.focus(&this.input.focus_handle(cx), cx);
+                cx.notify();
+            }
+        })
+        .detach();
         cx.subscribe_in(&input, window, |this, input, event: &TextInputEvent, window, cx| {
             if *event == TextInputEvent::Submit {
                 this.submit(input, window, cx);
@@ -265,7 +299,7 @@ impl AppView {
             }
         })
         .detach();
-        AppView { model: Model::default(), rx, tx, api: None, _supervisor: None, input, scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
+        AppView { model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -456,6 +490,57 @@ impl AppView {
         patch_chat(api, ws, id, body.into(), self.tx.clone());
     }
 
+    fn start_rename(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let title = self.open_chat_info().map(|c| c.title.clone()).unwrap_or_default();
+        self.rename_input.update(cx, |i, cx| i.set_content(&title, cx));
+        self.renaming = true;
+        window.focus(&self.rename_input.focus_handle(cx), cx);
+    }
+
+    fn rename_to(&mut self, title: &str) {
+        let (Some(api), Some(ws), Some(id), Some(body)) = (self.api.clone(), self.model.active_ws.clone(), self.model.open_chat_id.clone(), chats::rename_body(title)) else { return };
+        if let (Some(chat), Some(t)) = (self.model.snapshot.chats.iter_mut().find(|c| c.id == id), body["title"].as_str()) {
+            chat.title = t.to_string();
+        }
+        patch_chat(api, ws, id, body, self.tx.clone());
+    }
+
+    fn close_chat(&mut self) {
+        self.model.open_chat_id = None;
+        self.model.messages.clear();
+        self.commands.clear();
+        self.confirm.cancel();
+    }
+
+    fn archive(&mut self) {
+        if let (Some(api), Some(ws), Some(id)) = (self.api.clone(), self.model.active_ws.clone(), self.model.open_chat_id.clone()) {
+            patch_chat(api, ws, id, chats::archive_body(true), self.tx.clone());
+            self.close_chat();
+        }
+    }
+
+    fn delete(&mut self) {
+        let (Some(api), Some(ws), Some(id)) = (self.api.clone(), self.model.active_ws.clone(), self.model.open_chat_id.clone()) else { return };
+        if self.confirm.press(&id) {
+            delete_chat(api, ws, id, self.tx.clone());
+            self.close_chat();
+        }
+    }
+
+    fn fork(&mut self) {
+        if let (Some(api), Some(ws), Some(id)) = (self.api.clone(), self.model.active_ws.clone(), self.model.open_chat_id.clone()) {
+            fork_chat(api, ws, id, self.tx.clone());
+        }
+    }
+
+    fn toggle_full_access(&mut self) {
+        let (Some(api), Some(ws), Some(id)) = (self.api.clone(), self.model.active_ws.clone(), self.model.open_chat_id.clone()) else { return };
+        let Some(chat) = self.model.snapshot.chats.iter_mut().find(|c| c.id == id) else { return };
+        let on = chat.yolo != Some(true);
+        chat.yolo = Some(on);
+        patch_chat(api, ws, id, chats::full_access_body(on), self.tx.clone());
+    }
+
     fn stop(&mut self) {
         if let (Some(api), Some(ws), Some(chat)) = (self.api.clone(), self.model.active_ws.clone(), self.model.open_chat_id.clone()) {
             stop_chat(api, ws, chat, self.tx.clone());
@@ -637,6 +722,40 @@ impl Render for AppView {
                     .child(div().text_sm().text_color(rgb(MUTED)).child(status_line(m))),
             );
 
+        let actions = self.open_chat_info().cloned().map(|c| {
+            let id = c.id.clone();
+            let armed = self.confirm.is_armed(&id);
+            let full = c.yolo == Some(true);
+            let button = |key: &'static str, label: String, bg: u32| div().id(key).px_2().py_1().rounded_md().cursor_pointer().bg(rgb(bg)).text_sm().child(SharedString::from(label));
+            div()
+                .flex()
+                .items_center()
+                .gap_2()
+                .px_4()
+                .py_1()
+                .child(button("act-rename", "Rename".into(), PANEL).on_click(cx.listener(|this, _, window, cx| {
+                    this.start_rename(window, cx);
+                    cx.notify();
+                })))
+                .child(button("act-fork", "Fork".into(), PANEL).on_click(cx.listener(|this, _, _, cx| {
+                    this.fork();
+                    cx.notify();
+                })))
+                .child(button("act-archive", "Archive".into(), PANEL).on_click(cx.listener(|this, _, _, cx| {
+                    this.archive();
+                    cx.notify();
+                })))
+                .child(button("act-delete", if armed { "Click again to delete".into() } else { "Delete".into() }, if armed { 0x7a2b2b } else { PANEL }).on_click(cx.listener(|this, _, _, cx| {
+                    this.delete();
+                    cx.notify();
+                })))
+                .child(button("act-full", if full { "Full access: on".into() } else { "Full access: off".into() }, if full { 0x7a4a1b } else { PANEL }).on_click(cx.listener(|this, _, _, cx| {
+                    this.toggle_full_access();
+                    cx.notify();
+                })))
+        });
+        let rename_row = self.renaming.then(|| div().mx_4().mt_2().px_3().py_2().rounded_md().bg(rgb(PANEL)).child(self.rename_input.clone()));
+
         let picker = self.picker_open.then(|| self.open_chat_info().cloned()).flatten().map(|c| {
             let options = self.models.options_for(&c.agent);
             let efforts = self.models.efforts_for(&c.agent, &c.model);
@@ -807,7 +926,7 @@ impl Render for AppView {
 
         let composer = div().p_3().child(div().px_3().py_2().rounded_lg().bg(rgb(PANEL)).text_size(px(15.)).line_height(px(22.)).child(self.input.clone()));
 
-        let main = div().flex().flex_col().flex_1().min_w_0().h_full().child(header).children(picker).child(messages).children(toast).children(panel).children(suggest_box).children(file_box).child(composer);
+        let main = div().flex().flex_col().flex_1().min_w_0().h_full().child(header).children(actions).children(rename_row).children(picker).child(messages).children(toast).children(panel).children(suggest_box).children(file_box).child(composer);
 
         div().flex().size_full().bg(rgb(BG)).text_color(rgb(TEXT)).child(rail).child(sidebar).child(main)
     }

@@ -11,10 +11,11 @@ Build/run: `CARGO_PROFILE_DEV_DEBUG=0 cargo run -p workspaceai-app` (needs `libx
 - Slash commands: suggestions, run via supervisor, info panel (status/usage/context/help), /new
 - Model + effort picker (header chip, also opened by /model and /effort)
 - `@` file references with a file list popup (project file search)
+- Chat actions: rename, fork, archive, delete (two-step), full-access toggle
 
 ## Next, in order
 1. Attach file picker (drag/drop)
-2. Chat extras: rename, fork, archive/delete chat, move chat, copy message, yolo (full permissions) toggle
+2. Chat extras left: move chat to another project, copy message, restore archived chats
 3. Settings: general, workspace, providers (+test), subscriptions + sign-in, secrets, MCP servers, engine (start/stop/logs/mode), Open Design panel, memory, policy/audit, skills
 4. Onboarding (detect opencode, scan, test remote/provider, templates, finish) and New workspace / join org
 5. Command palette (Ctrl+K), keyboard shortcuts, workspace switching by number
