@@ -21,6 +21,7 @@ use workspaceai_client::files;
 use workspaceai_client::model::{Connection, Model, RowKind};
 use workspaceai_client::models::ModelList;
 use workspaceai_client::palette::{self, Kind};
+use workspaceai_client::projects;
 use workspaceai_client::routines;
 use workspaceai_client::settings::{self, engine_actions, EngineAction};
 use workspaceai_client::supervisor::Supervisor;
@@ -289,6 +290,8 @@ struct AppView {
     settings_page: &'static str,
     name_input: Entity<TextInput>,
     fact_input: Entity<TextInput>,
+    project_input: Entity<TextInput>,
+    show_archived: bool,
     routine_phrase: Entity<TextInput>,
     routine_prompt: Entity<TextInput>,
     model: Model,
@@ -335,6 +338,17 @@ impl AppView {
         cx.observe(&palette_input, |this, _, cx| {
             this.palette_sel = 0;
             cx.notify();
+        })
+        .detach();
+        let project_input = cx.new(|cx| TextInput::new(cx, "Project name"));
+        cx.subscribe_in(&project_input, window, |this, input, event: &TextInputEvent, window, cx| {
+            if *event == TextInputEvent::Submit {
+                let name = input.read(cx).content().to_string();
+                if let (Some(body), Some(ws)) = (projects::create_body(&name, None), this.model.active_ws.clone()) {
+                    this.mutate_path("POST", projects::create_path(&ws), Some(body));
+                    input.update(cx, |i, cx| i.clear(window, cx));
+                }
+            }
         })
         .detach();
         let routine_phrase = cx.new(|cx| TextInput::new(cx, "When? e.g. every weekday at 9"));
@@ -392,7 +406,7 @@ impl AppView {
             }
         })
         .detach();
-        AppView { palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
+        AppView { palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, project_input, show_archived: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -1216,6 +1230,59 @@ impl Render for AppView {
                         cx.notify();
                     }))
                 })))
+            }
+            "projects" => {
+                let ws_id = m.active_ws.clone().unwrap_or_default();
+                let mut p = page
+                    .child(ui::row("Project name", "Type a name and press Enter for a new top-level project. “+ Sub” and “Rename” on a row use this name.", div().w(px(300.)).px_2().py_1().rounded_md().bg(rgb(BG)).child(self.project_input.clone())))
+                    .child(
+                        ui::button("proj-archived", if self.show_archived { "Hide archived" } else { "Show archived" }, PANEL).on_click(cx.listener(|this, _, _, cx| {
+                            this.show_archived = !this.show_archived;
+                            cx.notify();
+                        })),
+                    );
+                for n in projects::tree(&m.snapshot.projects, self.show_archived) {
+                    let (id_sub, id_ren, id_arc, id_del) = (n.id.clone(), n.id.clone(), n.id.clone(), n.id.clone());
+                    let (ws_sub, ws_ren, ws_arc, ws_del) = (ws_id.clone(), ws_id.clone(), ws_id.clone(), ws_id.clone());
+                    let (archived, armed) = (n.archived, self.confirm.is_armed(&format!("p:{}", n.id)));
+                    let mut controls = div().flex().gap_2();
+                    if !archived {
+                        controls = controls
+                            .child(ui::button(format!("proj-sub-{}", n.id), "+ Sub", ACCENT).on_click(cx.listener(move |this, _, window, cx| {
+                                let name = this.project_input.read(cx).content().to_string();
+                                if let Some(body) = projects::create_body(&name, Some(&id_sub)) {
+                                    this.mutate_path("POST", projects::create_path(&ws_sub), Some(body));
+                                    this.project_input.update(cx, |i, cx| i.clear(window, cx));
+                                }
+                                cx.notify();
+                            })))
+                            .child(ui::button(format!("proj-ren-{}", n.id), "Rename", USER_BUBBLE).on_click(cx.listener(move |this, _, window, cx| {
+                                let name = this.project_input.read(cx).content().to_string();
+                                if let Some(body) = projects::rename_body(&name) {
+                                    this.mutate_path("PATCH", projects::item_path(&ws_ren, &id_ren), Some(body));
+                                    this.project_input.update(cx, |i, cx| i.clear(window, cx));
+                                }
+                                cx.notify();
+                            })));
+                    }
+                    controls = controls.child(ui::button(format!("proj-arc-{}", n.id), if archived { "Restore" } else { "Archive" }, USER_BUBBLE).on_click(cx.listener(move |this, _, _, cx| {
+                        let path = if archived { projects::restore_path(&ws_arc, &id_arc) } else { projects::archive_path(&ws_arc, &id_arc) };
+                        this.mutate_path("POST", path, None);
+                        cx.notify();
+                    })));
+                    if n.can_delete {
+                        controls = controls.child(ui::button(format!("proj-del-{}", n.id), if armed { "Click again to delete" } else { "Delete" }, if armed { 0x7a2b2b } else { ui::DANGER }).on_click(cx.listener(move |this, _, _, cx| {
+                            if this.confirm.press(&format!("p:{id_del}")) {
+                                this.mutate_path("DELETE", projects::item_path(&ws_del, &id_del), None);
+                            }
+                            cx.notify();
+                        })));
+                    }
+                    let chats = m.snapshot.chats.iter().filter(|c| c.project == n.id && !c.archived).count();
+                    let note = format!("{} chat{}{}{}", chats, if chats == 1 { "" } else { "s" }, if n.is_general { " · always at the top" } else { "" }, if archived { " · archived" } else { "" });
+                    p = p.child(div().pl(px(22. * n.depth as f32)).child(ui::row(&n.name, &note, controls)));
+                }
+                p
             }
             "routines" => {
                 let tz = workspaceai_shared::schedule::local_tz();
