@@ -44,11 +44,15 @@ fn stream_yields_events_until_the_server_closes() {
     let mut seen = Vec::new();
     stream(&api, |e| seen.push(e)).unwrap();
     assert_eq!(seen, vec![UiEvent::Toast { text: "a".into() }, UiEvent::Toast { text: "b".into() }]);
-    assert!(h.join().unwrap().contains("/api/events?token=tok"));
+    let req = h.join().unwrap().to_ascii_lowercase();
+    assert!(req.starts_with("get /api/events "), "{req}");
+    assert!(req.contains("x-harness-token: tok"), "{req}");
+    assert!(!req.contains("token=tok"), "token must not travel in the URL: {req}");
 }
 
 #[test]
 fn stream_reports_an_unreachable_supervisor() {
-    let api = Api::new(&Info { port: 1, token: "t".into() });
-    assert!(stream(&api, |_| {}).is_err());
+    let api = Api::new(&Info { port: 1, token: "s3cr3t-token".into() });
+    let err = stream(&api, |_| {}).unwrap_err();
+    assert!(!err.contains("s3cr3t-token"), "error text must not leak the token: {err}");
 }

@@ -2,7 +2,8 @@ use workspaceai_client::types::*;
 
 #[test]
 fn app_state_lists_workspaces_and_ignores_the_rest() {
-    let s: AppState = serde_json::from_str(r#"{"settings":{"x":1},"computers":[],"workspaces":[{"id":"w1","name":"Personal","kind":"personal","initials":"P","accent":"blue","note":"n"}]}"#).unwrap();
+    let s: AppState = serde_json::from_str(r#"{"settings":{"x":1,"activeWorkspace":"w1"},"computers":[],"workspaces":[{"id":"w1","name":"Personal","kind":"personal","initials":"P","accent":"blue","note":"n"}]}"#).unwrap();
+    assert_eq!(s.settings.active_workspace.as_deref(), Some("w1"));
     assert_eq!(s.workspaces.len(), 1);
     assert_eq!((s.workspaces[0].id.as_str(), s.workspaces[0].initials.as_str()), ("w1", "P"));
 }
@@ -37,4 +38,10 @@ fn chat_message_with_tools_error_and_unicode() {
     assert_eq!((m.tools[0].name.as_str(), m.tools[0].status.as_str()), ("read", "ok"));
     let plain: ChatMessage = serde_json::from_str(r#"{"id":"m2","role":"user","text":"hi","createdAt":1}"#).unwrap();
     assert!(plain.tools.is_empty() && plain.error.is_none());
+}
+
+#[test]
+fn app_state_without_settings_has_no_active_workspace() {
+    let s: AppState = serde_json::from_str(r#"{"workspaces":[]}"#).unwrap();
+    assert_eq!(s.settings.active_workspace, None);
 }

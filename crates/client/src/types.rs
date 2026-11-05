@@ -19,7 +19,16 @@ pub struct WorkspaceSummary {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct AppSettings {
+    #[serde(default)]
+    pub active_workspace: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
 pub struct AppState {
+    #[serde(default)]
+    pub settings: AppSettings,
     #[serde(default)]
     pub workspaces: Vec<WorkspaceSummary>,
 }
