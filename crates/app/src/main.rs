@@ -16,6 +16,7 @@ use std::time::Duration;
 use text_input::{TextInput, TextInputEvent};
 use workspaceai_client::api::Api;
 use workspaceai_client::events;
+use workspaceai_client::facts;
 use workspaceai_client::files;
 use workspaceai_client::model::{Connection, Model, RowKind};
 use workspaceai_client::models::ModelList;
@@ -159,6 +160,16 @@ fn engine_action(api: Api, ws: String, action: EngineAction, tx: Sender<Msg>) {
     });
 }
 
+/// Any change that is answered by a fresh snapshot (facts, and later routines, projects…).
+fn mutate(api: Api, ws: String, method: &'static str, path: String, body: Option<serde_json::Value>, tx: Sender<Msg>) {
+    spawn(move || {
+        if let Err(e) = api.request(method, &path, body.as_ref()) {
+            let _ = tx.send(Msg::Error(format!("Could not save the change: {e}")));
+        }
+        load_snapshot(api, ws, tx);
+    });
+}
+
 fn load_models(api: Api, ws: String, tx: Sender<Msg>) {
     spawn(move || {
         // The list is slow when an engine has to start; a failure just leaves the picker empty.
@@ -275,6 +286,7 @@ struct AppView {
     view: View,
     settings_page: &'static str,
     name_input: Entity<TextInput>,
+    fact_input: Entity<TextInput>,
     model: Model,
     rx: Receiver<Msg>,
     tx: Sender<Msg>,
@@ -321,6 +333,17 @@ impl AppView {
             cx.notify();
         })
         .detach();
+        let fact_input = cx.new(|cx| TextInput::new(cx, "Something to remember…"));
+        cx.subscribe_in(&fact_input, window, |this, input, event: &TextInputEvent, window, cx| {
+            if *event == TextInputEvent::Submit {
+                let text = input.read(cx).content().to_string();
+                if let Some(body) = facts::add_body(&text, "ws") {
+                    this.mutate_ws("POST", "/facts".into(), Some(body));
+                    input.update(cx, |i, cx| i.clear(window, cx));
+                }
+            }
+        })
+        .detach();
         let name_input = cx.new(|cx| TextInput::new(cx, "Workspace name"));
         cx.subscribe_in(&name_input, window, |this, input, event: &TextInputEvent, _window, cx| {
             if *event == TextInputEvent::Submit {
@@ -360,7 +383,7 @@ impl AppView {
             }
         })
         .detach();
-        AppView { palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
+        AppView { palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -558,6 +581,13 @@ impl AppView {
     fn patch_ws(&mut self, body: serde_json::Value) {
         if let (Some(api), Some(ws)) = (self.api.clone(), self.model.active_ws.clone()) {
             patch_workspace(api, ws, body, self.tx.clone());
+        }
+    }
+
+    fn mutate_ws(&mut self, method: &'static str, sub_path: String, body: Option<serde_json::Value>) {
+        if let (Some(api), Some(ws)) = (self.api.clone(), self.model.active_ws.clone()) {
+            let path = format!("/api/ws/{ws}{sub_path}");
+            mutate(api, ws, method, path, body, self.tx.clone());
         }
     }
 
@@ -1113,7 +1143,45 @@ impl Render for AppView {
             "memory" => page
                 .child(switch_row("useMemory", "Use memory", "Agents are told to use this workspace's memory, and each session opens with what it holds.", settings::switch_on(w.use_memory), cur.locked))
                 .child(switch_row("memoryRecall", "Recall on every message", "Look each message up in memory and hand the agent what matched.", settings::switch_on(w.memory_recall), cur.locked))
-                .child(switch_row("suggestMemories", "Suggest memories", "Offer to remember things from chats.", w.suggest_memories == Some(true), cur.locked)),
+                .child(switch_row("suggestMemories", "Suggest memories", "Offer to remember things from chats.", w.suggest_memories == Some(true), cur.locked))
+                .child(div().text_size(px(18.)).font_weight(FontWeight::BOLD).mt_3().child("Facts"))
+                .child(ui::row("Add a fact", "Press Enter. Agents in this workspace can use it.", div().w(px(320.)).px_2().py_1().rounded_md().bg(rgb(BG)).child(self.fact_input.clone())))
+                .children({
+                    let button = |id: String, label: &'static str, bg: u32| ui::button(id, label, bg);
+                    let mut rows: Vec<gpui::AnyElement> = Vec::new();
+                    for g in facts::group(&m.snapshot.facts, &m.snapshot.projects) {
+                        rows.push(div().mt_2().text_color(rgb(MUTED)).font_weight(FontWeight::BOLD).child(SharedString::from(g.label.clone())).into_any_element());
+                        for (f, suggested) in g.suggested.iter().map(|f| (*f, true)).chain(g.approved.iter().map(|f| (*f, false))) {
+                            let (fid_del, fid_ok) = (f.id.clone(), f.id.clone());
+                            let mut controls = div().flex().gap_2();
+                            if suggested {
+                                controls = controls.child(button(format!("fact-ok-{}", f.id), "Approve", ACCENT).on_click(cx.listener(move |this, _, _, cx| {
+                                    this.mutate_ws("PATCH", format!("/facts/{fid_ok}"), Some(facts::approve_body()));
+                                    cx.notify();
+                                })));
+                            }
+                            controls = controls.child(button(format!("fact-del-{}", f.id), "Delete", ui::DANGER).on_click(cx.listener(move |this, _, _, cx| {
+                                this.mutate_ws("DELETE", format!("/facts/{fid_del}"), None);
+                                cx.notify();
+                            })));
+                            rows.push(ui::row(&f.text, if suggested { "Suggested — approve to keep it" } else { "" }, controls).into_any_element());
+                        }
+                    }
+                    if !m.snapshot.facts.is_empty() {
+                        let armed = self.confirm.is_armed("clear-facts");
+                        rows.push(
+                            button("fact-clear".into(), if armed { "Click again to delete every fact" } else { "Delete all facts" }, if armed { 0x7a2b2b } else { ui::DANGER })
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    if this.confirm.press("clear-facts") {
+                                        this.mutate_ws("DELETE", "/facts".into(), None);
+                                    }
+                                    cx.notify();
+                                }))
+                                .into_any_element(),
+                        );
+                    }
+                    rows
+                }),
             "engine" => {
                 let e = &m.snapshot.engine;
                 let mut p = page
@@ -1242,6 +1310,7 @@ fn smoke() -> Result<(), String> {
     if let Some(ws) = state.settings.active_workspace.or_else(|| state.workspaces.first().map(|w| w.id.clone())) {
         let snap: Snapshot = fetch(&api, &format!("/api/ws/{ws}/snapshot"))?;
         println!("SMOKE ok: {} projects, {} chats", snap.projects.len(), snap.chats.len());
+        println!("SMOKE ok: {} memory facts ({} suggested)", snap.facts.len(), snap.facts.iter().filter(|f| f.status == "suggested").count());
         println!("SMOKE ok: workspace {:?} ({}), memory {:?}, engine {:?}", snap.workspace.name, snap.workspace.kind, snap.workspace.use_memory, snap.engine.state);
         if let Some(p) = snap.projects.iter().find(|p| !p.archived) {
             match api.get(&files::search_path(&ws, &p.id, "")) {
