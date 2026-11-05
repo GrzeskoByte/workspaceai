@@ -97,3 +97,34 @@ fn empty_unterminated_and_plain_text_do_not_panic() {
     assert_eq!(inline(&parse("plain")[0]).styles.len(), 0);
     let _ = parse("```\nnever closed");
 }
+
+fn link_of(md: &str) -> Option<String> {
+    let b = parse(md).remove(0);
+    inline(&b).styles.iter().find_map(|(_, s)| s.link.as_deref().map(str::to_string))
+}
+
+#[test]
+fn only_http_https_and_mailto_links_keep_their_url() {
+    assert_eq!(link_of("[a](https://x.example)").as_deref(), Some("https://x.example"));
+    assert_eq!(link_of("[a](HTTP://x.example)").as_deref(), Some("HTTP://x.example"));
+    assert_eq!(link_of("[a](mailto:me@x.example)").as_deref(), Some("mailto:me@x.example"));
+    for bad in ["javascript:alert(1)", "JaVaScRiPt:alert(1)", " javascript:alert(1)", "file:///etc/passwd", "myapp://open", "data:text/html,x"] {
+        assert_eq!(link_of(&format!("[a](<{bad}>)")), None, "{bad}");
+    }
+    // The text still shows without a link.
+    assert_eq!(inline(&parse("[click](javascript:alert(1))")[0]).text, "click");
+}
+
+#[test]
+fn a_disallowed_inner_link_does_not_inherit_the_outer_url() {
+    let b = parse("[outer [inner](javascript:x) tail](https://ok.example)").remove(0);
+    let i = inline(&b);
+    let inner = i.text.find("inner").unwrap();
+    assert!(!i.styles.iter().any(|(r, s)| r.contains(&inner) && s.link.is_some()), "{i:?}");
+}
+
+#[test]
+fn very_long_urls_are_not_kept_per_range() {
+    let url = format!("https://x.example/{}", "a".repeat(5000));
+    assert_eq!(link_of(&format!("[a]({url})")), None);
+}

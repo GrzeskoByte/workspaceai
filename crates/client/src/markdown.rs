@@ -3,13 +3,15 @@
 
 use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
 use std::ops::Range;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Style {
     pub bold: bool,
     pub italic: bool,
     pub code: bool,
-    pub link: Option<String>,
+    /// Shared, so a long URL on a long link costs one allocation, not one per styled range.
+    pub link: Option<Arc<str>>,
 }
 
 /// Plain text plus styled byte ranges into it.
@@ -42,7 +44,8 @@ struct Builder {
     target: Option<Target>,
     bold: u32,
     italic: u32,
-    link: Vec<String>,
+    /// One entry per open link; `None` for a destination the allowlist refused (it must not fall back to an outer URL).
+    link: Vec<Option<Arc<str>>>,
     lists: Vec<Option<u64>>,
     marker: String,
     /// Nesting depth of the item being built, fixed when it starts (its sublist may open before it is flushed).
@@ -58,7 +61,7 @@ impl Builder {
         }
         let start = self.inline.text.len();
         self.inline.text.push_str(text);
-        let style = Style { bold: self.bold > 0, italic: self.italic > 0, code, link: self.link.last().cloned() };
+        let style = Style { bold: self.bold > 0, italic: self.italic > 0, code, link: self.link.last().cloned().flatten() };
         if style != Style::default() {
             self.inline.styles.push((start..self.inline.text.len(), style));
         }
@@ -77,6 +80,16 @@ impl Builder {
             Target::Item => Block::ListItem { marker: std::mem::take(&mut self.marker), depth: self.depth, text: inline },
         });
     }
+}
+
+/// Longest link kept; longer ones render as plain text.
+const MAX_LINK: usize = 2048;
+
+/// Only web and mail links stay links. Everything else (`javascript:`, `file:`, custom schemes) is plain text.
+fn allowed_link(url: &str) -> Option<Arc<str>> {
+    let u = url.trim();
+    let scheme = u.split(':').next().unwrap_or("").to_ascii_lowercase();
+    (u.len() <= MAX_LINK && matches!(scheme.as_str(), "http" | "https" | "mailto") && u.contains(':')).then(|| Arc::from(u))
 }
 
 pub fn parse(md: &str) -> Vec<Block> {
@@ -127,7 +140,7 @@ pub fn parse(md: &str) -> Vec<Block> {
             Event::End(TagEnd::Strong) => b.bold = b.bold.saturating_sub(1),
             Event::Start(Tag::Emphasis) => b.italic += 1,
             Event::End(TagEnd::Emphasis) => b.italic = b.italic.saturating_sub(1),
-            Event::Start(Tag::Link { dest_url, .. }) => b.link.push(dest_url.to_string()),
+            Event::Start(Tag::Link { dest_url, .. }) => b.link.push(allowed_link(&dest_url)),
             Event::End(TagEnd::Link) => {
                 b.link.pop();
             }
