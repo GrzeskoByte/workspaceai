@@ -16,6 +16,7 @@ use text_input::{TextInput, TextInputEvent};
 use workspaceai_client::api::Api;
 use workspaceai_client::events;
 use workspaceai_client::model::{Connection, Model, RowKind};
+use workspaceai_client::models::ModelList;
 use workspaceai_client::supervisor::Supervisor;
 use workspaceai_client::command::{self, Outcome};
 use workspaceai_client::markdown;
@@ -42,6 +43,7 @@ enum Msg {
     Permissions(String, String, Vec<PermissionRequest>),
     Commands(String, String, Vec<ChatCommand>),
     CommandDone(Outcome),
+    Models(String, ModelList),
     ChatCreated(String, Chat),
     Error(String),
 }
@@ -101,6 +103,25 @@ fn load_permissions(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
         // A failure here only means no cards until the next event; it is not worth a toast.
         if let Ok(list) = r {
             let _ = tx.send(Msg::Permissions(ws, chat, list));
+        }
+    });
+}
+
+fn load_models(api: Api, ws: String, tx: Sender<Msg>) {
+    spawn(move || {
+        // The list is slow when an engine has to start; a failure just leaves the picker empty.
+        if let Ok(list) = fetch::<ModelList>(&api, &format!("/api/ws/{ws}/models")) {
+            let _ = tx.send(Msg::Models(ws, list));
+        }
+    });
+}
+
+/// Changes a chat's model or effort, then refreshes the snapshot so every view agrees.
+fn patch_chat(api: Api, ws: String, chat: String, body: serde_json::Value, tx: Sender<Msg>) {
+    spawn(move || match api.patch(&format!("/api/ws/{ws}/chats/{chat}"), &body) {
+        Ok(_) => load_snapshot(api, ws, tx),
+        Err(e) => {
+            let _ = tx.send(Msg::Error(e.to_string()));
         }
     });
 }
@@ -195,6 +216,8 @@ struct AppView {
     scroll: ScrollHandle,
     local_id: u64,
     commands: Vec<ChatCommand>,
+    models: ModelList,
+    picker_open: bool,
     /// Information from a command (status, usage, help), shown above the composer until dismissed.
     panel: Option<(String, String)>,
 }
@@ -225,7 +248,7 @@ impl AppView {
             }
         })
         .detach();
-        AppView { model: Model::default(), rx, tx, api: None, _supervisor: None, input, scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), panel: None }
+        AppView { model: Model::default(), rx, tx, api: None, _supervisor: None, input, scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -289,6 +312,10 @@ impl AppView {
                     self.model.messages.clear();
                 }
                 if let (Some(api), Some(ws)) = (self.api.clone(), active) {
+                    if changed {
+                        self.models = ModelList::default();
+                        load_models(api.clone(), ws.clone(), self.tx.clone());
+                    }
                     load_snapshot(api, ws, self.tx.clone());
                 }
             }
@@ -312,6 +339,11 @@ impl AppView {
                     self.model.set_permissions(&chat, list);
                 }
             }
+            Msg::Models(ws, list) => {
+                if self.model.active_ws.as_deref() == Some(&ws) {
+                    self.models = list;
+                }
+            }
             Msg::Commands(ws, chat, list) => {
                 if self.model.active_ws.as_deref() == Some(&ws) && self.model.open_chat_id.as_deref() == Some(&chat) {
                     self.commands = list;
@@ -325,6 +357,7 @@ impl AppView {
                     self.panel = Some(("Commands".into(), body));
                 }
                 Outcome::Text { title, body } => self.panel = Some((title, body)),
+                Outcome::Unsupported(name) if name == "model" || name == "effort" => self.picker_open = true,
                 Outcome::Unsupported(name) => self.model.toast = Some(format!("/{name} opens a dialog the native app does not have yet.")),
             },
             Msg::ChatCreated(ws, chat) => {
@@ -354,6 +387,30 @@ impl AppView {
         let (Some(api), Some(ws), Some(chat)) = (self.api.clone(), self.model.active_ws.clone(), self.model.open_chat_id.clone()) else { return };
         self.model.drop_permission(&chat, request);
         answer_permission(api, ws, chat, request.to_string(), decision, self.tx.clone());
+    }
+
+    fn open_chat_info(&self) -> Option<&Chat> {
+        let id = self.model.open_chat_id.as_ref()?;
+        self.model.snapshot.chats.iter().find(|c| &c.id == id)
+    }
+
+    /// Sets the open chat's model (clearing its effort, which may not exist on the new model) or its effort.
+    fn choose(&mut self, model: Option<String>, effort: Option<String>) {
+        let (Some(api), Some(ws), Some(id)) = (self.api.clone(), self.model.active_ws.clone(), self.model.open_chat_id.clone()) else { return };
+        let mut body = serde_json::Map::new();
+        if let Some(chat) = self.model.snapshot.chats.iter_mut().find(|c| c.id == id) {
+            if let Some(m) = &model {
+                chat.model = m.clone();
+                chat.effort = None;
+                body.insert("model".into(), m.clone().into());
+                body.insert("effort".into(), "".into());
+            }
+            if let Some(e) = &effort {
+                chat.effort = Some(e.clone());
+                body.insert("effort".into(), e.clone().into());
+            }
+        }
+        patch_chat(api, ws, id, body.into(), self.tx.clone());
     }
 
     fn stop(&mut self) {
@@ -518,8 +575,60 @@ impl Render for AppView {
                                 })),
                         )
                     })
+                    .children(self.open_chat_info().map(|c| {
+                        let label = self.models.label(&c.agent, &c.model, c.effort.as_deref());
+                        div()
+                            .id("model-chip")
+                            .px_3()
+                            .py_1()
+                            .rounded_md()
+                            .cursor_pointer()
+                            .bg(rgb(PANEL))
+                            .text_sm()
+                            .child(SharedString::from(format!("{label} ▾")))
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.picker_open = !this.picker_open;
+                                cx.notify();
+                            }))
+                    }))
                     .child(div().text_sm().text_color(rgb(MUTED)).child(status_line(m))),
             );
+
+        let picker = self.picker_open.then(|| self.open_chat_info().cloned()).flatten().map(|c| {
+            let options = self.models.options_for(&c.agent);
+            let efforts = self.models.efforts_for(&c.agent, &c.model);
+            let row = |id: String, label: String, on: bool| div().id(SharedString::from(id)).px_2().py_1().rounded_md().cursor_pointer().bg(rgb(if on { USER_BUBBLE } else { PANEL })).hover(|s| s.bg(rgb(USER_BUBBLE))).text_sm().child(SharedString::from(label));
+            div()
+                .mx_4()
+                .mt_2()
+                .p_2()
+                .rounded_md()
+                .bg(rgb(PANEL))
+                .flex()
+                .flex_col()
+                .gap_2()
+                .child(div().text_sm().text_color(rgb(MUTED)).child(if options.is_empty() { "Models load once the engine is running…" } else { "Model" }))
+                .child(div().id("model-list").max_h(px(220.)).overflow_y_scroll().flex().flex_col().children(options.into_iter().map(|o| {
+                    let on = o.id == c.model;
+                    let oid = o.id.clone();
+                    row(format!("model-{}", o.id), if o.name.is_empty() { o.id.clone() } else { o.name.clone() }, on).on_click(cx.listener(move |this, _, _, cx| {
+                        this.choose(Some(oid.clone()), None);
+                        this.picker_open = false;
+                        cx.notify();
+                    }))
+                })))
+                .when(!efforts.is_empty(), |d| {
+                    d.child(div().text_sm().text_color(rgb(MUTED)).child("Effort")).child(div().flex().gap_2().children(efforts.into_iter().map(|e| {
+                        let on = c.effort.as_deref() == Some(e.as_str());
+                        let ev = e.clone();
+                        row(format!("effort-{e}"), e, on).on_click(cx.listener(move |this, _, _, cx| {
+                            this.choose(None, Some(ev.clone()));
+                            this.picker_open = false;
+                            cx.notify();
+                        }))
+                    })))
+                })
+        });
 
         let messages = div().id("messages").flex_1().min_h_0().overflow_y_scroll().track_scroll(&self.scroll).p_4().flex().flex_col().gap_3().children(
             m.messages.iter().map(|msg| {
@@ -630,7 +739,7 @@ impl Render for AppView {
 
         let composer = div().p_3().child(div().px_3().py_2().rounded_lg().bg(rgb(PANEL)).text_size(px(15.)).line_height(px(22.)).child(self.input.clone()));
 
-        let main = div().flex().flex_col().flex_1().min_w_0().h_full().child(header).child(messages).children(toast).children(panel).children(suggest_box).child(composer);
+        let main = div().flex().flex_col().flex_1().min_w_0().h_full().child(header).children(picker).child(messages).children(toast).children(panel).children(suggest_box).child(composer);
 
         div().flex().size_full().bg(rgb(BG)).text_color(rgb(TEXT)).child(rail).child(sidebar).child(main)
     }
@@ -645,6 +754,10 @@ fn smoke() -> Result<(), String> {
     if let Some(ws) = state.settings.active_workspace.or_else(|| state.workspaces.first().map(|w| w.id.clone())) {
         let snap: Snapshot = fetch(&api, &format!("/api/ws/{ws}/snapshot"))?;
         println!("SMOKE ok: {} projects, {} chats", snap.projects.len(), snap.chats.len());
+        match fetch::<ModelList>(&api, &format!("/api/ws/{ws}/models")) {
+            Ok(m) => println!("SMOKE ok: {} opencode models, {} other agents", m.options_for("opencode").len(), m.agents.len()),
+            Err(e) => println!("SMOKE models: {e}"),
+        }
     }
     Ok(())
 }
