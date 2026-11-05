@@ -713,6 +713,15 @@ impl TextInput {
         &self.content
     }
 
+    /// Replaces the text and puts the caret at the end.
+    pub fn set_content(&mut self, text: &str, cx: &mut Context<Self>) {
+        self.content = text.to_string().into();
+        self.selected_range = text.len()..text.len();
+        self.selection_reversed = false;
+        self.marked_range = None;
+        cx.notify();
+    }
+
     pub fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.reset(window, cx);
     }

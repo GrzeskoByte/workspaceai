@@ -6182,6 +6182,7 @@ dependencies = [
  "serde_json",
  "unicode-segmentation",
  "workspaceai-client",
+ "workspaceai-shared",
 ]
 
 [[package]]

@@ -17,7 +17,9 @@ use workspaceai_client::api::Api;
 use workspaceai_client::events;
 use workspaceai_client::model::{Connection, Model, RowKind};
 use workspaceai_client::supervisor::Supervisor;
+use workspaceai_client::command::{self, Outcome};
 use workspaceai_client::markdown;
+use workspaceai_shared::commands::{parse_slash, ChatCommand};
 use workspaceai_client::types::{AppState, Chat, ChatMessage, PermissionRequest, Snapshot, UiEvent};
 
 const BG: u32 = 0x1b1b1f;
@@ -38,6 +40,8 @@ enum Msg {
     Snapshot(String, Snapshot),
     Messages(String, String, Vec<ChatMessage>),
     Permissions(String, String, Vec<PermissionRequest>),
+    Commands(String, String, Vec<ChatCommand>),
+    CommandDone(Outcome),
     ChatCreated(String, Chat),
     Error(String),
 }
@@ -98,6 +102,26 @@ fn load_permissions(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
         if let Ok(list) = r {
             let _ = tx.send(Msg::Permissions(ws, chat, list));
         }
+    });
+}
+
+fn load_commands(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
+    spawn(move || {
+        let r = api.get(&format!("/api/ws/{ws}/chats/{chat}/commands")).map_err(|e| e.to_string()).and_then(|v| {
+            serde_json::from_value::<Vec<ChatCommand>>(v["commands"].clone()).map_err(|e| format!("unexpected commands reply: {e}"))
+        });
+        if let Ok(list) = r {
+            let _ = tx.send(Msg::Commands(ws, chat, list));
+        }
+    });
+}
+
+fn run_command(api: Api, ws: String, chat: String, text: String, tx: Sender<Msg>) {
+    spawn(move || {
+        let _ = tx.send(match api.post(&format!("/api/ws/{ws}/chats/{chat}/command"), Some(&serde_json::json!({ "text": text }))) {
+            Ok(v) => Msg::CommandDone(command::interpret(&v)),
+            Err(e) => Msg::Error(e.to_string()),
+        });
     });
 }
 
@@ -170,6 +194,9 @@ struct AppView {
     input: Entity<TextInput>,
     scroll: ScrollHandle,
     local_id: u64,
+    commands: Vec<ChatCommand>,
+    /// Information from a command (status, usage, help), shown above the composer until dismissed.
+    panel: Option<(String, String)>,
 }
 
 impl AppView {
@@ -189,6 +216,7 @@ impl AppView {
             }
         })
         .detach();
+        cx.observe(&input, |_, _, cx| cx.notify()).detach();
         window.focus(&input.focus_handle(cx), cx);
         cx.spawn(async move |this, cx| loop {
             cx.background_executor().timer(Duration::from_millis(50)).await;
@@ -197,7 +225,7 @@ impl AppView {
             }
         })
         .detach();
-        AppView { model: Model::default(), rx, tx, api: None, _supervisor: None, input, scroll: ScrollHandle::new(), local_id: 0 }
+        AppView { model: Model::default(), rx, tx, api: None, _supervisor: None, input, scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -284,6 +312,21 @@ impl AppView {
                     self.model.set_permissions(&chat, list);
                 }
             }
+            Msg::Commands(ws, chat, list) => {
+                if self.model.active_ws.as_deref() == Some(&ws) && self.model.open_chat_id.as_deref() == Some(&chat) {
+                    self.commands = list;
+                }
+            }
+            Msg::CommandDone(outcome) => match outcome {
+                Outcome::Ran(_) => {}
+                Outcome::NewChat => self.new_chat(),
+                Outcome::Help => {
+                    let body = self.commands.iter().map(|c| format!("/{}  {}", c.name, c.description)).collect::<Vec<_>>().join("\n");
+                    self.panel = Some(("Commands".into(), body));
+                }
+                Outcome::Text { title, body } => self.panel = Some((title, body)),
+                Outcome::Unsupported(name) => self.model.toast = Some(format!("/{name} opens a dialog the native app does not have yet.")),
+            },
             Msg::ChatCreated(ws, chat) => {
                 if self.model.active_ws.as_deref() == Some(&ws) {
                     let id = chat.id.clone();
@@ -298,9 +341,12 @@ impl AppView {
 
     fn open_chat(&mut self, id: String) {
         self.model.open_chat(id.clone(), Vec::new());
+        self.commands.clear();
+        self.panel = None;
         if let (Some(api), Some(ws)) = (self.api.clone(), self.model.active_ws.clone()) {
             load_messages(api.clone(), ws.clone(), id.clone(), self.tx.clone());
-            load_permissions(api, ws, id, self.tx.clone());
+            load_permissions(api.clone(), ws.clone(), id.clone(), self.tx.clone());
+            load_commands(api, ws, id, self.tx.clone());
         }
     }
 
@@ -334,6 +380,15 @@ impl AppView {
             return;
         }
         input.update(cx, |i, cx| i.clear(window, cx));
+        if parse_slash(&text).is_some() {
+            // The supervisor decides what a slash command means (and refuses ones this agent lacks, with a reason).
+            match self.model.open_chat_id.clone() {
+                Some(chat) => run_command(api, ws, chat, text, self.tx.clone()),
+                None => self.model.toast = Some("Open a chat first to run a command.".into()),
+            }
+            cx.notify();
+            return;
+        }
         self.local_id += 1;
         self.model.messages.push(ChatMessage { id: format!("local-{}", self.local_id), role: "user".into(), text: text.clone(), tools: vec![], error: None, created_at: 0 });
         match self.model.open_chat_id.clone() {
@@ -532,9 +587,50 @@ impl Render for AppView {
                 }))
         });
 
+        let typed = self.input.read(cx).content().to_string();
+        let suggested: Vec<ChatCommand> = command::suggestions(&typed, &self.commands).into_iter().cloned().collect();
+        let suggest_box = (!suggested.is_empty()).then(|| {
+            div().mx_3().mt_2().p_1().rounded_md().bg(rgb(PANEL)).flex().flex_col().children(suggested.into_iter().map(|c| {
+                let name = c.name.clone();
+                div()
+                    .id(SharedString::from(format!("sg-{}", c.name)))
+                    .flex()
+                    .gap_3()
+                    .px_2()
+                    .py_1()
+                    .rounded_md()
+                    .cursor_pointer()
+                    .hover(|s| s.bg(rgb(USER_BUBBLE)))
+                    .child(div().font_weight(FontWeight::BOLD).child(SharedString::from(format!("/{}", c.name))))
+                    .child(div().text_color(rgb(MUTED)).text_sm().child(SharedString::from(c.hint.clone().unwrap_or_default())))
+                    .child(div().text_color(rgb(MUTED)).text_sm().child(SharedString::from(c.description.clone())))
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        let text = format!("/{name} ");
+                        this.input.update(cx, |i, cx| i.set_content(&text, cx));
+                        window.focus(&this.input.focus_handle(cx), cx);
+                    }))
+            }))
+        });
+        let panel = self.panel.clone().map(|(title, body)| {
+            div()
+                .id("panel")
+                .mx_3()
+                .mt_2()
+                .p_3()
+                .rounded_md()
+                .bg(rgb(PANEL))
+                .cursor_pointer()
+                .child(div().font_weight(FontWeight::BOLD).child(SharedString::from(format!("{title}  (click to close)"))))
+                .child(div().font_family("monospace").text_size(px(13.)).child(SharedString::from(body)))
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.panel = None;
+                    cx.notify();
+                }))
+        });
+
         let composer = div().p_3().child(div().px_3().py_2().rounded_lg().bg(rgb(PANEL)).text_size(px(15.)).line_height(px(22.)).child(self.input.clone()));
 
-        let main = div().flex().flex_col().flex_1().min_w_0().h_full().child(header).child(messages).children(toast).child(composer);
+        let main = div().flex().flex_col().flex_1().min_w_0().h_full().child(header).child(messages).children(toast).children(panel).children(suggest_box).child(composer);
 
         div().flex().size_full().bg(rgb(BG)).text_color(rgb(TEXT)).child(rail).child(sidebar).child(main)
     }
