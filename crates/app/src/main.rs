@@ -21,7 +21,7 @@ use workspaceai_client::model::{Connection, Model, RowKind};
 use workspaceai_client::models::ModelList;
 use workspaceai_client::settings::{self, engine_actions, EngineAction};
 use workspaceai_client::supervisor::Supervisor;
-use workspaceai_client::chats::{self, Confirm};
+use workspaceai_client::chats::{self, Confirm, InFlight};
 use workspaceai_client::command::{self, Outcome};
 use workspaceai_client::markdown;
 use workspaceai_shared::commands::{insert_mention, mention_at, parse_slash, ChatCommand};
@@ -172,7 +172,9 @@ fn patch_chat(api: Api, ws: String, chat: String, body: serde_json::Value, tx: S
     spawn(move || match api.patch(&format!("/api/ws/{ws}/chats/{chat}"), &body) {
         Ok(_) => load_snapshot(api, ws, tx),
         Err(e) => {
-            let _ = tx.send(Msg::Error(e.to_string()));
+            // Whatever the window assumed, show what the server really has.
+            let _ = tx.send(Msg::Error(format!("Could not save the change: {e}. Showing what the server has.")));
+            load_snapshot(api, ws, tx);
         }
     });
 }
@@ -276,6 +278,7 @@ struct AppView {
     rename_input: Entity<TextInput>,
     renaming: bool,
     confirm: Confirm,
+    in_flight: InFlight,
     scroll: ScrollHandle,
     local_id: u64,
     commands: Vec<ChatCommand>,
@@ -339,7 +342,7 @@ impl AppView {
             }
         })
         .detach();
-        AppView { view: View::Chat, settings_page: "general", name_input, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
+        AppView { view: View::Chat, settings_page: "general", name_input, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -411,6 +414,7 @@ impl AppView {
                 }
             }
             Msg::Snapshot(ws, snap) => {
+                self.in_flight.finish_all();
                 if self.model.active_ws.as_deref() == Some(&ws) {
                     self.model.snapshot = snap;
                     if self.model.open_chat_id.is_none() {
@@ -464,7 +468,10 @@ impl AppView {
                     self.model.needs.snapshot = true;
                 }
             }
-            Msg::Error(e) => self.model.toast = Some(e),
+            Msg::Error(e) => {
+                self.in_flight.finish_all();
+                self.model.toast = Some(e);
+            }
         }
     }
 
@@ -587,9 +594,12 @@ impl AppView {
 
     fn toggle_full_access(&mut self) {
         let (Some(api), Some(ws), Some(id)) = (self.api.clone(), self.model.active_ws.clone(), self.model.open_chat_id.clone()) else { return };
-        let Some(chat) = self.model.snapshot.chats.iter_mut().find(|c| c.id == id) else { return };
+        // The chip shows the server's value only; it changes when the fresh snapshot arrives.
+        let Some(chat) = self.model.snapshot.chats.iter().find(|c| c.id == id) else { return };
         let on = chat.yolo != Some(true);
-        chat.yolo = Some(on);
+        if !self.in_flight.begin(&id) {
+            return;
+        }
         patch_chat(api, ws, id, chats::full_access_body(on), self.tx.clone());
     }
 
@@ -801,7 +811,7 @@ impl Render for AppView {
                     this.delete();
                     cx.notify();
                 })))
-                .child(button("act-full", if full { "Full access: on".into() } else { "Full access: off".into() }, if full { 0x7a4a1b } else { PANEL }).on_click(cx.listener(|this, _, _, cx| {
+                .child(button("act-full", if self.in_flight.is_pending(&c.id) { "Full access: saving…".into() } else if full { "Full access: on".into() } else { "Full access: off".into() }, if full { 0x7a4a1b } else { PANEL }).on_click(cx.listener(|this, _, _, cx| {
                     this.toggle_full_access();
                     cx.notify();
                 })))

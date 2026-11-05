@@ -35,3 +35,16 @@ fn delete_needs_a_second_click_on_the_same_chat() {
     c.cancel();
     assert!(!c.press("c1"), "cancel disarms");
 }
+
+#[test]
+fn only_one_change_per_chat_is_in_flight() {
+    let mut f = InFlight::default();
+    assert!(f.begin("c1"), "first change starts");
+    assert!(!f.begin("c1"), "a second click while waiting is ignored");
+    assert!(f.is_pending("c1") && !f.is_pending("c2"));
+    assert!(f.begin("c2"), "another chat is independent");
+    f.finish("c1");
+    assert!(f.begin("c1"), "after the server answers it can change again");
+    f.finish_all();
+    assert!(f.begin("c2"));
+}

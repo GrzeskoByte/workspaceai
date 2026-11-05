@@ -45,3 +45,33 @@ impl Confirm {
         self.armed = None;
     }
 }
+
+/// Chats with a change waiting on the server, so a quick second click cannot reorder or double-send it.
+#[derive(Debug, Default)]
+pub struct InFlight {
+    chats: Vec<String>,
+}
+
+impl InFlight {
+    /// `true` when the change may start; `false` when one is already waiting for this chat.
+    pub fn begin(&mut self, chat: &str) -> bool {
+        if self.chats.iter().any(|c| c == chat) {
+            return false;
+        }
+        self.chats.push(chat.to_string());
+        true
+    }
+
+    pub fn is_pending(&self, chat: &str) -> bool {
+        self.chats.iter().any(|c| c == chat)
+    }
+
+    pub fn finish(&mut self, chat: &str) {
+        self.chats.retain(|c| c != chat);
+    }
+
+    /// Any server answer (fresh snapshot or error) means what we show is the server's again.
+    pub fn finish_all(&mut self) {
+        self.chats.clear();
+    }
+}

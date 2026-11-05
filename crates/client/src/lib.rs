@@ -6,6 +6,7 @@ pub mod files;
 pub mod markdown;
 pub mod model;
 pub mod models;
+pub mod palette;
 pub mod settings;
 pub mod supervisor;
 pub mod types;
