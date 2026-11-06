@@ -64,3 +64,15 @@ fn messages_carry_their_artifact_and_tool_output() {
     assert_eq!(m.artifact.as_deref(), Some("a1"));
     assert_eq!(m.tools[0].output.as_deref(), Some("listening on http://localhost:4000"));
 }
+
+#[test]
+fn userinfo_cannot_pass_as_a_local_address() {
+    use workspaceai_client::web::{local_url_in, to_url};
+    assert_eq!(local_url_in("see http://localhost:80@evil.example/x"), None);
+    assert_eq!(local_url_in("see http://localhost@evil.example"), None);
+    assert_eq!(local_url_in("http://127.0.0.1.evil.example/"), None);
+    assert_eq!(local_url_in("ok http://localhost:5173/a").as_deref(), Some("http://localhost:5173/a"));
+    assert_eq!(local_url_in("ok http://[::1]:3000/").as_deref(), Some("http://[::1]:3000/"));
+    assert_eq!(to_url("localhost:80@evil.example"), "https://localhost:80@evil.example");
+    assert_eq!(to_url("localhost:3000/x"), "http://localhost:3000/x");
+}

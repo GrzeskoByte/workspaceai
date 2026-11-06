@@ -57,6 +57,23 @@ fn attr_escape(s: &str) -> String {
     s.replace('&', "&amp;").replace('"', "&quot;").replace('<', "&lt;").replace('>', "&gt;")
 }
 
+/// True when the URL text (no scheme) really points at this machine. The authority is everything before the first
+/// `/ ? # \`; one with userinfo (`@`) is never local, so `localhost:80@evil.com` cannot pass as a local preview.
+fn is_local_authority(addr: &str) -> bool {
+    let auth = addr.split(['/', '?', '#', '\\']).next().unwrap_or("");
+    if auth.contains('@') {
+        return false;
+    }
+    let host = match auth.strip_prefix('[') {
+        Some(v6) => match v6.split_once(']') {
+            Some((h, rest)) if rest.is_empty() || rest.starts_with(':') => return h == "::1",
+            _ => return false,
+        },
+        None => auth.split(':').next().unwrap_or(""),
+    };
+    matches!(host, "localhost" | "127.0.0.1" | "0.0.0.0") || host.ends_with(".localhost")
+}
+
 /// What was typed, as a URL: "5173" → localhost:5173, "localhost:3000/x" → http://…, "example.com" → https://….
 /// Only http and https URLs come out: a typed `file:` or `javascript:` address is prefixed with `https://` too.
 pub fn to_url(raw: &str) -> String {
@@ -71,9 +88,7 @@ pub fn to_url(raw: &str) -> String {
     if lower.starts_with("http://") || lower.starts_with("https://") {
         return t.to_string();
     }
-    let host = lower.split(['/', ':']).next().unwrap_or("");
-    let local = matches!(host, "localhost" | "127.0.0.1" | "0.0.0.0") || lower.starts_with("[::1]") || host.ends_with(".localhost");
-    if local {
+    if is_local_authority(&lower) {
         format!("http://{t}")
     } else {
         format!("https://{t}")
@@ -89,9 +104,7 @@ pub fn local_url_in(text: &str) -> Option<String> {
             let rest = &text[start + scheme.len()..];
             let end = rest.find(|c: char| c.is_whitespace() || "'\"`)<>]".contains(c)).unwrap_or(rest.len());
             let addr = &rest[..end];
-            let host = addr.split(['/', ':']).next().unwrap_or("");
-            let local = matches!(host, "localhost" | "127.0.0.1" | "0.0.0.0") || addr.starts_with("[::1]");
-            if local {
+            if is_local_authority(addr) {
                 let url = format!("{scheme}{}", addr.replacen("0.0.0.0", "localhost", 1));
                 return Some(url.trim_end_matches(['.', ',', ';', ':']).to_string());
             }
