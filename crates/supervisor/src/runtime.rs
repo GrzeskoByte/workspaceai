@@ -13,7 +13,7 @@ use std::time::Duration;
 use workspaceai_shared::defaults::{default_agents, general_project};
 use workspaceai_shared::facts::{parse_facts, serialize_facts};
 use workspaceai_shared::opencode_config::{build_opencode_json, contains_literal_secret};
-use workspaceai_shared::types::{AuditEvent, EngineStatus, Fact, FactStatus, OrgPolicy, PersistedState, Project, Workspace, WorkspaceKind, WorkspaceSnapshot};
+use workspaceai_shared::types::{AuditEvent, EngineStatus, Fact, FactStatus, OrgPolicy, PersistedState, Workspace, WorkspaceKind, WorkspaceSnapshot};
 use workspaceai_shared::util::{now_ms, project_path_name, uid};
 use crate::engine::{ManagedServer, OpencodeClient};
 
@@ -197,15 +197,6 @@ impl Runtime {
         }
         write_json(&self.paths.opencode_json, &built.json)?;
         Ok(())
-    }
-
-    // ---------- projects (lookup only; routes in batch 4) ----------
-    pub fn project(&self, id: &str) -> Option<&Project> {
-        self.state.projects.iter().find(|p| p.id == id)
-    }
-
-    pub fn general(&self) -> Option<&Project> {
-        self.state.projects.iter().find(|p| p.is_general == Some(true))
     }
 
     // ---------- memory: facts (R-22) ----------

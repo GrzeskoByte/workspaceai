@@ -5,6 +5,7 @@
 mod app;
 mod engine;
 mod patch;
+mod projects;
 mod providers;
 mod secrets;
 mod workspace;
@@ -34,6 +35,17 @@ pub(crate) fn dispatch(core: &mut Core, method: &str, path: &str, query: &BTreeM
         ["api", "ws", id, "facts", fid] if method == "PATCH" => workspace::update_fact(core, id, fid, &body),
         ["api", "ws", id, "facts", fid] if method == "DELETE" => workspace::remove_fact(core, id, fid),
         ["api", "ws", id, "memory-changed"] if method == "POST" => workspace::memory_changed(core, id),
+
+        // projects (batch 4); `GET /api/ws/:id/export` answers bytes, see `Supervisor::export_workspace`.
+        ["api", "ws", id, "projects"] if method == "POST" => projects::create(core, id, &body),
+        ["api", "ws", id, "projects", pid] if method == "PATCH" => projects::update(core, id, pid, &body),
+        ["api", "ws", id, "projects", pid] if method == "DELETE" => projects::delete(core, id, pid),
+        ["api", "ws", id, "projects", pid, "archive"] if method == "POST" => projects::archive(core, id, pid),
+        ["api", "ws", id, "projects", pid, "restore"] if method == "POST" => projects::restore(core, id, pid),
+        ["api", "ws", id, "projects", pid, "agents"] if method == "GET" => projects::agents(core, id, pid),
+        ["api", "ws", id, "projects", pid, "agents"] if method == "PUT" => projects::write_agents(core, id, pid, &body),
+        ["api", "ws", id, "projects", pid, "layers"] if method == "GET" => projects::layers(core, id, pid),
+        ["api", "ws", id, "archived"] if method == "GET" => projects::archived(core, id),
 
         ["api", "ws", id, "policy", "refresh"] if method == "POST" => workspace::refresh_policy(core, id, &body),
         ["api", "ws", id, "audit"] if method == "GET" => workspace::audit(core, id, query),

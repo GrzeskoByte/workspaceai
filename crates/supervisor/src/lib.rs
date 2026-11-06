@@ -2,11 +2,16 @@
 //! `Supervisor::handle(method, path, query, body)` serves the same paths and JSON as the TS `routes.ts`.
 
 pub mod engine;
+pub mod export;
+pub mod files;
+pub mod formats;
 pub mod jsonfile;
 pub mod keychain;
 pub mod paths;
 pub mod policy;
+pub mod projects;
 pub mod providers;
+pub mod recall;
 mod router;
 pub mod runtime;
 pub mod secrets;

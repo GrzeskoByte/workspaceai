@@ -8,14 +8,18 @@ publish = false
 workspaceai-shared = { path = "../shared" }
 base64 = "0.22"
 ed25519-dalek = { version = "2", features = ["pkcs8", "pem"] }
+flate2 = "1"
 getrandom = "0.2"
 # Same backends @napi-rs/keyring uses, so entries the TS supervisor wrote are found (service "harness").
 keyring = { version = "3", features = ["sync-secret-service", "crypto-rust", "apple-native", "windows-native"] }
 libc = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
+tar = "0.4"
 ureq = "2"
 
 [dev-dependencies]
+flate2 = "1"
+tar = "0.4"
 tempfile = "3"
 tiny_http = "0.12"

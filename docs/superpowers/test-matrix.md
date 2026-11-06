@@ -34,7 +34,22 @@ Every TypeScript test gets a Rust counterpart, or is marked N/A with a reason. R
 | › org workspace offers only policy providers, locks changes, blocks org defaultModel | `security.rs::org_workspace_offers_only_policy_providers_and_locks_changes`, `secrets.rs::an_org_that_blocks_personal_keys_refuses_them_unless_marked_org`, `providers.rs::an_org_workspace_cannot_change_providers` | ported |
 | › a policy that fails verification blocks sending (R-36) | `security.rs::a_policy_that_fails_verification_blocks_sending_until_refreshed` | ported (`send_allowed` directly; chats route is B5) |
 | › writes custom providers to opencode.json with key references only | `providers.rs::a_custom_provider_is_saved_as_an_env_reference_and_can_be_tested`, `engine.rs::opencode_json_reports_the_path_the_builder_and_the_written_text` | ported |
-| › nests sub-projects / layers instructions / deletes a project subtree / exports without secrets | — | pending B4 |
+| › nests sub-projects to any depth | `projects.rs::nests_sub_projects_to_any_depth_and_refuses_a_move_inside_itself` | ported |
+| › layers instructions broad to narrow, inheritance off | `projects.rs::layers_go_broad_to_narrow_and_inheritance_can_be_turned_off` | ported |
+| › a chat is never stranded (project rules: General protected, archive/restore) | `projects.rs::the_general_project_cannot_be_archived_deleted_or_moved`, `archive_hides_the_subtree_and_its_chats_and_restore_brings_them_back` | ported (chat creation is B5) |
+| › deleting a project removes the whole sub-tree | `projects.rs::deleting_a_project_removes_the_whole_subtree_but_keeps_the_folders` | ported (no engine-side chat delete; chats' records go) |
+| › exports a workspace without secrets | `export.rs::exports_config_projects_and_memory_but_never_secrets`, `exporting_a_workspace_without_projects_still_works` | ported (+ credential-file/private-key hardening) |
+| › instructions persist and do not rewrite opencode.json | `projects.rs::instructions_persist_and_do_not_rewrite_opencode_json` | ported |
+| `supervisor/test/memory.test.ts` › facts per scope, approve/forget, nothing crosses workspaces | `workspace_api.rs::facts_lifecycle_and_delete_needs_confirm`, `core.rs::keeps_everything_per_workspace` | ported in B2 |
+| › the agent's memory MCP server (stdio) reads approved facts | — | N/A here: MCP servers are B9 |
+| `supervisor/test/recall.test.ts` › looks up the words that matter | `recall.rs::looks_up_the_words_that_matter` | ported (`queryTerms`; `rankNodes` is graph-only) |
+| › keeps the recall block out of the transcript | `recall.rs::keeps_the_recall_block_out_of_the_transcript` | ported |
+| › tells agents to use the tools their memory has | `shared/defaults.rs::memory_rule_*` | ported in B1 |
+| › lean-ctx config / signed-out detection | — | N/A: leanctx is B12, sign-in B11 |
+| `supervisor/test/files.test.ts` (6 cases: files/folders, folder completion, cap, gitignore, missing folder) | `files.rs::offers_files_and_folders_best_match_first_and_skips_dependencies`, `completes_inside_a_folder_already_typed_in_full_and_caps_the_results`, `a_folder_that_does_not_exist_returns_nothing`, `honours_gitignore_in_a_repository` | ported (git case skips with a printed reason without git) |
+| `supervisor/test/formats.test.ts` › picks Markdown or HTML / offers the exports | `formats.rs::picks_markdown_or_html_per_kind`, `offers_the_exports_each_format_can_give` | ported |
+| › Markdown tables / deck skeleton / Open Design page | — | deferred to B9: `markdownDeck`/`toHtml` need Open Design |
+| `supervisor/test/permissions.test.ts` (project rules) | — | N/A: no engine permission layer; terminal sessions ask in their TUI |
 | › chats are opencode sessions; a chat is never stranded | — | pending B5 |
 | › switching workspaces keeps the other running / managed server loopback+password | `engine.rs::two_workspaces_get_their_own_xdg_dirs_and_ports`, `the_server_password_lives_in_the_env_and_never_in_argv` | ported |
 | `supervisor/test/security.test.ts` › provider key lives in the OS keychain, per workspace, nowhere on disk | `keychain.rs::keychain_memory_round_trip_is_per_workspace`, `keychain_os_backend_round_trip_or_skip` | ported (keychain layer; provider route is B3) |

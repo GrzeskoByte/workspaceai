@@ -25,9 +25,17 @@ impl Supervisor {
         crate::router::dispatch(&mut core, method, path, query, body)
     }
 
-    /// For tests and the app: read something from the core without a route.
-    pub fn with_core<T>(&self, f: impl FnOnce(&Core) -> T) -> Result<T, ApiError> {
+    /// `GET /api/ws/:id/export`: the workspace as a `.tar.gz`. A file route, so it returns bytes rather
+    /// than JSON; the loopback server (B9) writes them with `content-type: application/gzip`.
+    pub fn export_workspace(&self, id: &str) -> Result<crate::export::Archive, ApiError> {
         let core = self.inner.lock().map_err(|_| ApiError::new(500, "Supervisor lock poisoned"))?;
+        let rt = core.rt(id)?;
+        let secrets: Vec<String> = core.keychain.list(id).iter().filter_map(|n| core.keychain.get(id, n)).collect();
+        crate::export::build(rt, &secrets)
+    }
+
+    /// For tests and the app: read something from the core without a route.
+    pub fn with_core<T>(&self, f: impl FnOnce(&Core) -> T) -> Result<T, ApiError> {        let core = self.inner.lock().map_err(|_| ApiError::new(500, "Supervisor lock poisoned"))?;
         Ok(f(&core))
     }
 
