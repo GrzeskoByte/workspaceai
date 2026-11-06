@@ -30,15 +30,21 @@ Build/run: `CARGO_PROFILE_DEV_DEBUG=0 cargo run -p workspaceai-app` (needs `libx
 - Onboarding (`crates/app/src/onboarding.rs` over `crates/client/src/onboarding.rs`): shown while `settings.onboarded` is false, same ten steps as the web app (Welcome, opencode detect/remote connect with Open Design install card, Subscriptions, Sessions scan with folder/session selection, Workspace, Model with provider test, Web search with test, Memory, first Project with AGENTS.md templates, Look with summary), `finish`, and "Skip setup · use demo data"
 - New workspace dialog (rail ＋): Team / Personal / Organization (join with SSO email + issuer); rail tiles tinted per kind (org purple, team cyan, personal accent) with a ring on the active one
 - General: default project and default model pickers, Delete workspace / Leave organization (two-step; the only personal workspace is protected); Data: Export downloads the .tar.gz to ~/Downloads (never overwrites)
+- Home (rail ⌂, `crates/app/src/flow.rs` over `client/src/home.rs`): greeting, composer with project picker and modes (Chat/Doc/Deck/Prototype/Research; Enter sends to a new chat in the picked project), suggestions, Needs you / Continue / Coming up
+- New artifact (rail ✦, `client/src/create.rs`): brief with output gallery and templates, questions, three directions (and "three more"), design system search, generate, critique (jury scores, Apply fixes), tweaks as new versions, export to Downloads, Remember direction and tone, Continue as code, Save to the library. HTML previews say "needs the web view"
+- Approvals (rail ✓, `!` while something waits; `client/src/approvals.rs`): requests across chats with Allow once / Always allow / Reject / Open chat
+- Library artifact actions: versions (view one, Restore), lint line, Export per format, Share (link copied), Delete (two-step)
+- Project page (click a project in the sidebar): Chats, Artifacts (rolled up from sub-projects), Instructions (inherit switch, project model picker with where it comes from, inherited layers, AGENTS.md editor, save)
+- Esc closes the New workspace dialog
 
 ## Next, in order
 1. (done)
 2. (done)
-3. Settings leftovers: Open Design install progress log and health check, lean-ctx panel, multi-line IME underline (marked text is not drawn in the text area), mouse caret in the text area is per line only (no wrapping: long lines scroll off, no soft wrap)
-4. (done) Remaining from it: the web-search config preview under the onboarding Web step (needs the `webConfigPreview` port), a keyboard-driven workspace switcher overlay like `design/Switcher.dc.html` (Ctrl+K palette already lists and switches workspaces; Ctrl+1..9 works), the New workspace "Start from" options of `NewWorkspace.dc.html` (the React app has none), and Esc to close the New workspace dialog
+3. Settings leftovers: Open Design install progress log and health check, lean-ctx panel, multi-line IME underline (marked text is not drawn in the text area), mouse caret in the text area is per line only (no soft wrap: shaping, hit-testing, Up/Down and height all assume one row per line, so wrapping is a rewrite of the multi-line path, not a tweak)
+4. (done) Remaining from it: the web-search config preview under the onboarding Web step (needs the `webConfigPreview` port), a keyboard-driven workspace switcher overlay like `design/Switcher.dc.html` (Ctrl+K palette already lists and switches workspaces; Ctrl+1..9 works), the New workspace "Start from" options of `NewWorkspace.dc.html` (the React app has none)
 5. (done)
-6. Home / Create (briefs, pipeline) views
-7. Approvals overview, artifact versions/export/share/delete, computer pairing, Project instructions (AGENTS.md editor, layers) and project model/inherit settings
+6. (done) Home / Create. Left: Home composer has no model/effort/web chips and no `@` file mentions; Loop mode needs the graph editor (not planned); Create has no Desktop/Mobile device toggle (needs the web view)
+7. (done) Approvals, artifact versions/export/share/delete, Project instructions and model/inherit. Left: artifact "Move to project" and "Ask for a change" box, Project tabs Graphs/Map/Vaults, Archive/Delete on the Project page (Settings › Projects has them)
 8. Artifacts: Open Design embedded web view (X11 shim from the spike; see `spike-webview.md` open items), artifact panel/fullscreen, browser panel
 9. Port the TypeScript supervisor/orchestrator/memory-mcp to Rust crates; remove `apps/ui`, `apps/desktop`, TS packages
 10. Packaging (Linux, macOS), CI

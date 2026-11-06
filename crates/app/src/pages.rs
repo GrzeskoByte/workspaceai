@@ -151,13 +151,13 @@ impl AppView {
         Some((self.api.clone()?, self.model.active_ws.clone()?))
     }
 
-    fn call(&mut self, method: &'static str, path: String, body: Option<serde_json::Value>, kind: &'static str, then: Option<(&'static str, String)>) {
+    pub(crate) fn call(&mut self, method: &'static str, path: String, body: Option<serde_json::Value>, kind: &'static str, then: Option<(&'static str, String)>) {
         if let Some((api, ws)) = self.ws_api() {
             call(api, ws, method, path, body, kind, then, self.tx.clone());
         }
     }
 
-    fn get_into(&mut self, kind: &'static str, path: String) {
+    pub(crate) fn get_into(&mut self, kind: &'static str, path: String) {
         if let Some((api, ws)) = self.ws_api() {
             let tx = self.tx.clone();
             crate::spawn(move || match api.get(&path) {
@@ -213,6 +213,9 @@ impl AppView {
     }
 
     pub fn fetched(&mut self, kind: &'static str, v: serde_json::Value) {
+        if kind.starts_with("flow-") {
+            return self.flow_fetched(kind, v);
+        }
         let x = &mut self.extra;
         match kind {
             "web-preview" => x.web_preview = v["text"].as_str().unwrap_or("").to_string(),

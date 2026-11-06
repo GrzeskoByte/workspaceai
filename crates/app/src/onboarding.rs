@@ -99,7 +99,7 @@ pub struct Onb {
     proj_folder: Entity<TextInput>,
     agents: Entity<TextInput>,
     // New workspace dialog
-    nw_kind: Option<&'static str>,
+    pub(crate) nw_kind: Option<&'static str>,
     nw_busy: bool,
     nw_name: Entity<TextInput>,
     nw_email: Entity<TextInput>,
@@ -228,20 +228,20 @@ fn h1(t: &str) -> Div {
 fn lead(t: impl Into<SharedString>) -> Div {
     div().text_color(rgb(TEXT2)).child(t.into())
 }
-fn small(t: impl Into<SharedString>) -> Div {
+pub(crate) fn small(t: impl Into<SharedString>) -> Div {
     div().text_sm().text_color(rgb(MUTED)).child(t.into())
 }
-fn labeled(label: &str, input: &Entity<TextInput>) -> Div {
+pub(crate) fn labeled(label: &str, input: &Entity<TextInput>) -> Div {
     div().flex().flex_col().gap_1().flex_1().child(small(label.to_string())).child(div().px_2().py_1().rounded_md().bg(rgb(BG)).child(input.clone()))
 }
-fn panel() -> Div {
+pub(crate) fn panel() -> Div {
     div().flex().flex_col().gap_3().p_4().rounded_lg().bg(rgb(PANEL))
 }
 fn step_col() -> Div {
     div().flex().flex_col().gap_3()
 }
 
-fn opt(cx: &mut Context<AppView>, id: String, title: &str, note: &str, on: bool, enabled: bool, f: impl Fn(&mut AppView) + 'static) -> AnyElement {
+pub(crate) fn opt(cx: &mut Context<AppView>, id: String, title: &str, note: &str, on: bool, enabled: bool, f: impl Fn(&mut AppView) + 'static) -> AnyElement {
     let d = div()
         .id(SharedString::from(id))
         .flex()
@@ -267,7 +267,7 @@ fn opt(cx: &mut Context<AppView>, id: String, title: &str, note: &str, on: bool,
     }
 }
 
-fn btn(cx: &mut Context<AppView>, id: &str, label: &str, bg: u32, enabled: bool, f: impl Fn(&mut AppView, &mut Context<AppView>) + 'static) -> AnyElement {
+pub(crate) fn btn(cx: &mut Context<AppView>, id: &str, label: &str, bg: u32, enabled: bool, f: impl Fn(&mut AppView, &mut Context<AppView>) + 'static) -> AnyElement {
     let b = ui::button(id.to_string(), label.to_string(), bg);
     if enabled {
         b.on_click(cx.listener(move |this, _, _, cx| {

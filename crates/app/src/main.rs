@@ -2,6 +2,7 @@
 //! The window renders `workspaceai_client::model::Model`; background threads talk to the supervisor and report
 //! back through one channel that the window drains on a timer.
 
+mod flow;
 mod md_view;
 mod onboarding;
 mod pages;
@@ -190,9 +191,9 @@ fn mutate(api: Api, ws: String, method: &'static str, path: String, body: Option
     });
 }
 
-fn load_artifact(api: Api, ws: String, artifact: String, tx: Sender<Msg>) {
+fn load_artifact(api: Api, ws: String, artifact: String, version: Option<u32>, tx: Sender<Msg>) {
     spawn(move || {
-        let r = api.get(&library::content_path(&ws, &artifact, None)).map_err(|e| e.to_string()).and_then(|v| library::parse_view(&v).ok_or_else(|| "The artifact has no content.".to_string()));
+        let r = api.get(&library::content_path(&ws, &artifact, version)).map_err(|e| e.to_string()).and_then(|v| library::parse_view(&v).ok_or_else(|| "The artifact has no content.".to_string()));
         let _ = tx.send(Msg::ArtifactView(artifact, r));
     });
 }
@@ -409,6 +410,10 @@ actions!(app, [OpenPalette, ClosePalette, PaletteUp, PaletteDown]);
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum View {
     Chat,
+    Home,
+    Create,
+    Approvals,
+    Project,
     Settings,
     Library,
 }
@@ -441,6 +446,7 @@ struct AppView {
     routine_phrase: Entity<TextInput>,
     routine_prompt: Entity<TextInput>,
     extra: pages::Extra,
+    flow: flow::Flow,
     onb: onboarding::Onb,
     model: Model,
     rx: Receiver<Msg>,
@@ -565,8 +571,16 @@ impl AppView {
         })
         .detach();
         let extra = pages::Extra::new(cx);
+        let flow = flow::Flow::new(cx);
+        cx.subscribe_in(&flow.home_input, window, |this, _, event: &TextInputEvent, _window, cx| {
+            if *event == TextInputEvent::Submit {
+                this.send_home(cx);
+                cx.notify();
+            }
+        })
+        .detach();
         let onb = onboarding::Onb::new(cx);
-        AppView { extra, onb, palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, library_search, library_sel: None, library_view: None, secret_input, secret_names: Vec::new(), subs: Vec::new(), signin: None, signin_code, mcp_name, mcp_target, pairing: None, provider_form: None, provider_check: String::new(), project_input, show_archived: false, move_open: false, show_archived_chats: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
+        AppView { extra, flow, onb, palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, library_search, library_sel: None, library_view: None, secret_input, secret_names: Vec::new(), subs: Vec::new(), signin: None, signin_code, mcp_name, mcp_target, pairing: None, provider_form: None, provider_check: String::new(), project_input, show_archived: false, move_open: false, show_archived_chats: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -597,6 +611,7 @@ impl AppView {
             self.onb_enter(cx);
             self.onb_poll();
         }
+        self.flow_pump(cx);
         if changed {
             self.scroll.scroll_to_bottom();
             cx.notify();
@@ -724,6 +739,7 @@ impl AppView {
                 if self.model.active_ws.as_deref() == Some(&ws) {
                     let id = chat.id.clone();
                     self.model.snapshot.chats.push(chat);
+                    self.view = View::Chat;
                     self.open_chat(id);
                     self.model.needs.snapshot = true;
                 }
@@ -905,6 +921,10 @@ impl AppView {
     }
 
     fn close_palette(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.palette_open && self.onb.nw_kind.is_some() {
+            self.onb.nw_kind = None;
+            cx.notify();
+        }
         if self.palette_open {
             self.palette_open = false;
             window.focus(&self.input.focus_handle(cx), cx);
@@ -1130,7 +1150,10 @@ impl Render for AppView {
                 let indent = px(10. * row.depth as f32);
                 let base = div().id(SharedString::from(format!("row-{}", row.id))).flex().items_center().gap_2().pl(indent).py_1().px_2().rounded_md().text_sm();
                 match row.kind {
-                    RowKind::Project => base.text_color(rgb(MUTED)).font_weight(FontWeight::BOLD).child(SharedString::from(row.title)),
+                    RowKind::Project => base.text_color(rgb(MUTED)).font_weight(FontWeight::BOLD).cursor_pointer().hover(|s| s.bg(rgb(USER_BUBBLE))).child(SharedString::from(row.title)).on_click(cx.listener(move |this, _, _, cx| {
+                        this.open_project(id.clone());
+                        cx.notify();
+                    })),
                     RowKind::Chat => base
                         .cursor_pointer()
                         .bg(rgb(if open { USER_BUBBLE } else { PANEL }))
@@ -2053,8 +2076,7 @@ impl Render for AppView {
         let now = chrono::Utc::now();
         let query = self.library_search.read(cx).content().to_string();
         let lib_rows = library::rows(&m.snapshot.artifacts, &m.snapshot.projects, &query);
-        let ws_for_lib = m.active_ws.clone().unwrap_or_default();
-        let library_list = div()
+                let library_list = div()
             .flex()
             .flex_col()
             .w(px(340.))
@@ -2063,7 +2085,7 @@ impl Render for AppView {
             .child(div().m_2().px_3().py_2().rounded_md().bg(rgb(BG)).child(self.library_search.clone()))
             .child(div().id("library-scroll").flex_1().min_h_0().overflow_y_scroll().px_2().children(lib_rows.iter().map(|r| {
                 let on = self.library_sel.as_deref() == Some(&r.id);
-                let (id, ws) = (r.id.clone(), ws_for_lib.clone());
+                let id = r.id.clone();
                 div()
                     .id(SharedString::from(format!("art-{}", r.id)))
                     .flex()
@@ -2077,20 +2099,17 @@ impl Render for AppView {
                     .child(div().child(SharedString::from(if r.title.is_empty() { "Untitled".to_string() } else { r.title.clone() })))
                     .child(div().text_sm().text_color(rgb(MUTED)).child(SharedString::from(format!("{} · {} · {} version{} · {}", r.kind, r.project, r.versions, if r.versions == 1 { "" } else { "s" }, library::updated_text(r.updated_at, &tz, now)))))
                     .on_click(cx.listener(move |this, _, _, cx| {
-                        this.library_sel = Some(id.clone());
-                        this.library_view = None;
-                        if let Some(api) = this.api.clone() {
-                            load_artifact(api, ws.clone(), id.clone(), this.tx.clone());
-                        }
+                        this.select_artifact(id.clone());
                         cx.notify();
                     }))
+
             })))
             .when(lib_rows.is_empty(), |d| d.child(div().p_4().text_color(rgb(MUTED)).child("No artifacts yet. Ask an agent to make a doc, deck or sheet.")));
         let selected_art = self.library_sel.as_ref().and_then(|id| m.snapshot.artifacts.iter().find(|a| &a.id == id));
         let library_main = div().id("library-view").flex_1().min_w_0().h_full().overflow_y_scroll().p(px(28.)).flex().flex_col().gap_3().child(match (selected_art, &self.library_view) {
             (None, _) => div().text_color(rgb(MUTED)).child("Pick an artifact on the left.").into_any_element(),
             (Some(a), None) => div().child(SharedString::from(format!("Opening {}…", a.title))).into_any_element(),
-            (Some(a), Some(Err(e))) => div().flex().flex_col().gap_2().child(ui::page_title(&a.title, "")).child(div().text_color(rgb(0xff6b6b)).child(SharedString::from(e.clone()))).into_any_element(),
+            (Some(a), Some(Err(e))) => div().flex().flex_col().gap_2().child(ui::page_title(&a.title, "")).child(div().text_color(rgb(0xff6b6b)).child(SharedString::from(e.clone()))).child(self.library_extras(a, cx)).into_any_element(),
             (Some(a), Some(Ok(v))) => div()
                 .flex()
                 .flex_col()
@@ -2102,6 +2121,7 @@ impl Render for AppView {
                     Body::Text(t) => div().font_family("monospace").text_size(px(13.)).p_3().rounded_md().bg(rgb(PANEL)).child(SharedString::from(t)).into_any_element(),
                     Body::Unsupported(why) => div().p_4().rounded_lg().bg(rgb(PANEL)).text_color(rgb(MUTED)).child(SharedString::from(why)).into_any_element(),
                 })
+                .child(self.library_extras(a, cx))
                 .into_any_element(),
         });
 
@@ -2138,7 +2158,16 @@ impl Render for AppView {
                     cx.notify();
                 })),
         );
-        let rail = rail.child(lib_button);
+        let rail_btn = |id: &'static str, glyph: &'static str, on: bool| div().id(id).flex().items_center().justify_center().size(px(40.)).rounded_lg().cursor_pointer().bg(rgb(if on { ACCENT } else { PANEL })).child(glyph);
+        let pending = self.approvals_count();
+        let rail = rail
+            .child(rail_btn("home-btn", "⌂", self.view == View::Home).on_click(cx.listener(|this, _, _, cx| this.open_home(cx))))
+            .child(rail_btn("create-btn", "✦", self.view == View::Create).on_click(cx.listener(|this, _, _, cx| this.open_create(cx))))
+            .child(rail_btn("approvals-btn", if pending > 0 { "!" } else { "✓" }, self.view == View::Approvals).on_click(cx.listener(|this, _, _, cx| {
+                this.open_approvals();
+                cx.notify();
+            })))
+            .child(lib_button);
         let gear_on = self.view == View::Settings;
         let rail = rail.child(
             div()
@@ -2165,6 +2194,10 @@ impl Render for AppView {
             View::Settings => (settings_nav.into_any_element(), settings_main.into_any_element()),
             View::Library => (library_list.into_any_element(), library_main.into_any_element()),
             View::Chat => (sidebar.into_any_element(), main.into_any_element()),
+            View::Home => (sidebar.into_any_element(), self.home_view(cx).into_any_element()),
+            View::Create => (self.create_nav(cx).into_any_element(), self.create_view(cx).into_any_element()),
+            View::Approvals => (sidebar.into_any_element(), self.approvals_view(cx).into_any_element()),
+            View::Project => (sidebar.into_any_element(), self.project_view(cx).into_any_element()),
         };
 
         let overlay = self.palette_open.then(|| {
