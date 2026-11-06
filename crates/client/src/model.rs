@@ -159,6 +159,20 @@ impl Model {
         out
     }
 
+    /// Archived chats of non-archived projects, newest first: (id, title).
+    pub fn archived_chats(&self) -> Vec<(String, String)> {
+        let live = |id: &str| self.snapshot.projects.iter().any(|p| p.id == id && !p.archived);
+        let mut v: Vec<&Chat> = self.snapshot.chats.iter().filter(|c| c.archived && live(&c.project)).collect();
+        v.sort_by_key(|c| std::cmp::Reverse(c.updated_at));
+        v.into_iter().map(|c| (c.id.clone(), c.title.clone())).collect()
+    }
+
+    /// Ctrl/Cmd+1..9 → the Nth workspace's id (`None` for other keys or no such workspace).
+    pub fn workspace_for_shortcut(&self, key: &str) -> Option<&str> {
+        let n = key.parse::<usize>().ok().filter(|n| (1..=9).contains(n))?;
+        self.workspaces.get(n - 1).map(|w| w.id.as_str())
+    }
+
     fn push_project(&self, p: &Project, depth: usize, out: &mut Vec<SidebarRow>) {
         out.push(SidebarRow { kind: RowKind::Project, id: p.id.clone(), title: p.name.clone(), depth, working: false });
         let mut chats: Vec<&Chat> = self.snapshot.chats.iter().filter(|c| c.project == p.id && !c.archived).collect();

@@ -187,3 +187,22 @@ fn working_reflects_chat_activity_of_the_open_chat() {
     m.apply(delta("w1", "c1", "a1", "x"));
     assert!(m.open_chat_working());
 }
+
+#[test]
+fn archived_chats_list_newest_first_skipping_archived_projects() {
+    let mut m = Model::default();
+    m.snapshot.projects = vec![project("p1", "A", None, false, true), project("p2", "B", None, true, false)];
+    m.snapshot.chats = vec![chat("c1", "p1", "old", 1, true), chat("c2", "p1", "new", 2, true), chat("c3", "p1", "live", 3, false), chat("c4", "p2", "gone", 4, true)];
+    let ids: Vec<_> = m.archived_chats().into_iter().map(|c| c.0).collect();
+    assert_eq!(ids, vec!["c2", "c1"]);
+}
+
+#[test]
+fn ctrl_number_picks_the_nth_workspace() {
+    let mut m = Model::default();
+    m.workspaces = ["a", "b"].iter().map(|id| serde_json::from_value(serde_json::json!({"id": id, "name": id})).unwrap()).collect();
+    assert_eq!(m.workspace_for_shortcut("2"), Some("b"));
+    assert_eq!(m.workspace_for_shortcut("3"), None);
+    assert_eq!(m.workspace_for_shortcut("0"), None);
+    assert_eq!(m.workspace_for_shortcut("k"), None);
+}

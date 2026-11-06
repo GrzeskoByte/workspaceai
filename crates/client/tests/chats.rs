@@ -48,3 +48,9 @@ fn only_one_change_per_chat_is_in_flight() {
     f.finish_all();
     assert!(f.begin("c2"));
 }
+
+#[test]
+fn move_request_targets_the_chat_and_names_the_project() {
+    assert_eq!(move_path("w1", "c1"), "/api/ws/w1/chats/c1/move");
+    assert_eq!(move_body("p2"), json!({"project": "p2"}));
+}

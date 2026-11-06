@@ -14,6 +14,15 @@ pub fn archive_body(archived: bool) -> Value {
     json!({ "archived": archived })
 }
 
+/// `POST` target and body for moving a chat (with its artifacts) to another project.
+pub fn move_path(workspace: &str, chat: &str) -> String {
+    format!("/api/ws/{}/chats/{}/move", crate::api::seg(workspace), crate::api::seg(chat))
+}
+
+pub fn move_body(project: &str) -> Value {
+    json!({ "project": project })
+}
+
 /// Full permissions ("YOLO"): tool calls run without asking in this chat only.
 pub fn full_access_body(on: bool) -> Value {
     json!({ "yolo": on })
