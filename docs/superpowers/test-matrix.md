@@ -20,7 +20,12 @@ Every TypeScript test gets a Rust counterpart, or is marked N/A with a reason. R
 | › maps each harness command | `command_action_maps_each_harness_command_to_the_agents_equivalent` | ported |
 | › lists harness commands first | `chat_commands_list_harness_first_then_uncovered_agent_commands` | ported |
 | › parses a command and its arguments | `parse_slash_splits_command_and_arguments` | ported |
-| `shared/test/sheet.test.ts` | — | pending (needs `markdown`/sheet module port) |
+| `shared/test/sheet.test.ts` › reads plan usage into meters and ranked tips | `sheet.rs::reads_plan_usage_into_meters_and_ranked_tips` | ported |
+| › reads the context window and its categories | `reads_the_context_window_and_its_categories` | ported |
+| `shared/test/markdown.test.ts` (lists ×5, links ×3, gitlabMarkdown ×2) | `markdown.rs::lists_*`, `links_*`, `gitlab_markdown_*` | ported |
+| `shared/test/claude-design-system.test.ts` (×6) | `claude_design_system.rs::*` (same names) | ported |
+| `shared/test/scroll.test.ts` (×4) | `util.rs::follows_bottom_*` | ported |
+| `shared/test/session-reads.test.ts` | — | N/A: `readsFromTools` reads chat tool rows; sessions are terminals now |
 | `orchestrator/test/bpmn.test.ts` | — | N/A: BPMN deferred (design doc, Non-goals) |
 | `supervisor/test/graphfiles.test.ts`, `graphify.test.ts`, `graphrun.test.ts`, `maps.test.ts` | — | N/A: graph backends not ported in v1 |
 | other `supervisor/test/*`, `orchestrator/test/rules.test.ts` | — | pending (later plans) |

@@ -1,0 +1,44 @@
+{
+  "id": "ws_demo1",
+  "name": "Demo workspace",
+  "kind": "personal",
+  "initials": "DW",
+  "slug": "demo-workspace",
+  "accent": "blue",
+  "createdAt": 1793704989294,
+  "instructions": "Answer in English. Ask before deleting anything.",
+  "defaultModel": "opencode/big-pickle",
+  "defaultProject": "general_ws_demo1",
+  "memory": "both",
+  "graphifyFolders": ["~/notes"],
+  "graphifyWatch": true,
+  "suggestMemories": true,
+  "designSystem": "Claude Warm Editorial",
+  "openDesign": { "engine": "open-design", "agentTools": true, "lint": true, "autoStart": true },
+  "engine": { "mode": "managed", "url": "http://127.0.0.1:4096", "username": "opencode", "sync": true, "version": "system", "binary": "opencode", "idleStopMinutes": 30 },
+  "web": { "mode": "exa", "provider": "Tavily", "searxngUrl": "http://localhost:8888", "fetch": true, "ask": false, "showSources": true, "locked": false },
+  "agents": [
+    { "id": "opencode", "name": "opencode", "via": "opencode serve", "on": true, "builtin": true, "subscription": "opencode" },
+    { "id": "claude", "name": "Claude Code", "via": "ACP adapter · Claude subscription", "command": "npx -y @zed-industries/claude-code-acp", "on": true, "subscription": "claude" },
+    { "id": "pi", "name": "Pi", "via": "ACP adapter", "command": "npx -y pi-acp@0.0.34", "on": false }
+  ],
+  "defaultAgent": "opencode",
+  "acpAskFirst": true,
+  "providers": [
+    { "id": "ollama", "name": "Ollama", "note": "local", "preset": "ollama", "npm": "@ai-sdk/openai-compatible", "baseURL": "http://localhost:11434/v1", "models": [{ "id": "qwen3-coder", "name": "Qwen", "context": 32000, "output": 4096 }, { "id": "llama3.3" }] }
+  ],
+  "mcp": [
+    { "id": "playwright", "name": "Playwright (browser)", "kind": "MCP · stdio", "type": "local", "command": ["npx", "-y", "@playwright/mcp@0.0.83"], "on": false, "builtin": "playwright" },
+    { "id": "kc", "name": "Remote", "kind": "MCP · http", "type": "remote", "url": "https://example.test/mcp", "env": { "TOKEN": "kc-token" }, "on": true, "futureField": { "x": [1, 2, null] } }
+  ],
+  "members": [{ "name": "You", "role": "Admin" }, { "name": "Ana", "email": "ana@example.test", "role": "Viewer" }],
+  "skills": [{ "id": "sk1", "name": "frontend-design", "note": "built-in", "on": true }],
+  "visibility": "Private",
+  "publicLinks": true,
+  "keepChats": "Forever",
+  "routineAskFirst": true,
+  "routineIfAsleep": "Run when it wakes",
+  "vaults": [{ "id": "v1", "name": "Notes", "path": "/home/me/Notes" }],
+  "leanCtx": { "enabled": true },
+  "someFutureSetting": "kept"
+}

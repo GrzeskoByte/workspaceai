@@ -1,0 +1,34 @@
+{
+  "projects": [
+    { "id": "general_ws_demo1", "name": "General", "parent": null, "folder": "/home/me/.harness/ws/ws_demo1/general", "inherit": true, "model": "", "archived": false, "isGeneral": true, "createdAt": 0 },
+    { "id": "proj_1", "name": "Web", "parent": null, "folder": "/home/me/web", "inherit": true, "model": "opencode/big-pickle", "archived": false, "createdAt": 1793704989303, "devCommand": "npm run dev", "vaults": [{ "vaultId": "v1", "folder": "docs" }] },
+    { "id": "proj_2", "name": "Api", "parent": "proj_1", "folder": "/home/me/web/api", "inherit": false, "model": "", "archived": true, "createdAt": 1793704989400, "note": "unknown field" }
+  ],
+  "chats": [
+    { "id": "chat_1", "project": "proj_1", "title": "Imported chat", "sid": "ses_abc123", "agent": "opencode", "model": "opencode/deepseek-v4.1-flash-free", "web": null, "instructions": "", "imported": true, "archived": false, "createdAt": 1793617750355, "updatedAt": 1793705028768 },
+    { "id": "chat_2", "project": "proj_1", "title": "ACP chat", "sid": "acp:claude:xyz", "agent": "claude", "model": "default", "effort": "high", "web": true, "instructions": "be brief", "imported": false, "archived": false, "yolo": true, "createdAt": 1793617750355, "updatedAt": 1793705028768, "graphNotes": ["note"],
+      "transcript": [
+        { "id": "m1", "role": "user", "text": "hello", "createdAt": 1793617750400 },
+        { "id": "m2", "role": "assistant", "text": "hi", "createdAt": 1793617750500, "model": "x", "artifact": null, "sources": [{ "title": "T", "url": "https://example.test" }],
+          "tools": [{ "name": "Read", "status": "ok", "detail": "a.ts", "input": "{}", "output": "..." }, { "name": "Bash", "status": "error" }] },
+        { "id": "m3", "role": "assistant", "text": "made one", "createdAt": 1793617750600, "artifact": "art_1", "signIn": "claude", "run": "run_1" }
+      ] }
+  ],
+  "artifacts": [
+    { "id": "art_1", "project": "proj_1", "chat": null, "originSession": null, "type": "Doc", "title": "Plan", "version": 2, "designSystem": "Claude Warm Editorial", "createdAt": 1793617750600, "updatedAt": 1793617750700,
+      "versions": [
+        { "v": 1, "at": 1793617750600, "chat": "chat_2", "note": "first", "file": "art_1/v1.md", "format": "markdown", "od": null },
+        { "v": 2, "at": 1793617750700, "chat": null, "note": "", "file": "art_1/v2.html", "format": "html", "od": { "project": "odp", "file": "plan.html", "lint": [{ "severity": "warn", "rule": "r1", "message": "m", "extra": 1 }] } }
+      ] }
+  ],
+  "routines": [
+    { "id": "r1", "name": "Daily", "phrase": "every day at 9", "trigger": { "kind": "schedule", "cron": "0 9 * * *", "tz": "Europe/Madrid" }, "what": { "kind": "prompt", "prompt": "summarise" }, "project": "proj_1", "runsOn": "cloud", "approval": "ask", "preApproved": [], "ifAsleep": "Skip", "notify": ["push"], "paused": false, "runs": [{ "id": "run1", "at": 1793617750800, "status": "ok", "note": "done", "chat": "chat_1" }], "createdAt": 1793617750000, "lastFired": 1793617750800, "hookKey": "abc" },
+    { "id": "r2", "name": "On push", "phrase": "when I push", "trigger": { "kind": "event", "event": "push", "detail": "main" }, "what": { "kind": "artifact", "artifact": "art_1" }, "project": "proj_1", "runsOn": "computer", "computer": "c1", "approval": "pre-approved", "preApproved": ["bash"], "ifAsleep": "Wake it", "notify": [], "paused": true, "runs": [], "createdAt": 1793617750001 }
+  ],
+  "graphs": [{ "id": "g1", "name": "Flow", "project": "proj_1", "file": "flow.bpmn", "updatedAt": 1793617750900 }],
+  "skippedSessions": ["ses_skipped"],
+  "odProjects": { "proj_1": "odp" },
+  "engineModels": [{ "id": "big-pickle", "providerID": "opencode", "name": "Big Pickle", "efforts": ["low", "high"] }],
+  "agentModels": { "claude": { "models": [{ "id": "default", "name": "Default" }], "current": "default" } },
+  "agentCommands": { "claude": [{ "name": "/model", "description": "pick" }] }
+}

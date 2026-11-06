@@ -8,6 +8,9 @@ publish = false
 chrono = "0.4"
 chrono-tz = "0.10"
 croner = "2"
+flate2 = "1"
 iana-time-zone = "0.1"
 regex = "1"
 serde = { version = "1", features = ["derive"] }
+# preserve_order: JSON objects keep insertion order like JS, so written files and previews read the same.
+serde_json = { version = "1", features = ["preserve_order"] }

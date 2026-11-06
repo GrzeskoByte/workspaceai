@@ -49,7 +49,9 @@ Build/run: `CARGO_PROFILE_DEV_DEBUG=0 cargo run -p workspaceai-app` (needs `libx
 6. (done) Home / Create. Left: Home composer has no model/effort/web chips and no `@` file mentions; Loop mode needs the graph editor (not planned); Desktop/Mobile toggle done in batch 8
 7. (done) Approvals, artifact versions/export/share/delete, Project instructions and model/inherit. Left: artifact "Move to project" and "Ask for a change" box, Project tabs Graphs/Map/Vaults, Archive/Delete on the Project page (Settings › Projects has them)
 8. (done) Embedded web view, artifact panel/fullscreen, browser panel. Left: the panel's "Ask for a change" box and "Move to project" (see 7); the browser panel has no "can't be shown here" check (not needed: pages load top-level in a real web view, not in a frame); back/forward are never greyed out (they drive the page's own history); Wayland (see below)
-9. Port the TypeScript supervisor/orchestrator/memory-mcp to Rust crates; remove `apps/ui`, `apps/desktop`, TS packages
+9. Port the TypeScript supervisor to Rust crates (plan `plans/2026-11-06-rust-backend-terminal-sessions.md`); remove `apps/ui`, `apps/desktop`, TS packages
+   - B1 (done): `crates/shared` has `types` (serde, camelCase, unknown fields kept; hand-made fixtures of `state.json`/`harness.json`/`app.json` round-trip, and so do the live `~/.harness` files when `WORKSPACEAI_LIVE_HARNESS` points at it), `util`, `defaults`, `facts`, `opencode_config`, `claude_design_system`, `markdown`, `sheet`. Not ported: graph/map/Graphify types and `UiEvent` (non-goals / redefined in B8), `messages.ts` (N/A), `bpmnPreview.ts`, `mindmap.ts`. `serde_json` has `preserve_order` workspace-wide so written JSON keeps JS key order
+   - B2..B15: pending
 10. Packaging (Linux, macOS), CI
 
 ## Not planned (see design doc)

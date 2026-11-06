@@ -1,7 +1,10 @@
+pub mod claude_design_system;
 pub mod commands;
+pub mod defaults;
+pub mod facts;
+pub mod markdown;
+pub mod opencode_config;
 pub mod schedule;
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn crate_builds() {}
-}
+pub mod sheet;
+pub mod types;
+pub mod util;
