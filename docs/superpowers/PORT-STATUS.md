@@ -23,11 +23,14 @@ Build/run: `CARGO_PROFILE_DEV_DEBUG=0 cargo run -p workspaceai-app` (needs `libx
 - Command palette (Ctrl+K / Cmd+K): actions, workspaces, chats, settings pages; Up/Down/Enter/Esc
 - Chat actions: rename, fork, archive, delete (two-step), full-access toggle, move to another project, Copy per message, archived chats list in the sidebar with Restore
 - Ctrl/Cmd+1..9 switches workspace (same as the web app)
+- Settings, remaining pages (`crates/app/src/pages.rs` over `crates/client/src/workspace.rs`): Web search (mode, provider, SearXNG URL, switches, check, config preview), Workspaces/members (roles, invite; personal shows "Only you"), Vaults, Skills, Artifacts & sharing, Open Design (status, install/update, daemon, logs, engine, switches, resync, design-system picker), Data (keep chats, archived projects restore/delete), Audit (filter, load all), Appearance (saved to app settings; the native window has one look), Engine (connection mode, remote server form, logs, version pin, sync)
+- Providers: edit an existing custom provider (name, URL, models, optional new key); free-form secrets (name + masked value, list, remove)
+- General: multi-line workspace instructions editor (`TextInput::new_multiline`: Enter = new line, Up/Down/Home/End per line), accent chips
 
 ## Next, in order
 1. (done)
 2. (done)
-3. Settings pages left: workspaces/members, web search, secrets (free-form names), editing an existing custom provider, engine logs/mode/version, Open Design panel, artifacts, data, audit, appearance, vaults, skills, multi-line instructions editor
+3. Settings leftovers: workspace export download (needs a binary GET), delete/leave workspace, default project/model pickers, New team/org workspace and SSO join (see 4), Open Design install progress log and health check, lean-ctx panel, multi-line IME underline (marked text is not drawn in the text area), mouse caret in the text area is per line only (no wrapping: long lines scroll off, no soft wrap)
 4. Onboarding (detect opencode, scan, test remote/provider, templates, finish) and New workspace / join org
 5. (done)
 6. Home / Create (briefs, pipeline) views

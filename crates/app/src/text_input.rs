@@ -31,8 +31,13 @@ actions!(
         Cut,
         Copy,
         Enter,
+        Up,
+        Down,
     ]
 );
+
+/// Shortest text area, in lines.
+const MIN_LINES: usize = 6;
 
 pub struct TextInput {
     focus_handle: FocusHandle,
@@ -40,11 +45,16 @@ pub struct TextInput {
     placeholder: SharedString,
     /// Draw bullets instead of the text, and refuse to copy or cut it (API keys).
     masked: bool,
+    /// Enter inserts a line break; the field grows with its text and Up/Down move between lines.
+    multiline: bool,
     selected_range: Range<usize>,
     selection_reversed: bool,
     marked_range: Option<Range<usize>>,
     last_layout: Option<ShapedLine>,
+    /// Multi-line only: (byte offset where the line starts, shaped line).
+    last_lines: Vec<(usize, ShapedLine)>,
     last_bounds: Option<Bounds<Pixels>>,
+    line_height: Pixels,
     is_selecting: bool,
 }
 
@@ -78,12 +88,26 @@ impl TextInput {
         self.select_to(self.content.len(), window, cx)
     }
 
+    fn up(&mut self, _: &Up, window: &mut Window, cx: &mut Context<Self>) {
+        if self.multiline {
+            self.move_to(lines::vertical(&self.content, self.cursor_offset(), false), window, cx);
+        }
+    }
+
+    fn down(&mut self, _: &Down, window: &mut Window, cx: &mut Context<Self>) {
+        if self.multiline {
+            self.move_to(lines::vertical(&self.content, self.cursor_offset(), true), window, cx);
+        }
+    }
+
     fn home(&mut self, _: &Home, window: &mut Window, cx: &mut Context<Self>) {
-        self.move_to(0, window, cx);
+        let to = if self.multiline { lines::start(&self.content, self.cursor_offset()) } else { 0 };
+        self.move_to(to, window, cx);
     }
 
     fn end(&mut self, _: &End, window: &mut Window, cx: &mut Context<Self>) {
-        self.move_to(self.content.len(), window, cx);
+        let to = if self.multiline { lines::end(&self.content, self.cursor_offset()) } else { self.content.len() };
+        self.move_to(to, window, cx);
     }
 
     fn backspace(&mut self, _: &Backspace, window: &mut Window, cx: &mut Context<Self>) {
@@ -152,7 +176,8 @@ impl TextInput {
 
     fn paste(&mut self, _: &Paste, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
-            self.replace_text_in_range(None, &text.replace("\n", " "), window, cx);
+            let text = if self.multiline { text } else { text.replace("\n", " ") };
+            self.replace_text_in_range(None, &text, window, cx);
         }
     }
 
@@ -191,6 +216,14 @@ impl TextInput {
     fn index_for_mouse_position(&self, position: Point<Pixels>) -> usize {
         if self.content.is_empty() {
             return 0;
+        }
+        if self.multiline {
+            let (Some(bounds), false) = (self.last_bounds.as_ref(), self.last_lines.is_empty()) else {
+                return 0;
+            };
+            let row = (((position.y - bounds.top()) / self.line_height).floor().max(0.) as usize).min(self.last_lines.len() - 1);
+            let (start, line) = &self.last_lines[row];
+            return start + line.closest_index_for_x(position.x - bounds.left());
         }
 
         let (Some(bounds), Some(line)) = (self.last_bounds.as_ref(), self.last_layout.as_ref())
@@ -472,6 +505,8 @@ struct TextElement {
 
 struct PrepaintState {
     line: Option<ShapedLine>,
+    lines: Vec<(usize, ShapedLine)>,
+    extra: Vec<PaintQuad>,
     cursor: Option<PaintQuad>,
     selection: Option<PaintQuad>,
 }
@@ -505,7 +540,8 @@ impl Element for TextElement {
     ) -> (LayoutId, Self::RequestLayoutState) {
         let mut style = Style::default();
         style.size.width = relative(1.).into();
-        style.size.height = window.line_height().into();
+        let lines = self.input.read(cx).multiline.then(|| self.input.read(cx).content.split('\n').count().max(MIN_LINES));
+        style.size.height = (window.line_height() * lines.unwrap_or(1) as f32).into();
         (window.request_layout(style, [], cx), ())
     }
 
@@ -570,6 +606,28 @@ impl Element for TextElement {
         };
 
         let font_size = style.font_size.to_pixels(window.rem_size());
+        if input.multiline && !content.is_empty() {
+            // One shaped line per text line; the marked (IME) underline is not drawn here.
+            let lh = window.line_height();
+            let (mut shaped, mut quads, mut caret, mut start) = (Vec::new(), Vec::new(), None, 0usize);
+            for (row, text) in content.split('\n').enumerate() {
+                let end = start + text.len();
+                let run = TextRun { len: text.len(), ..runs[0].clone() };
+                let line = window.text_system().shape_line(SharedString::from(text.to_string()), font_size, &[run].into_iter().filter(|r| r.len > 0).collect::<Vec<_>>(), None);
+                let top = bounds.top() + lh * row as f32;
+                if selected_range.is_empty() {
+                    if cursor >= start && cursor <= end {
+                        caret = Some(fill(Bounds::new(point(bounds.left() + line.x_for_index(cursor - start), top), size(px(2.), lh)), rgb(0xd97757)));
+                    }
+                } else if selected_range.start <= end && selected_range.end >= start {
+                    let (a, b) = (selected_range.start.max(start) - start, selected_range.end.min(end) - start);
+                    quads.push(fill(Bounds::from_corners(point(bounds.left() + line.x_for_index(a), top), point(bounds.left() + line.x_for_index(b) + if selected_range.end > end { px(6.) } else { px(0.) }, top + lh)), rgba(0x3311ff30)));
+                }
+                shaped.push((start, line));
+                start = end + 1;
+            }
+            return PrepaintState { line: None, lines: shaped, extra: quads, cursor: caret, selection: None };
+        }
         let line = window
             .text_system()
             .shape_line(display_text, font_size, &runs, None);
@@ -606,6 +664,8 @@ impl Element for TextElement {
         };
         PrepaintState {
             line: Some(line),
+            lines: Vec::new(),
+            extra: Vec::new(),
             cursor,
             selection,
         }
@@ -627,6 +687,25 @@ impl Element for TextElement {
             ElementInputHandler::new(bounds, self.input.clone()),
             cx,
         );
+        if !prepaint.lines.is_empty() || !prepaint.extra.is_empty() {
+            let lh = window.line_height();
+            for q in prepaint.extra.drain(..) {
+                window.paint_quad(q);
+            }
+            for (row, (_, line)) in prepaint.lines.iter().enumerate() {
+                let _ = line.paint(point(bounds.left(), bounds.top() + lh * row as f32), lh, gpui::TextAlign::Left, None, window, cx);
+            }
+            if let (true, Some(cursor)) = (focus_handle.is_focused(window), prepaint.cursor.take()) {
+                window.paint_quad(cursor);
+            }
+            let lines = std::mem::take(&mut prepaint.lines);
+            self.input.update(cx, |input, _cx| {
+                input.last_lines = lines;
+                input.last_bounds = Some(bounds);
+                input.line_height = lh;
+            });
+            return;
+        }
         if let Some(selection) = prepaint.selection.take() {
             window.paint_quad(selection)
         }
@@ -675,6 +754,8 @@ impl Render for TextInput {
             .on_action(cx.listener(Self::cut))
             .on_action(cx.listener(Self::copy))
             .on_action(cx.listener(Self::enter))
+            .on_action(cx.listener(Self::up))
+            .on_action(cx.listener(Self::down))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_mouse_up))
@@ -684,7 +765,8 @@ impl Render for TextInput {
             .text_size(px(24.))
             .child(
                 div()
-                    .h(px(30. + 4. * 2.))
+                    .when(!self.multiline, |d| d.h(px(30. + 4. * 2.)))
+                    .when(self.multiline, |d| d.min_h(px(30. * MIN_LINES as f32 + 4. * 2.)))
                     .w_full()
                     .p(px(4.))
                     .bg(white())
@@ -713,10 +795,13 @@ impl TextInput {
             content: "".into(),
             placeholder: placeholder.to_string().into(),
             masked: false,
+            multiline: false,
             selected_range: 0..0,
             selection_reversed: false,
             marked_range: None,
             last_layout: None,
+            last_lines: Vec::new(),
+            line_height: px(30.),
             last_bounds: None,
             is_selecting: false,
         }
@@ -725,6 +810,11 @@ impl TextInput {
     /// A field that shows bullets and cannot be copied from, for secrets.
     pub fn new_masked(cx: &mut Context<Self>, placeholder: &str) -> Self {
         TextInput { masked: true, ..TextInput::new(cx, placeholder) }
+    }
+
+    /// A text area: Enter adds a line break (nothing is submitted), and it is at least `MIN_LINES` tall.
+    pub fn new_multiline(cx: &mut Context<Self>, placeholder: &str) -> Self {
+        TextInput { multiline: true, ..TextInput::new(cx, placeholder) }
     }
 
     pub fn content(&self) -> &str {
@@ -759,7 +849,11 @@ impl TextInput {
         self.reset(window, cx);
     }
 
-    fn enter(&mut self, _: &Enter, _: &mut Window, cx: &mut Context<Self>) {
+    fn enter(&mut self, _: &Enter, window: &mut Window, cx: &mut Context<Self>) {
+        if self.multiline {
+            self.replace_text_in_range(None, "\n", window, cx);
+            return;
+        }
         cx.emit(TextInputEvent::Submit);
     }
 }
@@ -807,6 +901,8 @@ pub fn bindings() -> Vec<KeyBinding> {
         KeyBinding::new("home", Home, ctx),
         KeyBinding::new("end", End, ctx),
         KeyBinding::new("enter", Enter, ctx),
+        KeyBinding::new("up", Up, ctx),
+        KeyBinding::new("down", Down, ctx),
     ]
 }
 
@@ -841,5 +937,61 @@ mod tests {
     fn every_binding_is_a_valid_keystroke() {
         // KeyBinding::new panics on a keystroke GPUI cannot parse, which used to kill the app at startup.
         assert_eq!(super::bindings().len(), 13);
+    }
+}
+
+/// Line geometry for multi-line fields, in byte offsets.
+pub mod lines {
+    /// Start of the line holding `offset`.
+    pub fn start(text: &str, offset: usize) -> usize {
+        text[..offset.min(text.len())].rfind('\n').map_or(0, |i| i + 1)
+    }
+
+    /// End of the line holding `offset` (before its line break).
+    pub fn end(text: &str, offset: usize) -> usize {
+        let o = offset.min(text.len());
+        text[o..].find('\n').map_or(text.len(), |i| o + i)
+    }
+
+    /// One line up or down, keeping the character column where the line is long enough.
+    pub fn vertical(text: &str, offset: usize, down: bool) -> usize {
+        let o = offset.min(text.len());
+        let s = start(text, o);
+        let col = text[s..o].chars().count();
+        let target = if down {
+            let e = end(text, o);
+            if e >= text.len() {
+                return text.len();
+            }
+            e + 1
+        } else {
+            if s == 0 {
+                return 0;
+            }
+            start(text, s - 1)
+        };
+        let t_end = end(text, target);
+        text[target..t_end].char_indices().nth(col).map_or(t_end, |(i, _)| target + i)
+    }
+}
+
+#[cfg(test)]
+mod line_tests {
+    use super::lines::*;
+
+    #[test]
+    fn vertical_keeps_the_column() {
+        let t = "abc\nde\nfghij";
+        assert_eq!(vertical(t, 2, true), 6); // "de" ends at 6 (col 2 clamps to its end)
+        assert_eq!(vertical(t, 6, true), 10); // col 2 of "fghij"
+        assert_eq!(vertical(t, 10, false), 6);
+        assert_eq!(vertical(t, 1, false), 0);
+        assert_eq!(vertical(t, 12, true), t.len());
+    }
+
+    #[test]
+    fn line_bounds() {
+        let t = "ab\ncd";
+        assert_eq!((start(t, 4), end(t, 4), start(t, 1), end(t, 1)), (3, 5, 0, 2));
     }
 }

@@ -3,6 +3,7 @@
 //! back through one channel that the window drains on a timer.
 
 mod md_view;
+mod pages;
 mod text_input;
 mod ui;
 
@@ -65,6 +66,8 @@ enum Msg {
     ChatCreated(String, Chat),
     Pairing(Option<computers::Pairing>),
     ProviderCheck(String),
+    /// A reply for the Settings pages in `pages.rs`: what it answers, the workspace, the JSON.
+    Fetched(&'static str, String, serde_json::Value),
     SignIn(String, SignIn),
     Error(String),
 }
@@ -434,6 +437,7 @@ struct AppView {
     show_archived_chats: bool,
     routine_phrase: Entity<TextInput>,
     routine_prompt: Entity<TextInput>,
+    extra: pages::Extra,
     model: Model,
     rx: Receiver<Msg>,
     tx: Sender<Msg>,
@@ -556,11 +560,13 @@ impl AppView {
             }
         })
         .detach();
-        AppView { palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, library_search, library_sel: None, library_view: None, secret_input, secret_names: Vec::new(), subs: Vec::new(), signin: None, signin_code, mcp_name, mcp_target, pairing: None, provider_form: None, provider_check: String::new(), project_input, show_archived: false, move_open: false, show_archived_chats: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
+        let extra = pages::Extra::new(cx);
+        AppView { extra, palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, library_search, library_sel: None, library_view: None, secret_input, secret_names: Vec::new(), subs: Vec::new(), signin: None, signin_code, mcp_name, mcp_target, pairing: None, provider_form: None, provider_check: String::new(), project_input, show_archived: false, move_open: false, show_archived_chats: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
     fn pump(&mut self, cx: &mut Context<Self>) {
+        self.poll();
         let mut changed = false;
         while let Ok(msg) = self.rx.try_recv() {
             changed = true;
@@ -610,6 +616,7 @@ impl AppView {
                 }
             }
             Msg::State(s) => {
+                self.extra.app = s.settings.clone();
                 let active = s.settings.active_workspace.clone().or_else(|| s.workspaces.first().map(|w| w.id.clone()));
                 let changed = active != self.model.active_ws;
                 self.model.workspaces = s.workspaces;
@@ -632,6 +639,9 @@ impl AppView {
                 self.in_flight.finish_all();
                 if self.model.active_ws.as_deref() == Some(&ws) {
                     self.model.snapshot = snap;
+                    if self.view == View::Settings && matches!(self.settings_page, "web" | "opendesign" | "data") {
+                        self.refresh_page(self.settings_page);
+                    }
                     if self.model.open_chat_id.is_none() {
                         if let Some(row) = self.model.sidebar().into_iter().find(|r| r.kind == RowKind::Chat) {
                             self.open_chat(row.id);
@@ -661,6 +671,11 @@ impl AppView {
             }
             Msg::Pairing(p) => self.pairing = p,
             Msg::ProviderCheck(text) => self.provider_check = text,
+            Msg::Fetched(kind, ws, v) => {
+                if self.model.active_ws.as_deref() == Some(&ws) {
+                    self.fetched(kind, v);
+                }
+            }
             Msg::SignIn(sub, state) => self.signin = Some((sub, state)),
             Msg::Secrets(ws, names) => {
                 if self.model.active_ws.as_deref() == Some(&ws) {
@@ -908,6 +923,7 @@ impl AppView {
             Kind::Page => {
                 if let Some(p) = settings::pages(false).into_iter().find(|p| p.id == item.id) {
                     self.settings_page = p.id;
+                    self.open_page(p.id, cx);
                 }
                 self.view = View::Settings;
             }
@@ -1467,6 +1483,7 @@ impl Render for AppView {
                 .when(p.locked, |d| d.child(div().text_color(rgb(MUTED)).text_sm().child("locked")))
                 .on_click(cx.listener(move |this, _, _, cx| {
                     this.settings_page = id;
+                    this.open_page(id, cx);
                     if id == "general" {
                         let name = this.model.snapshot.workspace.name.clone();
                         this.name_input.update(cx, |i, cx| i.set_content(&name, cx));
@@ -1505,7 +1522,8 @@ impl Render for AppView {
             "general" => page
                 .child(ui::row("Workspace name", "Press Enter to save.", div().w(px(260.)).px_2().py_1().rounded_md().bg(rgb(BG)).child(self.name_input.clone())))
                 .child(ui::row("Default model", "Used for new chats. Change it per chat from the chat header.", div().text_color(rgb(MUTED)).child(SharedString::from(if w.default_model.is_empty() { "Default".to_string() } else { w.default_model.clone() }))))
-                .child(ui::row("Workspace instructions", "Read-only here for now. Edit them in the web app.", div().max_w(px(320.)).text_sm().text_color(rgb(MUTED)).child(SharedString::from(w.instructions.chars().take(160).collect::<String>())))),
+                .child(self.accent_row(cx))
+                .child(self.instructions_card(cx)),
             "memory" => page
                 .child(switch_row("useMemory", "Use memory", "Agents are told to use this workspace's memory, and each session opens with what it holds.", settings::switch_on(w.use_memory), cur.locked))
                 .child(switch_row("memoryRecall", "Recall on every message", "Look each message up in memory and hand the agent what matched.", settings::switch_on(w.memory_recall), cur.locked))
@@ -1560,12 +1578,13 @@ impl Render for AppView {
                 for sc in &e.sidecars {
                     p = p.child(ui::row(&sc.name, "Helper process", div().text_color(rgb(MUTED)).child(SharedString::from(sc.state.clone()))));
                 }
-                p.child(div().flex().gap_2().children(engine_actions(&e.state).into_iter().map(|a| {
+                let p = p.child(div().flex().gap_2().children(engine_actions(&e.state).into_iter().map(|a| {
                     ui::button(format!("engine-{}", a.label()), a.label(), if a == EngineAction::Stop { ui::DANGER } else { ACCENT }).on_click(cx.listener(move |this, _, _, cx| {
                         this.run_engine(a);
                         cx.notify();
                     }))
-                })))
+                })));
+                self.engine_more(p, cur.locked, cx)
             }
             "agents" => {
                 let ws_id = m.active_ws.clone().unwrap_or_default();
@@ -1789,6 +1808,13 @@ impl Render for AppView {
                             })));
                         }
                     }
+                    if !locked && pr.base_url.is_some() {
+                        let prov = pr.clone();
+                        controls = controls.child(ui::button(format!("pv-edit-{}", pr.id), "Edit", USER_BUBBLE).on_click(cx.listener(move |this, _, _, cx| {
+                            this.start_edit_provider(&prov, cx);
+                            cx.notify();
+                        })));
+                    }
                     if !locked {
                         let (id_del, ws_del) = (pr.id.clone(), ws_id.clone());
                         let armed = self.confirm.is_armed(&format!("pv:{}", pr.id));
@@ -1804,6 +1830,9 @@ impl Render for AppView {
                 }
                 if m.snapshot.workspace.providers.is_empty() {
                     p = p.child(div().text_color(rgb(MUTED)).child("No providers configured."));
+                }
+                if !locked {
+                    p = p.children(self.provider_edit_card(cx)).child(self.secrets_card(cx));
                 }
                 p
             }
@@ -1991,7 +2020,7 @@ impl Render for AppView {
                 }
                 p
             }
-            _ => page.child(div().p_4().rounded_lg().bg(rgb(PANEL)).text_color(rgb(MUTED)).child("This page is not in the native app yet. Use the web app for it for now.")),
+            other => self.extra_page(other, page, cur.locked, cx),
         };
         let settings_main = div().id("settings-scroll").flex_1().min_w_0().h_full().overflow_y_scroll().child(page);
 
