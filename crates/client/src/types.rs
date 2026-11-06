@@ -23,6 +23,15 @@ pub struct WorkspaceSummary {
 pub struct AppSettings {
     #[serde(default)]
     pub active_workspace: Option<String>,
+    /// "claude" or "opencode".
+    #[serde(default)]
+    pub theme: String,
+    #[serde(default)]
+    pub accent: String,
+    #[serde(default)]
+    pub reduce_motion: bool,
+    #[serde(default)]
+    pub follow_system: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
@@ -136,6 +145,12 @@ pub struct Provider {
     /// Name of the keychain secret that holds the API key; absent for providers that need none.
     #[serde(default)]
     pub key_env: Option<String>,
+    /// The endpoint of a custom provider (JSON `baseURL`).
+    #[serde(rename = "baseURL", default)]
+    pub base_url: Option<String>,
+    /// Org-policy rows cannot be edited.
+    #[serde(default)]
+    pub locked: Option<bool>,
     #[serde(default)]
     pub models: Vec<ProviderModel>,
     #[serde(default)]
@@ -189,7 +204,148 @@ pub struct Subscription {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
+pub struct WebSettings {
+    /// "off", "exa", "mcp" or "searxng".
+    #[serde(default)]
+    pub mode: String,
+    /// "Tavily", "Brave" or "Firecrawl" (mode "mcp").
+    #[serde(default)]
+    pub provider: String,
+    #[serde(default)]
+    pub searxng_url: String,
+    #[serde(default)]
+    pub fetch: bool,
+    #[serde(default)]
+    pub ask: bool,
+    #[serde(default)]
+    pub show_sources: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Member {
+    #[serde(default)]
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    /// "Admin", "Member" or "Viewer".
+    #[serde(default)]
+    pub role: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Vault {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Skill {
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub note: String,
+    #[serde(default)]
+    pub on: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+pub struct OrgInfo {
+    #[serde(default)]
+    pub issuer: String,
+    #[serde(default)]
+    pub idp: String,
+    #[serde(default)]
+    pub subject: String,
+}
+
+/// The workspace's own opencode connection (the Engine page). Missing fields mean managed, in sync.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+pub struct EngineSettings {
+    /// "managed" or "remote".
+    #[serde(default)]
+    pub mode: String,
+    #[serde(default)]
+    pub url: String,
+    #[serde(default)]
+    pub username: String,
+    #[serde(default)]
+    pub sync: bool,
+    /// A pinned opencode version, or "system" (or empty) for the one on PATH.
+    #[serde(default)]
+    pub version: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenDesignSettings {
+    /// "open-design" or "builtin".
+    #[serde(default)]
+    pub engine: String,
+    #[serde(default)]
+    pub agent_tools: bool,
+    #[serde(default)]
+    pub lint: bool,
+    #[serde(default)]
+    pub auto_start: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct AuditEvent {
+    #[serde(default)]
+    pub at: i64,
+    #[serde(default)]
+    pub actor: String,
+    #[serde(default)]
+    pub action: String,
+    #[serde(default)]
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct Policy {
+    #[serde(default)]
+    pub version: serde_json::Value,
+    #[serde(default)]
+    pub block_external_sharing: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct WorkspaceInfo {
+    #[serde(default)]
+    pub slug: String,
+    #[serde(default)]
+    pub accent: String,
+    #[serde(default)]
+    pub default_project: String,
+    #[serde(default)]
+    pub web: WebSettings,
+    #[serde(default)]
+    pub members: Vec<Member>,
+    #[serde(default)]
+    pub vaults: Vec<Vault>,
+    #[serde(default)]
+    pub skills: Vec<Skill>,
+    #[serde(default)]
+    pub visibility: String,
+    #[serde(default)]
+    pub public_links: bool,
+    #[serde(default)]
+    pub keep_chats: String,
+    #[serde(default)]
+    pub design_system: String,
+    #[serde(default)]
+    pub open_design: Option<OpenDesignSettings>,
+    #[serde(default)]
+    pub engine: EngineSettings,
+    #[serde(default)]
+    pub org: Option<OrgInfo>,
     #[serde(default)]
     pub mcp: Vec<McpServer>,
     #[serde(default)]
@@ -365,6 +521,10 @@ pub struct Snapshot {
     /// Chats with a turn in progress ("working" or "waiting"); the others are idle.
     #[serde(default)]
     pub chat_activity: HashMap<String, String>,
+    #[serde(default)]
+    pub audit: Vec<AuditEvent>,
+    #[serde(default)]
+    pub policy: Option<Policy>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

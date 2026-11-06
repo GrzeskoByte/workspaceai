@@ -16,5 +16,6 @@ pub mod providers;
 pub mod routines;
 pub mod settings;
 pub mod subscriptions;
+pub mod workspace;
 pub mod supervisor;
 pub mod types;
