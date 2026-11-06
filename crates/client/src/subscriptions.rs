@@ -63,3 +63,54 @@ pub fn action_path(workspace: &str, id: &str, action: SubAction) -> String {
     };
     format!("{}/{}/{verb}", list_path(workspace), seg(id))
 }
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SignIn {
+    /// "idle", "waiting", "done" or "failed".
+    pub state: String,
+    pub url: Option<String>,
+    pub error: Option<String>,
+}
+
+impl SignIn {
+    pub fn waiting(&self) -> bool {
+        self.state == "waiting"
+    }
+}
+
+pub fn parse_signin(reply: &Value) -> SignIn {
+    let s = |k: &str| reply[k].as_str().filter(|v| !v.is_empty()).map(str::to_string);
+    SignIn { state: s("state").unwrap_or_else(|| "idle".into()), url: s("url"), error: s("error") }
+}
+
+/// What the Agents page says while a browser sign-in runs, or after it ended.
+pub fn signin_text(s: &SignIn) -> String {
+    match s.state.as_str() {
+        "waiting" => "Finish signing in in your browser. If none opened, use the link below and paste the code it shows.".into(),
+        "done" => "Signed in.".into(),
+        "failed" => format!("Sign-in failed. {}", s.error.as_deref().unwrap_or("")).trim().to_string(),
+        _ => String::new(),
+    }
+}
+
+/// Only Claude Code has a sign-in that runs unattended; the other agents are signed in from a terminal.
+pub fn can_sign_in(s: &Subscription) -> bool {
+    s.installed && s.id == "claude"
+}
+
+pub fn signin_path(workspace: &str, id: &str) -> String {
+    format!("{}/{}/signin", list_path(workspace), seg(id))
+}
+
+pub fn signin_code_path(workspace: &str, id: &str) -> String {
+    format!("{}/code", signin_path(workspace, id))
+}
+
+pub fn signin_cancel_path(workspace: &str, id: &str) -> String {
+    format!("{}/cancel", signin_path(workspace, id))
+}
+
+pub fn code_body(code: &str) -> Option<Value> {
+    let c = code.trim();
+    (!c.is_empty()).then(|| serde_json::json!({ "code": c }))
+}

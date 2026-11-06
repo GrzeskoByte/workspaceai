@@ -47,3 +47,11 @@ fn body_and_paths() {
     assert_eq!(item_path("w1", "fs-1"), "/api/ws/w1/mcp/fs-1");
     assert_eq!(item_path("w1", ""), "/api/ws/w1/mcp/invalid%20id");
 }
+
+#[test]
+fn add_body_needs_a_target_and_names_it_by_default() {
+    assert_eq!(add_body("", "  "), None);
+    assert_eq!(add_body(" Files ", " npx -y server-fs "), Some(json!({"name":"Files","command":"npx -y server-fs"})));
+    assert_eq!(add_body("", "https://m.example/mcp"), Some(json!({"name":"https://m.example/mcp","command":"https://m.example/mcp"})));
+    assert_eq!(add_path("a/b"), "/api/ws/a%2Fb/mcp");
+}

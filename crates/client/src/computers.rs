@@ -58,3 +58,23 @@ pub fn item_path(id: &str) -> String {
 pub fn wake_path(id: &str) -> String {
     format!("{}/wake", item_path(id))
 }
+
+pub const PAIRING_PATH: &str = "/api/computers/pairing-code";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Pairing {
+    pub code: String,
+    /// Epoch milliseconds.
+    pub expires: i64,
+}
+
+pub fn parse_pairing(reply: &Value) -> Option<Pairing> {
+    Some(Pairing { code: reply["code"].as_str()?.to_string(), expires: reply["expires"].as_i64()? })
+}
+
+pub fn pairing_text(p: &Pairing, tz: &str, now: DateTime<Utc>) -> String {
+    format!(
+        "On the other computer, open WorkspaceAI, choose Link this computer and type this code. It expires {}. A new computer gets no workspace until you allow one.",
+        format_when(p.expires, tz, now.timestamp_millis())
+    )
+}

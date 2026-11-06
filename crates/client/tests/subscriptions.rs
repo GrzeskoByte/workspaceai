@@ -51,3 +51,17 @@ fn paths_encode_ids() {
     assert_eq!(action_path("w/1", "a b", SubAction::Disconnect), "/api/ws/w%2F1/subscriptions/a%20b/disconnect");
     assert_eq!(action_path("w1", "..", SubAction::Connect), "/api/ws/w1/subscriptions/invalid%20id/connect");
 }
+
+#[test]
+fn signin_state_parses_and_reads() {
+    let s = parse_signin(&json!({"state":"waiting","url":"https://x/oauth","browser":true}));
+    assert!(s.waiting());
+    assert_eq!(s.url.as_deref(), Some("https://x/oauth"));
+    assert_eq!(parse_signin(&json!({})).state, "idle");
+    assert_eq!(signin_text(&parse_signin(&json!({"state":"failed","error":"boom"}))), "Sign-in failed. boom");
+    assert_eq!(signin_text(&SignIn::default()), "");
+    assert_eq!(signin_path("w", "claude"), "/api/ws/w/subscriptions/claude/signin");
+    assert_eq!(signin_code_path("w", "claude"), "/api/ws/w/subscriptions/claude/signin/code");
+    assert_eq!(code_body(" "), None);
+    assert_eq!(code_body(" 12 "), Some(json!({"code":"12"})));
+}

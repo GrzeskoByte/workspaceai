@@ -27,3 +27,11 @@ fn only_a_new_query_needs_a_search() {
     assert!(!needs_search(Some("ab"), Some("ab")));
     assert!(!needs_search(Some("ab"), None), "no mention being typed: nothing to search");
 }
+
+#[test]
+fn attached_files_become_references() {
+    assert_eq!(reference("/a/b.txt"), "@/a/b.txt");
+    assert_eq!(reference("/a/my file.txt"), "@\"/a/my file.txt\"");
+    assert_eq!(references(&["/a".into(), "/b c".into()]), "@/a @\"/b c\" ");
+    assert_eq!(references(&[]), "");
+}

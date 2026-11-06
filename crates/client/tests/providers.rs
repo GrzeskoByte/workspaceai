@@ -56,3 +56,25 @@ fn paths_encode_ids_and_names() {
     assert_eq!(provider_path("w/1", "p1"), "/api/ws/w%2F1/providers/p1");
     assert_eq!(secrets_list_path("w1"), "/api/ws/w1/secrets");
 }
+
+#[test]
+fn custom_form_is_checked_before_sending() {
+    let mut f = CustomForm { id: "ollama".into(), name: "Ollama".into(), url: "http://localhost:11434/v1".into(), model: "qwen".into(), env: "".into(), key: " sk ".into() };
+    let b = custom_body(&f).unwrap();
+    assert_eq!((b["id"].as_str(), b["key"].as_str(), b["pkg"].as_str(), b.get("env")), (Some("ollama"), Some("sk"), Some(PACKAGE), None));
+    f.url = "ftp://x".into();
+    assert!(custom_body(&f).is_err() && test_body(&f).is_err());
+    f.url = "https://x/v1".into();
+    f.id = " ".into();
+    assert_eq!(custom_body(&f), Err("Give the provider an ID."));
+    assert_eq!(test_body(&f).unwrap()["model"], "qwen");
+    assert!(!format!("{f:?}").contains("sk"));
+}
+
+#[test]
+fn check_text_reports_success_or_the_reason() {
+    assert_eq!(check_text(&json!({"ok":true,"ms":120}), "m"), "Connected · m replied · 120 ms");
+    assert_eq!(check_text(&json!({"ok":true}), ""), "Connected · add a model id to test a real reply");
+    assert_eq!(check_text(&json!({"ok":false,"error":"nope"}), "m"), "nope");
+    assert_eq!(check_text(&json!({}), "m"), "No answer");
+}

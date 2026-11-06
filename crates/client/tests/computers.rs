@@ -73,3 +73,13 @@ fn paths_encode_the_computer_id() {
     assert_eq!(wake_path("a/b"), "/api/computers/a%2Fb/wake");
     assert_eq!(item_path(""), "/api/computers/invalid%20id");
 }
+
+#[test]
+fn pairing_code_parses_and_explains_expiry() {
+    use chrono::{TimeZone, Utc};
+    let now = Utc.with_ymd_and_hms(2026, 11, 6, 8, 0, 0).unwrap();
+    let p = parse_pairing(&json!({"code":"ABC-DEF","expires":now.timestamp_millis() + 600000})).unwrap();
+    assert_eq!(p.code, "ABC-DEF");
+    assert!(pairing_text(&p, "UTC", now).contains("type this code"));
+    assert_eq!(parse_pairing(&json!({"code":"X"})), None);
+}

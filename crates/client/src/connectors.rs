@@ -34,3 +34,18 @@ pub fn toggle_body(on: bool) -> Value {
 pub fn item_path(workspace: &str, id: &str) -> String {
     format!("/api/ws/{}/mcp/{}", seg(workspace), seg(id))
 }
+
+pub fn add_path(workspace: &str) -> String {
+    format!("/api/ws/{}/mcp", seg(workspace))
+}
+
+/// `POST …/mcp` body: a name and a URL (hosted) or a command line (runs on this computer). The server derives
+/// the kind from the target, so only whitespace is cleaned here; an empty target is refused.
+pub fn add_body(name: &str, target: &str) -> Option<Value> {
+    let target = target.trim();
+    if target.is_empty() {
+        return None;
+    }
+    let name = name.trim();
+    Some(json!({ "name": if name.is_empty() { target } else { name }, "command": target }))
+}

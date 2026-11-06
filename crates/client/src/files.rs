@@ -19,3 +19,13 @@ pub fn needs_search(last: Option<&str>, current: Option<&str>) -> bool {
         Some(q) => last != Some(q),
     }
 }
+
+/// The `@` reference for a picked or dropped file (full path; quoted when it has spaces, like the mention popup).
+pub fn reference(path: &str) -> String {
+    if path.contains(char::is_whitespace) { format!("@\"{path}\"") } else { format!("@{path}") }
+}
+
+/// References for several files, each followed by a space, ready to append to the draft.
+pub fn references(paths: &[String]) -> String {
+    paths.iter().map(|p| format!("{} ", reference(p))).collect()
+}
