@@ -2,29 +2,41 @@
 //! persistence, audit, snapshot and facts parts of `runtime.ts`; the engine arrives in batch 3.
 
 use crate::jsonfile::{append_line, read_json, read_text, write_json, write_text};
+use crate::keychain::Keychain;
 use crate::paths::{expand_home, WsPaths};
 use crate::supervisor::{ApiError, Emitter, UiEvent};
 use serde_json::{json, Map, Value};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicI64;
+use std::sync::Arc;
 use std::time::Duration;
 use workspaceai_shared::defaults::{default_agents, general_project};
 use workspaceai_shared::facts::{parse_facts, serialize_facts};
 use workspaceai_shared::opencode_config::{build_opencode_json, contains_literal_secret};
 use workspaceai_shared::types::{AuditEvent, EngineStatus, Fact, FactStatus, OrgPolicy, PersistedState, Project, Workspace, WorkspaceKind, WorkspaceSnapshot};
 use workspaceai_shared::util::{now_ms, project_path_name, uid};
+use crate::engine::{ManagedServer, OpencodeClient};
 
 pub struct Runtime {
     pub id: String,
+    /// The harness home this workspace belongs to (pinned opencode releases live under it).
+    pub home: PathBuf,
     pub paths: WsPaths,
     pub ws: Workspace,
     pub state: PersistedState,
     pub policy: Option<OrgPolicy>,
     pub status: EngineStatus,
+    /// The managed `opencode serve` process, when this workspace started one.
+    pub engine: Option<ManagedServer>,
+    /// A remote server this workspace connected to.
+    pub remote: Option<OpencodeClient>,
+    pub keychain: Arc<Keychain>,
+    pub(crate) last_used: Arc<AtomicI64>,
     events: Emitter,
 }
 
 impl Runtime {
-    pub(crate) fn new(mut ws: Workspace, home: &Path, events: Emitter) -> Result<Self, ApiError> {
+    pub(crate) fn new(mut ws: Workspace, home: &Path, events: Emitter, keychain: Arc<Keychain>) -> Result<Self, ApiError> {
         let paths = WsPaths::new(home, &ws.id);
         paths.ensure()?;
         let mut state: PersistedState = read_json(&paths.state).unwrap_or_default();
@@ -40,7 +52,21 @@ impl Runtime {
         }
         let policy = read_json::<Value>(&paths.policy_json).and_then(|v| serde_json::from_value(v.get("policy")?.clone()).ok());
         let status = EngineStatus { state: "stopped".into(), ..Default::default() };
-        let mut rt = Runtime { id: ws.id.clone(), paths, ws, state, policy, status, events };
+        let last_used = Arc::new(AtomicI64::new(now_ms()));
+        let mut rt = Runtime {
+            id: ws.id.clone(),
+            home: home.to_path_buf(),
+            paths,
+            ws,
+            state,
+            policy,
+            status,
+            engine: None,
+            remote: None,
+            keychain,
+            last_used,
+            events,
+        };
         rt.migrate_agents()?;
         Ok(rt)
     }
@@ -155,7 +181,7 @@ impl Runtime {
             routines: self.state.routines.clone(),
             graphs: self.state.graphs.clone(),
             audit: self.audit_log(60),
-            engine: self.status.clone(),
+            engine: self.engine_status(),
             policy: self.policy.clone(),
             chat_activity: Default::default(),
         }

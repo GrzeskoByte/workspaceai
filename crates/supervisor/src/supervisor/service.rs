@@ -36,4 +36,21 @@ impl Supervisor {
         let mut core = self.inner.lock().map_err(|_| ApiError::new(500, "Supervisor lock poisoned"))?;
         Ok(f(&mut core))
     }
+
+    /// Stops every managed opencode server. Idempotent; safe to call on quit.
+    pub fn shutdown(&self) -> Result<(), ApiError> {
+        let mut core = self.inner.lock().map_err(|_| ApiError::new(500, "Supervisor lock poisoned"))?;
+        core.shutdown();
+        Ok(())
+    }
+}
+
+impl Drop for Supervisor {
+    fn drop(&mut self) {
+        // Belt and braces: `ManagedServer::drop` also kills its child, but a poisoned lock must not leak a process.
+        match self.inner.get_mut() {
+            Ok(core) => core.shutdown(),
+            Err(e) => e.into_inner().shutdown(),
+        }
+    }
 }

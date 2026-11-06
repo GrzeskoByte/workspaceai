@@ -3,7 +3,10 @@
 //! Paths match the TS router segment for segment; anything unknown is a 404.
 
 mod app;
+mod engine;
 mod patch;
+mod providers;
+mod secrets;
 mod workspace;
 mod workspaces;
 
@@ -35,6 +38,30 @@ pub(crate) fn dispatch(core: &mut Core, method: &str, path: &str, query: &BTreeM
         ["api", "ws", id, "policy", "refresh"] if method == "POST" => workspace::refresh_policy(core, id, &body),
         ["api", "ws", id, "audit"] if method == "GET" => workspace::audit(core, id, query),
         ["api", "ws", id, "audit", "upload"] if method == "POST" => workspace::upload_audit(core, id),
+
+        // engine (batch 3)
+        ["api", "ws", id, "opencode-json"] if method == "GET" => engine::opencode_json(core, id),
+        ["api", "ws", id, "engine"] if method == "GET" => engine::status(core, id),
+        ["api", "ws", id, "engine", "start"] if method == "POST" => engine::start(core, id),
+        ["api", "ws", id, "engine", "version"] if method == "POST" => engine::pin_version(core, id, &body),
+        ["api", "ws", id, "engine", "restart"] if method == "POST" => engine::restart(core, id),
+        ["api", "ws", id, "engine", "stop"] if method == "POST" => engine::stop(core, id),
+        ["api", "ws", id, "engine", "mode"] if method == "POST" => engine::set_mode(core, id, &body),
+        ["api", "ws", id, "engine", "logs"] if method == "GET" => engine::logs(core, id),
+        ["api", "ws", id, "models"] if method == "GET" => engine::models(core, id),
+
+        // providers, secrets and connectors
+        ["api", "web-providers"] if method == "GET" => Ok(providers::web_list()),
+        ["api", "ws", id, "providers"] if method == "POST" => providers::add(core, id, &body),
+        ["api", "ws", id, "providers", "test"] if method == "POST" => providers::test(core, id, &body),
+        ["api", "ws", id, "providers", pid] if method == "PATCH" => providers::patch(core, id, pid, &body),
+        ["api", "ws", id, "providers", pid] if method == "DELETE" => providers::remove(core, id, pid),
+        ["api", "ws", id, "secrets"] if method == "GET" => secrets::list(core, id),
+        ["api", "ws", id, "secrets", name] if method == "PUT" => secrets::put(core, id, name, &body),
+        ["api", "ws", id, "secrets", name] if method == "DELETE" => secrets::delete(core, id, name),
+        ["api", "ws", id, "mcp"] if method == "POST" => providers::add_mcp(core, id, &body),
+        ["api", "ws", id, "mcp", mid] if method == "PATCH" => providers::patch_mcp(core, id, mid, &body),
+        ["api", "ws", id, "mcp", mid] if method == "DELETE" => providers::delete_mcp(core, id, mid),
 
         _ => Err(ApiError::not_found("Not found")),
     }

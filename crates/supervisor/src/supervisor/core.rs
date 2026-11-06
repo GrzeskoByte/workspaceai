@@ -8,6 +8,7 @@ use crate::paths::{app_json_path, computers_json_path, valid_id, WsPaths};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 use workspaceai_shared::types::{AppSettings, Computer, Workspace};
 use workspaceai_shared::util::initials_of;
 
@@ -49,7 +50,7 @@ pub struct Core {
     pub home: PathBuf,
     pub settings: AppSettings,
     pub computers: Vec<Computer>,
-    pub keychain: Keychain,
+    pub keychain: Arc<Keychain>,
     pub runtimes: BTreeMap<String, Runtime>,
     pub events: Emitter,
 }
@@ -81,6 +82,7 @@ impl Core {
         let settings = load_settings(&home);
         let computers: Vec<Computer> = read_json(&computers_json_path(&home)).unwrap_or_default();
         let events = Emitter::default();
+        let keychain = Arc::new(Keychain::from_env());
         let mut runtimes = BTreeMap::new();
         if let Ok(entries) = std::fs::read_dir(home.join("ws")) {
             for entry in entries.flatten() {
@@ -90,11 +92,18 @@ impl Core {
                     continue;
                 }
                 if let Some(ws) = load_workspace(&home, &id) {
-                    runtimes.insert(id.clone(), Runtime::new(ws, &home, events.clone())?);
+                    runtimes.insert(id.clone(), Runtime::new(ws, &home, events.clone(), keychain.clone())?);
                 }
             }
         }
-        Ok(Core { home, settings, computers, keychain: Keychain::from_env(), runtimes, events })
+        Ok(Core { home, settings, computers, keychain, runtimes, events })
+    }
+
+    /// Stops every managed engine. Idempotent; `Supervisor::shutdown` and `Drop` both call it.
+    pub fn shutdown(&mut self) {
+        for rt in self.runtimes.values_mut() {
+            rt.stop_engine();
+        }
     }
 
     pub fn on(&self, listener: Listener) {

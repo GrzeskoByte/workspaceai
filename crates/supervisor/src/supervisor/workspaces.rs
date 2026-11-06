@@ -42,7 +42,7 @@ impl Core {
             },
             None => String::new(),
         });
-        let rt = Runtime::new(ws, &self.home, self.events.clone())?;
+        let rt = Runtime::new(ws, &self.home, self.events.clone(), self.keychain.clone())?;
         rt.save()?;
         rt.write_scopes_manifest()?;
         rt.audit("workspace.create", &format!("{clean} ({})", kind.as_str()), "you");

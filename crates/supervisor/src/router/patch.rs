@@ -106,7 +106,8 @@ pub(super) fn patch(core: &mut Core, id: &str, body: &Value) -> Result<Value, Ap
         rt.audit("settings.update", &keys.join(", "), "you");
         rt.changed()?;
         if REWRITE_CONFIG.iter().any(|k| obj.contains_key(*k)) {
-            rt.write_config()?;
+            // A running engine picks the change up immediately; a stopped one reads the file on start.
+            rt.config_changed()?;
         }
         serde_json::to_value(rt.snapshot()).map_err(|e| ApiError::new(500, e.to_string()))?
     };
