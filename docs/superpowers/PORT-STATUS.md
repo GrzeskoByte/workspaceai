@@ -14,19 +14,20 @@ Build/run: `CARGO_PROFILE_DEV_DEBUG=0 cargo run -p workspaceai-app` (needs `libx
 - Settings shell (gear in the rail): General (name, read-only instructions/model), Memory switches + facts (add, approve, delete, delete all), Engine (status, start/stop/restart); other pages show a placeholder
 - Routines (Settings › Routines): list with next run and last run, Run now, Pause/Resume, Delete, and create with a live "understood as…" preview (uses the ported schedule parser)
 - Projects (Settings › Projects): tree with chat counts, create, subproject, rename, archive/restore, delete (two-step; General protected)
-- Computers (Settings › Computers): status, capabilities, per-workspace access switch (keeps other workspaces' access), Wake, Unlink (two-step). Pairing new computers is still web-only
-- Providers (Settings › Providers): list, key status from the keychain, save/remove key through a masked field (no copy/cut), remove provider (two-step); org-locked pages are read-only. Adding a custom provider is still web-only
-- Agents (Settings › Agents): subscriptions with install/sign-in/connection status, Connect/Disconnect. Signing in is still web-only
-- Connectors (Settings › Connectors): MCP servers with on/off, remove (two-step); built-in and org-locked ones protected. Adding one is still web-only
+- Computers (Settings › Computers): status, capabilities, per-workspace access switch (keeps other workspaces' access), Wake, Unlink (two-step). Pair a computer shows the 6-character code and its expiry
+- Providers (Settings › Providers): list, key status from the keychain, save/remove key through a masked field (no copy/cut), remove provider (two-step); org-locked pages are read-only. Add a custom provider form (presets, test connection, key to the keychain)
+- Agents (Settings › Agents): subscriptions with install/sign-in/connection status, Connect/Disconnect, browser sign-in for Claude Code (waits, link and code fallback, cancel)
+- Connectors (Settings › Connectors): MCP servers with on/off, remove (two-step); built-in and org-locked ones protected. Add form (URL or command)
 - Library (rail ▤): searchable artifact list, newest first; Markdown shown rendered, CSV/JSON/SVG as text, HTML explained as needing the web view
+- Composer Attach: native file dialog or drag/drop; picked files are added to the draft as `@path` references (the web app has no upload, so none here)
 - Command palette (Ctrl+K / Cmd+K): actions, workspaces, chats, settings pages; Up/Down/Enter/Esc
 - Chat actions: rename, fork, archive, delete (two-step), full-access toggle, move to another project, Copy per message, archived chats list in the sidebar with Restore
 - Ctrl/Cmd+1..9 switches workspace (same as the web app)
 
 ## Next, in order
-1. Attach file picker (drag/drop)
+1. (done)
 2. (done)
-3. Settings pages left: workspaces/members, custom provider form + test, subscription sign-in flow, web search, secrets, MCP servers, engine logs/mode/version, Open Design panel, artifacts, data, audit, appearance, vaults, skills, multi-line instructions editor
+3. Settings pages left: workspaces/members, web search, secrets (free-form names), editing an existing custom provider, engine logs/mode/version, Open Design panel, artifacts, data, audit, appearance, vaults, skills, multi-line instructions editor
 4. Onboarding (detect opencode, scan, test remote/provider, templates, finish) and New workspace / join org
 5. (done)
 6. Home / Create (briefs, pipeline) views

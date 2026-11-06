@@ -7,7 +7,7 @@ mod text_input;
 mod ui;
 
 use gpui::{
-    actions, div, prelude::*, px, rgb, rgba, size, App, Bounds, KeyBinding, Context, Entity, Focusable, FontWeight, ScrollHandle, SharedString, Window, WindowBounds,
+    actions, div, prelude::*, px, rgb, rgba, size, App, Bounds, ExternalPaths, PathPromptOptions, KeyBinding, Context, Entity, Focusable, FontWeight, ScrollHandle, SharedString, Window, WindowBounds,
     WindowOptions,
 };
 use std::path::PathBuf;
@@ -29,7 +29,7 @@ use workspaceai_client::supervisor::Supervisor;
 use workspaceai_client::chats::{self, Confirm, InFlight};
 use workspaceai_client::computers;
 use workspaceai_client::connectors;
-use workspaceai_client::subscriptions::{self, SubAction};
+use workspaceai_client::subscriptions::{self, SignIn, SubAction};
 use workspaceai_client::command::{self, Outcome};
 use workspaceai_client::library::{self, Body};
 use workspaceai_client::markdown;
@@ -63,6 +63,9 @@ enum Msg {
     ArtifactView(String, Result<library::View, String>),
     Subscriptions(String, Vec<Subscription>),
     ChatCreated(String, Chat),
+    Pairing(Option<computers::Pairing>),
+    ProviderCheck(String),
+    SignIn(String, SignIn),
     Error(String),
 }
 
@@ -203,6 +206,64 @@ fn change_subscription(api: Api, ws: String, path: String, tx: Sender<Msg>) {
             let _ = tx.send(Msg::Error(format!("Could not change the connection: {e}")));
         }
         load_subscriptions(api, ws, tx);
+    });
+}
+
+fn request_pairing(api: Api, tx: Sender<Msg>) {
+    spawn(move || match api.post(computers::PAIRING_PATH, None) {
+        Ok(v) => {
+            let _ = tx.send(Msg::Pairing(computers::parse_pairing(&v)));
+        }
+        Err(e) => {
+            let _ = tx.send(Msg::Error(format!("Could not get a pairing code: {e}")));
+        }
+    });
+}
+
+fn test_provider(api: Api, ws: String, body: serde_json::Value, tx: Sender<Msg>) {
+    spawn(move || {
+        let model = body["model"].as_str().unwrap_or("").to_string();
+        let text = match api.post(&providers::test_path(&ws), Some(&body)) {
+            Ok(v) => providers::check_text(&v, &model),
+            Err(e) => e.message,
+        };
+        let _ = tx.send(Msg::ProviderCheck(text));
+    });
+}
+
+/// Starts the browser sign-in, then watches it until it is no longer waiting (10 minutes at most, like the server).
+fn start_signin(api: Api, ws: String, sub: String, tx: Sender<Msg>) {
+    spawn(move || {
+        let path = subscriptions::signin_path(&ws, &sub);
+        let mut state = match api.post(&path, None) {
+            Ok(v) => subscriptions::parse_signin(&v),
+            Err(e) => SignIn { state: "failed".into(), url: None, error: Some(e.message) },
+        };
+        let _ = tx.send(Msg::SignIn(sub.clone(), state.clone()));
+        for _ in 0..400 {
+            if !state.waiting() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(1500));
+            match api.get(&path) {
+                Ok(v) => state = subscriptions::parse_signin(&v),
+                Err(_) => continue,
+            }
+            let _ = tx.send(Msg::SignIn(sub.clone(), state.clone()));
+        }
+        load_subscriptions(api, ws, tx);
+    });
+}
+
+fn signin_call(api: Api, ws: String, sub: String, path: String, body: Option<serde_json::Value>, tx: Sender<Msg>) {
+    spawn(move || match api.post(&path, body.as_ref()) {
+        Ok(v) => {
+            let _ = tx.send(Msg::SignIn(sub, subscriptions::parse_signin(&v)));
+            load_subscriptions(api, ws, tx);
+        }
+        Err(e) => {
+            let _ = tx.send(Msg::Error(format!("Sign-in: {e}")));
+        }
     });
 }
 
@@ -360,6 +421,13 @@ struct AppView {
     secret_input: Entity<TextInput>,
     secret_names: Vec<String>,
     subs: Vec<Subscription>,
+    signin: Option<(String, SignIn)>,
+    signin_code: Entity<TextInput>,
+    mcp_name: Entity<TextInput>,
+    mcp_target: Entity<TextInput>,
+    pairing: Option<computers::Pairing>,
+    provider_form: Option<[Entity<TextInput>; 6]>,
+    provider_check: String,
     project_input: Entity<TextInput>,
     show_archived: bool,
     move_open: bool,
@@ -416,6 +484,12 @@ impl AppView {
         cx.observe(&library_search, |_, _, cx| cx.notify()).detach();
         let secret_input = cx.new(|cx| TextInput::new_masked(cx, "Paste an API key"));
         cx.observe(&secret_input, |_, _, cx| cx.notify()).detach();
+        let signin_code = cx.new(|cx| TextInput::new(cx, "Code from the sign-in page"));
+        let mcp_name = cx.new(|cx| TextInput::new(cx, "Name (optional)"));
+        let mcp_target = cx.new(|cx| TextInput::new(cx, "https://… or a command, e.g. npx -y server-name"));
+        for input in [&signin_code, &mcp_name, &mcp_target] {
+            cx.observe(input, |_, _, cx| cx.notify()).detach();
+        }
         let project_input = cx.new(|cx| TextInput::new(cx, "Project name"));
         cx.subscribe_in(&project_input, window, |this, input, event: &TextInputEvent, window, cx| {
             if *event == TextInputEvent::Submit {
@@ -482,7 +556,7 @@ impl AppView {
             }
         })
         .detach();
-        AppView { palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, library_search, library_sel: None, library_view: None, secret_input, secret_names: Vec::new(), subs: Vec::new(), project_input, show_archived: false, move_open: false, show_archived_chats: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
+        AppView { palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, library_search, library_sel: None, library_view: None, secret_input, secret_names: Vec::new(), subs: Vec::new(), signin: None, signin_code, mcp_name, mcp_target, pairing: None, provider_form: None, provider_check: String::new(), project_input, show_archived: false, move_open: false, show_archived_chats: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -585,6 +659,9 @@ impl AppView {
                     self.subs = list;
                 }
             }
+            Msg::Pairing(p) => self.pairing = p,
+            Msg::ProviderCheck(text) => self.provider_check = text,
+            Msg::SignIn(sub, state) => self.signin = Some((sub, state)),
             Msg::Secrets(ws, names) => {
                 if self.model.active_ws.as_deref() == Some(&ws) {
                     self.secret_names = names;
@@ -629,6 +706,66 @@ impl AppView {
                 self.model.toast = Some(e);
             }
         }
+    }
+
+    fn open_provider_form(&mut self, preset: Option<usize>, cx: &mut Context<Self>) {
+        let inputs = self.provider_form.get_or_insert_with(|| {
+            let ph = ["ID, e.g. ollama", "Name", "Base URL, https://…", "Model id", "Key env name (optional)", "API key (stored in the OS keychain)"];
+            std::array::from_fn(|i| {
+                let input = cx.new(|cx| if i == 5 { TextInput::new_masked(cx, ph[i]) } else { TextInput::new(cx, ph[i]) });
+                cx.observe(&input, |_, _, cx| cx.notify()).detach();
+                input
+            })
+        });
+        if let Some((_, id, name, url, env, model)) = preset.map(|i| providers::PRESETS[i]) {
+            for (input, v) in inputs.iter().zip([id, name, url, model, env]) {
+                input.update(cx, |i, cx| i.set_content(v, cx));
+            }
+        }
+        self.provider_check.clear();
+    }
+
+    fn close_provider_form(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        for i in self.provider_form.take().iter().flatten() {
+            i.update(cx, |i, cx| i.clear(window, cx));
+        }
+        self.provider_check.clear();
+    }
+
+    fn provider_values(&self, cx: &App) -> Option<providers::CustomForm> {
+        let v: Vec<String> = self.provider_form.as_ref()?.iter().map(|i| i.read(cx).content().to_string()).collect();
+        Some(providers::CustomForm { id: v[0].clone(), name: v[1].clone(), url: v[2].clone(), model: v[3].clone(), env: v[4].clone(), key: v[5].clone() })
+    }
+
+    /// Native file dialog; the chosen files go into the draft as `@` references.
+    fn pick_files(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let picked = cx.prompt_for_paths(PathPromptOptions { files: true, directories: false, multiple: true, prompt: Some("Attach".into()) });
+        cx.spawn_in(window, async move |this, cx| {
+            let result = picked.await;
+            this.update_in(cx, |this, window, cx| match result {
+                Ok(Ok(Some(paths))) => this.attach_paths(paths.iter().map(|p| p.to_string_lossy().into_owned()).collect(), window, cx),
+                Ok(Ok(None)) | Err(_) => {}
+                Ok(Err(e)) => {
+                    this.model.toast = Some(format!("Could not open the file dialog: {e}"));
+                    cx.notify();
+                }
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    /// Appends `@` references for the files to the draft and focuses the composer.
+    fn attach_paths(&mut self, paths: Vec<String>, window: &mut Window, cx: &mut Context<Self>) {
+        if paths.is_empty() || self.view != View::Chat {
+            return;
+        }
+        let refs = files::references(&paths);
+        let draft = self.input.read(cx).content().to_string();
+        let sep = if draft.is_empty() || draft.ends_with(char::is_whitespace) { "" } else { " " };
+        self.input.update(cx, |i, cx| i.set_content(&format!("{draft}{sep}{refs}"), cx));
+        window.focus(&self.input.focus_handle(cx), cx);
+        cx.notify();
     }
 
     fn open_chat(&mut self, id: String) {
@@ -1293,7 +1430,19 @@ impl Render for AppView {
                 }))
         });
 
-        let composer = div().p_3().child(div().px_3().py_2().rounded_lg().bg(rgb(PANEL)).text_size(px(15.)).line_height(px(22.)).child(self.input.clone()));
+        let attach = ui::button("attach", "Attach", USER_BUBBLE).on_click(cx.listener(|this, _, window, cx| this.pick_files(window, cx)));
+        let composer = div()
+            .id("composer")
+            .p_3()
+            .flex()
+            .items_start()
+            .gap_2()
+            .drag_over::<ExternalPaths>(|s, _, _, _| s.bg(rgba(0xd9775722)))
+            .on_drop(cx.listener(|this, paths: &ExternalPaths, window, cx| {
+                this.attach_paths(paths.paths().iter().map(|p| p.to_string_lossy().into_owned()).collect(), window, cx);
+            }))
+            .child(div().flex_1().min_w_0().px_3().py_2().rounded_lg().bg(rgb(PANEL)).text_size(px(15.)).line_height(px(22.)).child(self.input.clone()))
+            .child(attach);
 
         let main = div().flex().flex_col().flex_1().min_w_0().h_full().child(header).children(actions).children(move_panel).children(rename_row).children(picker).child(messages).children(toast).children(panel).children(suggest_box).children(file_box).child(composer);
 
@@ -1435,11 +1584,51 @@ impl Render for AppView {
                             })));
                         }
                     }
+                    if !locked && subscriptions::can_sign_in(sub) && (!sub.signed_in || subscriptions::needs_sign_in(sub)) {
+                        let (ws_s, id_s) = (ws_id.clone(), sub.id.clone());
+                        controls = controls.child(ui::button(format!("sub-{}-signin", sub.id), "Sign in", ACCENT).on_click(cx.listener(move |this, _, _, cx| {
+                            if let Some(api) = this.api.clone() {
+                                this.signin = Some((id_s.clone(), SignIn { state: "waiting".into(), ..SignIn::default() }));
+                                start_signin(api, ws_s.clone(), id_s.clone(), this.tx.clone());
+                            }
+                            cx.notify();
+                        })));
+                    }
                     let mut note = subscriptions::summary(sub);
                     if subscriptions::needs_sign_in(sub) {
-                        note.push_str("\nThe login expired. Sign in again from the web app.");
+                        note.push_str("\nThe login expired. Sign in again.");
                     }
                     p = p.child(ui::row(if sub.name.is_empty() { &sub.id } else { &sub.name }, &note, controls));
+                    if let Some((sid, st)) = self.signin.clone().filter(|(sid, st)| *sid == sub.id && st.state != "idle") {
+                        let mut card = div().flex().flex_col().gap_2().p_3().ml_4().rounded_lg().bg(rgb(PANEL)).child(div().child(SharedString::from(subscriptions::signin_text(&st))));
+                        if st.waiting() {
+                            if let Some(url) = st.url.clone() {
+                                card = card.child(div().text_sm().text_color(rgb(MUTED)).child(SharedString::from(format!("No browser window? Open {url}"))));
+                            }
+                            let (ws_c, id_c, ws_x, id_x) = (ws_id.clone(), sid.clone(), ws_id.clone(), sid.clone());
+                            card = card.child(
+                                div()
+                                    .flex()
+                                    .gap_2()
+                                    .child(div().flex_1().px_2().py_1().rounded_md().bg(rgb(BG)).child(self.signin_code.clone()))
+                                    .child(ui::button("signin-send", "Send code", ACCENT).on_click(cx.listener(move |this, _, window, cx| {
+                                        let typed = this.signin_code.read(cx).content().to_string();
+                                        if let (Some(body), Some(api)) = (subscriptions::code_body(&typed), this.api.clone()) {
+                                            signin_call(api, ws_c.clone(), id_c.clone(), subscriptions::signin_code_path(&ws_c, &id_c), Some(body), this.tx.clone());
+                                            this.signin_code.update(cx, |i, cx| i.clear(window, cx));
+                                        }
+                                        cx.notify();
+                                    })))
+                                    .child(ui::button("signin-cancel", "Cancel", USER_BUBBLE).on_click(cx.listener(move |this, _, _, cx| {
+                                        if let Some(api) = this.api.clone() {
+                                            signin_call(api, ws_x.clone(), id_x.clone(), subscriptions::signin_cancel_path(&ws_x, &id_x), None, this.tx.clone());
+                                        }
+                                        cx.notify();
+                                    }))),
+                            );
+                        }
+                        p = p.child(card);
+                    }
                 }
                 if self.subs.is_empty() {
                     p = p.child(div().text_color(rgb(MUTED)).child("Looking for installed agents…"));
@@ -1450,6 +1639,33 @@ impl Render for AppView {
                 let ws_id = m.active_ws.clone().unwrap_or_default();
                 let locked = cur.locked;
                 let mut p = page;
+                if !locked {
+                    let (name, target) = (self.mcp_name.read(cx).content().to_string(), self.mcp_target.read(cx).content().to_string());
+                    let body = connectors::add_body(&name, &target);
+                    let ws_add = ws_id.clone();
+                    p = p.child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_2()
+                            .p_3()
+                            .rounded_lg()
+                            .bg(rgb(PANEL))
+                            .child(div().font_weight(FontWeight::BOLD).child("Add a connector"))
+                            .child(div().text_sm().text_color(rgb(MUTED)).child("A web address connects a hosted MCP server. Anything else runs as a command on this computer."))
+                            .child(div().px_2().py_1().rounded_md().bg(rgb(BG)).child(self.mcp_name.clone()))
+                            .child(div().px_2().py_1().rounded_md().bg(rgb(BG)).child(self.mcp_target.clone()))
+                            .child(ui::button("mcp-add", "Add", if body.is_some() { ACCENT } else { USER_BUBBLE }).on_click(cx.listener(move |this, _, window, cx| {
+                                if let Some(body) = body.clone() {
+                                    this.mutate_path("POST", connectors::add_path(&ws_add), Some(body));
+                                    for i in [&this.mcp_name, &this.mcp_target] {
+                                        i.update(cx, |i, cx| i.clear(window, cx));
+                                    }
+                                }
+                                cx.notify();
+                            }))),
+                    );
+                }
                 for c in &m.snapshot.workspace.mcp {
                     let mut controls = div().flex().items_center().gap_3();
                     if connectors::can_toggle(c) && !locked {
@@ -1475,7 +1691,7 @@ impl Render for AppView {
                     p = p.child(ui::row(if c.name.is_empty() { &c.id } else { &c.name }, &note, controls));
                 }
                 if m.snapshot.workspace.mcp.is_empty() {
-                    p = p.child(div().text_color(rgb(MUTED)).child("No connectors. Add one in the web app for now."));
+                    p = p.child(div().text_color(rgb(MUTED)).child("No connectors yet."));
                 }
                 p
             }
@@ -1487,6 +1703,66 @@ impl Render for AppView {
                     "Paste a key here, then press “Save key” on a provider. It goes straight to your system keychain and is never shown again.",
                     div().w(px(300.)).px_2().py_1().rounded_md().bg(rgb(BG)).child(self.secret_input.clone()),
                 ));
+                if !locked {
+                    p = p.child(match self.provider_form.clone() {
+                        None => div().child(ui::button("pv-custom", "Add a custom provider", ACCENT).on_click(cx.listener(|this, _, _, cx| {
+                            this.open_provider_form(None, cx);
+                            cx.notify();
+                        }))),
+                        Some(inputs) => {
+                            let form = self.provider_values(cx).unwrap_or_default();
+                            let (ws_a, ws_t) = (ws_id.clone(), ws_id.clone());
+                            let (add_body, test_body) = (providers::custom_body(&form), providers::test_body(&form));
+                            let mut card = div().flex().flex_col().gap_2().p_3().rounded_lg().bg(rgb(PANEL)).child(div().font_weight(FontWeight::BOLD).child("Custom provider"));
+                            let mut presets = div().flex().gap_2();
+                            for (i, pre) in providers::PRESETS.iter().enumerate() {
+                                presets = presets.child(ui::button(format!("pv-preset-{i}"), pre.0, USER_BUBBLE).on_click(cx.listener(move |this, _, _, cx| {
+                                    this.open_provider_form(Some(i), cx);
+                                    cx.notify();
+                                })));
+                            }
+                            card = card.child(presets);
+                            for input in inputs.iter() {
+                                card = card.child(div().px_2().py_1().rounded_md().bg(rgb(BG)).child(input.clone()));
+                            }
+                            if let Err(why) = &add_body {
+                                card = card.child(div().text_sm().text_color(rgb(MUTED)).child(*why));
+                            }
+                            if !self.provider_check.is_empty() {
+                                card = card.child(div().text_sm().child(SharedString::from(self.provider_check.clone())));
+                            }
+                            div().child(
+                                card.child(
+                                    div()
+                                        .flex()
+                                        .gap_2()
+                                        .child(ui::button("pv-test", "Test connection", USER_BUBBLE).on_click(cx.listener(move |this, _, _, cx| {
+                                            match (&test_body, this.api.clone()) {
+                                                (Ok(body), Some(api)) => {
+                                                    this.provider_check = "Testing…".into();
+                                                    test_provider(api, ws_t.clone(), body.clone(), this.tx.clone());
+                                                }
+                                                (Err(why), _) => this.provider_check = (*why).into(),
+                                                _ => {}
+                                            }
+                                            cx.notify();
+                                        })))
+                                        .child(ui::button("pv-add", "Add", if add_body.is_ok() { ACCENT } else { USER_BUBBLE }).on_click(cx.listener(move |this, _, window, cx| {
+                                            if let Ok(body) = &add_body {
+                                                this.mutate_path("POST", providers::providers_path(&ws_a), Some(body.clone()));
+                                                this.close_provider_form(window, cx);
+                                            }
+                                            cx.notify();
+                                        })))
+                                        .child(ui::button("pv-cancel", "Cancel", USER_BUBBLE).on_click(cx.listener(|this, _, window, cx| {
+                                            this.close_provider_form(window, cx);
+                                            cx.notify();
+                                        }))),
+                                ),
+                            )
+                        }
+                    });
+                }
                 for pr in &m.snapshot.workspace.providers {
                     let state = providers::key_state(pr, &self.secret_names);
                     let env = pr.key_env.clone().unwrap_or_default();
@@ -1527,7 +1803,7 @@ impl Render for AppView {
                     p = p.child(ui::row(if pr.name.is_empty() { &pr.id } else { &pr.name }, &note, controls));
                 }
                 if m.snapshot.workspace.providers.is_empty() {
-                    p = p.child(div().text_color(rgb(MUTED)).child("No providers configured. Add a custom provider in the web app for now."));
+                    p = p.child(div().text_color(rgb(MUTED)).child("No providers configured."));
                 }
                 p
             }
@@ -1535,7 +1811,32 @@ impl Render for AppView {
                 let ws_id = m.active_ws.clone().unwrap_or_default();
                 let tz = workspaceai_shared::schedule::local_tz();
                 let now = chrono::Utc::now();
-                let mut p = page;
+                let mut p = page.child(ui::button("pc-pair", "Pair a computer", ACCENT).on_click(cx.listener(|this, _, _, cx| {
+                    if let Some(api) = this.api.clone() {
+                        request_pairing(api, this.tx.clone());
+                    }
+                    cx.notify();
+                })));
+                if let Some(pair) = self.pairing.clone() {
+                    p = p.child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_4()
+                            .p_3()
+                            .rounded_lg()
+                            .bg(rgb(PANEL))
+                            .border_1()
+                            .border_color(rgb(ACCENT))
+                            .child(div().font_family("monospace").text_size(px(30.)).child(SharedString::from(pair.code.clone())))
+                            .child(div().flex_1().text_sm().child(SharedString::from(computers::pairing_text(&pair, &tz, now))))
+                            .child(ui::button("pc-pair-done", "Done", USER_BUBBLE).on_click(cx.listener(|this, _, _, cx| {
+                                this.pairing = None;
+                                this.model.needs.state = true;
+                                cx.notify();
+                            }))),
+                    );
+                }
                 for c in &m.computers {
                     let allowed = computers::allowed_for(c, &ws_id);
                     let (c_acc, ws_acc) = (c.clone(), ws_id.clone());
@@ -1563,7 +1864,7 @@ impl Render for AppView {
                     p = p.child(ui::row(&c.name, &note, controls));
                 }
                 if m.computers.is_empty() {
-                    p = p.child(div().text_color(rgb(MUTED)).child("No computers linked yet. Pair one from the web app for now."));
+                    p = p.child(div().text_color(rgb(MUTED)).child("No computers linked yet. Pair one to run routines on it."));
                 }
                 p
             }
