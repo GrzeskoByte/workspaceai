@@ -27,11 +27,15 @@ Build/run: `CARGO_PROFILE_DEV_DEBUG=0 cargo run -p workspaceai-app` (needs `libx
 - Providers: edit an existing custom provider (name, URL, models, optional new key); free-form secrets (name + masked value, list, remove)
 - General: multi-line workspace instructions editor (`TextInput::new_multiline`: Enter = new line, Up/Down/Home/End per line), accent chips
 
+- Onboarding (`crates/app/src/onboarding.rs` over `crates/client/src/onboarding.rs`): shown while `settings.onboarded` is false, same ten steps as the web app (Welcome, opencode detect/remote connect with Open Design install card, Subscriptions, Sessions scan with folder/session selection, Workspace, Model with provider test, Web search with test, Memory, first Project with AGENTS.md templates, Look with summary), `finish`, and "Skip setup · use demo data"
+- New workspace dialog (rail ＋): Team / Personal / Organization (join with SSO email + issuer); rail tiles tinted per kind (org purple, team cyan, personal accent) with a ring on the active one
+- General: default project and default model pickers, Delete workspace / Leave organization (two-step; the only personal workspace is protected); Data: Export downloads the .tar.gz to ~/Downloads (never overwrites)
+
 ## Next, in order
 1. (done)
 2. (done)
-3. Settings leftovers: workspace export download (needs a binary GET), delete/leave workspace, default project/model pickers, New team/org workspace and SSO join (see 4), Open Design install progress log and health check, lean-ctx panel, multi-line IME underline (marked text is not drawn in the text area), mouse caret in the text area is per line only (no wrapping: long lines scroll off, no soft wrap)
-4. Onboarding (detect opencode, scan, test remote/provider, templates, finish) and New workspace / join org
+3. Settings leftovers: Open Design install progress log and health check, lean-ctx panel, multi-line IME underline (marked text is not drawn in the text area), mouse caret in the text area is per line only (no wrapping: long lines scroll off, no soft wrap)
+4. (done) Remaining from it: the web-search config preview under the onboarding Web step (needs the `webConfigPreview` port), a keyboard-driven workspace switcher overlay like `design/Switcher.dc.html` (Ctrl+K palette already lists and switches workspaces; Ctrl+1..9 works), the New workspace "Start from" options of `NewWorkspace.dc.html` (the React app has none), and Esc to close the New workspace dialog
 5. (done)
 6. Home / Create (briefs, pipeline) views
 7. Approvals overview, artifact versions/export/share/delete, computer pairing, Project instructions (AGENTS.md editor, layers) and project model/inherit settings

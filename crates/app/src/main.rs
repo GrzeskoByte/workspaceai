@@ -3,6 +3,7 @@
 //! back through one channel that the window drains on a timer.
 
 mod md_view;
+mod onboarding;
 mod pages;
 mod text_input;
 mod ui;
@@ -69,6 +70,8 @@ enum Msg {
     /// A reply for the Settings pages in `pages.rs`: what it answers, the workspace, the JSON.
     Fetched(&'static str, String, serde_json::Value),
     SignIn(String, SignIn),
+    /// A reply for the setup wizard and the new-workspace dialog (`onboarding.rs`).
+    Onb(&'static str, serde_json::Value),
     Error(String),
 }
 
@@ -438,6 +441,7 @@ struct AppView {
     routine_phrase: Entity<TextInput>,
     routine_prompt: Entity<TextInput>,
     extra: pages::Extra,
+    onb: onboarding::Onb,
     model: Model,
     rx: Receiver<Msg>,
     tx: Sender<Msg>,
@@ -561,7 +565,8 @@ impl AppView {
         })
         .detach();
         let extra = pages::Extra::new(cx);
-        AppView { extra, palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, library_search, library_sel: None, library_view: None, secret_input, secret_names: Vec::new(), subs: Vec::new(), signin: None, signin_code, mcp_name, mcp_target, pairing: None, provider_form: None, provider_check: String::new(), project_input, show_archived: false, move_open: false, show_archived_chats: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
+        let onb = onboarding::Onb::new(cx);
+        AppView { extra, onb, palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, library_search, library_sel: None, library_view: None, secret_input, secret_names: Vec::new(), subs: Vec::new(), signin: None, signin_code, mcp_name, mcp_target, pairing: None, provider_form: None, provider_check: String::new(), project_input, show_archived: false, move_open: false, show_archived_chats: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -586,6 +591,11 @@ impl AppView {
                     load_messages(api, ws, chat, self.tx.clone());
                 }
             }
+        }
+        if self.onb.loaded && !self.extra.app.onboarded {
+            self.onb_start(cx);
+            self.onb_enter(cx);
+            self.onb_poll();
         }
         if changed {
             self.scroll.scroll_to_bottom();
@@ -617,6 +627,7 @@ impl AppView {
             }
             Msg::State(s) => {
                 self.extra.app = s.settings.clone();
+                self.onb.loaded = true;
                 let active = s.settings.active_workspace.clone().or_else(|| s.workspaces.first().map(|w| w.id.clone()));
                 let changed = active != self.model.active_ws;
                 self.model.workspaces = s.workspaces;
@@ -677,6 +688,7 @@ impl AppView {
                 }
             }
             Msg::SignIn(sub, state) => self.signin = Some((sub, state)),
+            Msg::Onb(kind, v) => self.onb_reply(kind, v),
             Msg::Secrets(ws, names) => {
                 if self.model.active_ws.as_deref() == Some(&ws) {
                     self.secret_names = names;
@@ -1055,9 +1067,18 @@ fn status_line(model: &Model) -> SharedString {
 
 impl Render for AppView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if self.onb.loaded && !self.extra.app.onboarded {
+            return self.onboarding_view(cx).relative().text_color(rgb(TEXT)).children(self.new_workspace_dialog(cx));
+        }
         let m = &self.model;
         let rail = div().flex().flex_col().gap_2().p_2().w(px(56.)).h_full().bg(rgb(RAIL)).children(m.workspaces.iter().map(|w| {
             let active = m.active_ws.as_deref() == Some(&w.id);
+            // Org workspaces are purple, team ones cyan, personal ones the accent; the active one has a ring.
+            let tint = match w.kind.as_str() {
+                "org" => 0x9d7cd8,
+                "team" => 0x56b6c2,
+                _ => ACCENT,
+            };
             let id = w.id.clone();
             div()
                 .id(SharedString::from(format!("ws-{}", w.id)))
@@ -1067,8 +1088,10 @@ impl Render for AppView {
                 .size(px(40.))
                 .rounded_lg()
                 .cursor_pointer()
-                .bg(rgb(if active { ACCENT } else { PANEL }))
-                .text_color(rgb(if active { 0xffffff } else { TEXT }))
+                .bg(rgb(PANEL))
+                .border_2()
+                .border_color(rgb(if active { tint } else { PANEL }))
+                .text_color(rgb(tint))
                 .font_weight(FontWeight::BOLD)
                 .child(SharedString::from(w.initials.clone()))
                 .on_click(cx.listener(move |this, _, _, cx| {
@@ -1521,9 +1544,10 @@ impl Render for AppView {
         page = match cur.id {
             "general" => page
                 .child(ui::row("Workspace name", "Press Enter to save.", div().w(px(260.)).px_2().py_1().rounded_md().bg(rgb(BG)).child(self.name_input.clone())))
-                .child(ui::row("Default model", "Used for new chats. Change it per chat from the chat header.", div().text_color(rgb(MUTED)).child(SharedString::from(if w.default_model.is_empty() { "Default".to_string() } else { w.default_model.clone() }))))
                 .child(self.accent_row(cx))
-                .child(self.instructions_card(cx)),
+                .child(self.default_pickers(cx))
+                .child(self.instructions_card(cx))
+                .child(self.remove_row(cx)),
             "memory" => page
                 .child(switch_row("useMemory", "Use memory", "Agents are told to use this workspace's memory, and each session opens with what it holds.", settings::switch_on(w.use_memory), cur.locked))
                 .child(switch_row("memoryRecall", "Recall on every message", "Look each message up in memory and hand the agent what matched.", settings::switch_on(w.memory_recall), cur.locked))
@@ -2096,6 +2120,24 @@ impl Render for AppView {
                 this.view = if this.view == View::Library { View::Chat } else { View::Library };
                 cx.notify();
             }));
+        let rail = rail.child(
+            div()
+                .id("add-workspace")
+                .flex()
+                .items_center()
+                .justify_center()
+                .size(px(40.))
+                .rounded_lg()
+                .cursor_pointer()
+                .border_1()
+                .border_color(rgb(MUTED))
+                .text_color(rgb(MUTED))
+                .child("＋")
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.open_new_workspace("team", cx);
+                    cx.notify();
+                })),
+        );
         let rail = rail.child(lib_button);
         let gear_on = self.view == View::Settings;
         let rail = rail.child(
@@ -2207,6 +2249,7 @@ impl Render for AppView {
             .child(left)
             .child(right)
             .children(overlay)
+            .children(self.new_workspace_dialog(cx))
     }
 }
 

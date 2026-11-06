@@ -108,7 +108,7 @@ fn call(api: Api, ws: String, method: &'static str, path: String, body: Option<s
     });
 }
 
-fn chips<T: Clone + 'static>(cx: &mut Context<AppView>, id: &str, opts: Vec<(String, T)>, active: impl Fn(&T) -> bool, locked: bool, pick: impl Fn(&mut AppView, T) + Clone + 'static) -> Div {
+pub(crate) fn chips<T: Clone + 'static>(cx: &mut Context<AppView>, id: &str, opts: Vec<(String, T)>, active: impl Fn(&T) -> bool, locked: bool, pick: impl Fn(&mut AppView, T) + Clone + 'static) -> Div {
     let mut d = div().flex().flex_wrap().gap_2().justify_end();
     for (i, (label, v)) in opts.into_iter().enumerate() {
         let b = ui::button(format!("{id}-{i}"), label, if active(&v) { ACCENT } else { RAISED_OFF });
@@ -138,7 +138,7 @@ fn card(title: &str) -> Div {
     div().flex().flex_col().gap_2().p_3().rounded_lg().bg(rgb(PANEL)).child(div().font_weight(FontWeight::BOLD).child(SharedString::from(title.to_string())))
 }
 
-fn heading(text: &str) -> Div {
+pub(crate) fn heading(text: &str) -> Div {
     div().text_size(px(18.)).font_weight(FontWeight::BOLD).mt_3().child(SharedString::from(text.to_string()))
 }
 
@@ -558,7 +558,10 @@ impl AppView {
                         if is_org { "Set by org policy" } else { "" },
                         chips(cx, "keep", wsx::KEEP_CHATS.iter().map(|v| (v.to_string(), v.to_string())).collect(), move |v| *v == keep, locked, |this, v| this.patch_ws(settings::patch("keepChats", v.into()))),
                     ))
-                    .child(ui::row("Export this workspace", "Chats, artifacts, memory and config as .tar.gz. The download is only in the web app for now.", div().text_color(rgb(MUTED)).child("Web app")))
+                    .child(ui::row("Export this workspace", "Chats, artifacts, memory and config as .tar.gz — secrets stay in the keychain. Saved to your Downloads folder.", ui::button("export-ws", "Export", ACCENT).on_click(cx.listener(|this, _, _, cx| {
+                        this.export_workspace();
+                        cx.notify();
+                    }))))
                     .child(heading("Archived projects"));
                 for pr in &self.extra.archived {
                     let (id_r, id_d, ws_r, ws_d) = (pr.id.clone(), pr.id.clone(), ws.clone(), ws.clone());
@@ -866,5 +869,52 @@ impl AppView {
         p.child(ds)
             .child(ui::row("Data folder", "Open Design's own data for this workspace", div().font_family("monospace").text_sm().child(SharedString::from(st.data_dir.clone()))))
             .child(ui::row("Artifact files", "Each project's artifacts live in its folder", div().font_family("monospace").text_sm().child("<project>/.harness/artifacts")))
+    }
+}
+
+impl AppView {
+    /// General: default project and default model, as chip lists.
+    pub fn default_pickers(&self, cx: &mut Context<Self>) -> Div {
+        let w = &self.model.snapshot.workspace;
+        let cur_project = w.default_project.clone();
+        let projects: Vec<(String, String)> = workspaceai_client::projects::tree(&self.model.snapshot.projects, false).into_iter().map(|n| (format!("{}{}", "  ".repeat(n.depth), n.name), n.id)).collect();
+        let cur_model = w.default_model.clone();
+        let listed: Vec<String> = self.models.options_for("opencode").into_iter().map(|o| o.id).collect();
+        let models: Vec<(String, String)> = workspaceai_client::spaces::model_choices(&cur_model, &listed).into_iter().map(|m| (m.clone(), m)).collect();
+        let note_model = if w.kind == "org" { "Only models your organization allows" } else { "Used when a project or chat does not pick one" };
+        let scroll = |id: &'static str, d: Div| div().id(id).max_h(px(150.)).overflow_y_scroll().child(d);
+        div()
+            .flex()
+            .flex_col()
+            .gap_3()
+            .child(ui::row("Default project", "Where quick chats go — no chat is left outside a project", scroll("pick-project", chips(cx, "defproj", projects, move |v| *v == cur_project, false, |this, v| this.patch_ws(settings::patch("defaultProject", v.into()))))))
+            .child(ui::row(
+                "Default model",
+                note_model,
+                scroll("pick-model", chips(cx, "defmodel", models, move |v| *v == cur_model, false, |this, v| {
+                    this.model.toast = Some(workspaceai_client::spaces::model_toast(&v));
+                    this.patch_ws(settings::patch("defaultModel", v.into()));
+                })),
+            ))
+    }
+
+    /// General: delete the workspace (or leave the organization), two-step.
+    pub fn remove_row(&self, cx: &mut Context<Self>) -> Div {
+        use workspaceai_client::spaces as sp;
+        let kind = self.model.snapshot.workspace.kind.clone();
+        let allowed = sp::can_delete(&kind, &self.model.workspaces);
+        let armed = self.confirm.is_armed("remove-ws");
+        let b = ui::button("remove-ws", sp::remove_button(&kind, armed), if armed { 0x7a2b2b } else { ui::DANGER });
+        let b = if allowed {
+            b.on_click(cx.listener(|this, _, _, cx| {
+                if this.confirm.press("remove-ws") {
+                    this.remove_workspace();
+                }
+                cx.notify();
+            }))
+        } else {
+            b.opacity(0.5)
+        };
+        ui::row(sp::remove_label(&kind), sp::remove_note(&kind, allowed), b)
     }
 }
