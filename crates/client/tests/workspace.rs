@@ -88,7 +88,7 @@ fn open_design_state_parses_and_counts_missing() {
 
 #[test]
 fn design_system_list_is_capped_and_keeps_the_chosen_one() {
-    let all: Vec<DesignSystem> = (0..30).map(|i| DesignSystem { id: i.to_string(), title: format!("DS {i}"), summary: "warm".into() }).collect();
+    let all: Vec<DesignSystem> = (0..30).map(|i| DesignSystem { id: i.to_string(), title: format!("DS {i}"), summary: "warm".into(), swatches: vec![], source: String::new() }).collect();
     assert_eq!(visible_systems(&all, "", "").len(), 12);
     assert_eq!(visible_systems(&all, "DS 29", "zzz").len(), 1);
     assert_eq!(visible_systems(&all, "", "ds 2").len(), 11);

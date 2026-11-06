@@ -317,9 +317,18 @@ pub struct Policy {
     pub block_external_sharing: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct AcpAgent {
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceInfo {
+    #[serde(default)]
+    pub agents: Vec<AcpAgent>,
     #[serde(default)]
     pub slug: String,
     #[serde(default)]
@@ -480,6 +489,18 @@ pub struct ArtifactVersion {
     /// "markdown", "html", "csv", "svg" or "json"; absent on old versions.
     #[serde(default)]
     pub format: Option<String>,
+    /// The chat that made this version.
+    #[serde(default)]
+    pub chat: Option<String>,
+    /// Open Design's record of the version (its lint findings); absent when the built-in store saved it.
+    #[serde(default)]
+    pub od: Option<OdMeta>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+pub struct OdMeta {
+    #[serde(default)]
+    pub lint: Vec<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -499,6 +520,8 @@ pub struct Artifact {
     pub version: u32,
     #[serde(default)]
     pub versions: Vec<ArtifactVersion>,
+    #[serde(default)]
+    pub design_system: String,
     #[serde(default)]
     pub updated_at: i64,
 }

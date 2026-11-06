@@ -300,6 +300,11 @@ pub struct DesignSystem {
     pub title: String,
     #[serde(default)]
     pub summary: String,
+    #[serde(default)]
+    pub swatches: Vec<String>,
+    /// "harness" for the WorkspaceAI default.
+    #[serde(default)]
+    pub source: String,
 }
 
 pub fn parse_design_systems(reply: &Value) -> Vec<DesignSystem> {

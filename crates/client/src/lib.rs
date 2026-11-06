@@ -1,11 +1,16 @@
 pub mod api;
+pub mod approvals;
+pub mod artifacts;
 pub mod chats;
 pub mod command;
 pub mod computers;
 pub mod connectors;
+pub mod create;
 pub mod events;
 pub mod facts;
 pub mod files;
+pub mod home;
+pub mod instructions;
 pub mod library;
 pub mod markdown;
 pub mod model;
