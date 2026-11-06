@@ -1,0 +1,33 @@
+{
+  "policy": {
+    "version": "2026.10.1",
+    "org": "BSC AI Factory · Ünïcode",
+    "ключ": "значение",
+    "emoji🙂": "ok",
+    "nested": {
+      "é": [
+        0,
+        0,
+        1,
+        1.5,
+        1e+21,
+        1e-7,
+        0.000001,
+        1e+300,
+        123456789012345680000,
+        2.5e-10
+      ],
+      "control": "tab\tnewline\nquote\"backslash\\",
+      "Ω": {
+        "中": true,
+        "🙂": null
+      }
+    },
+    "allowedProviders": [],
+    "allowedModels": [],
+    "logContent": false,
+    "issuedAt": 1790812800000
+  },
+  "signature": "moK69t1VdKr+lleMzaZ5XUETu7whtOS+Ekinq6/CFovfoI4cxM5EYMEvidLuAscxSH+IVM5UJxskL9ft2A2cCA==",
+  "keyId": "ts-fixture-key"
+}
