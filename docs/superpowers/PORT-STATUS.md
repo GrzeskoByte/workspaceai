@@ -20,14 +20,15 @@ Build/run: `CARGO_PROFILE_DEV_DEBUG=0 cargo run -p workspaceai-app` (needs `libx
 - Connectors (Settings › Connectors): MCP servers with on/off, remove (two-step); built-in and org-locked ones protected. Adding one is still web-only
 - Library (rail ▤): searchable artifact list, newest first; Markdown shown rendered, CSV/JSON/SVG as text, HTML explained as needing the web view
 - Command palette (Ctrl+K / Cmd+K): actions, workspaces, chats, settings pages; Up/Down/Enter/Esc
-- Chat actions: rename, fork, archive, delete (two-step), full-access toggle
+- Chat actions: rename, fork, archive, delete (two-step), full-access toggle, move to another project, Copy per message, archived chats list in the sidebar with Restore
+- Ctrl/Cmd+1..9 switches workspace (same as the web app)
 
 ## Next, in order
 1. Attach file picker (drag/drop)
-2. Chat extras left: move chat to another project, copy message, restore archived chats
+2. (done)
 3. Settings pages left: workspaces/members, custom provider form + test, subscription sign-in flow, web search, secrets, MCP servers, engine logs/mode/version, Open Design panel, artifacts, data, audit, appearance, vaults, skills, multi-line instructions editor
 4. Onboarding (detect opencode, scan, test remote/provider, templates, finish) and New workspace / join org
-5. Keyboard shortcuts beyond the palette (workspace switching by number)
+5. (done)
 6. Home / Create (briefs, pipeline) views
 7. Approvals overview, artifact versions/export/share/delete, computer pairing, Project instructions (AGENTS.md editor, layers) and project model/inherit settings
 8. Artifacts: Open Design embedded web view (X11 shim from the spike; see `spike-webview.md` open items), artifact panel/fullscreen, browser panel

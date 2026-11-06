@@ -362,6 +362,8 @@ struct AppView {
     subs: Vec<Subscription>,
     project_input: Entity<TextInput>,
     show_archived: bool,
+    move_open: bool,
+    show_archived_chats: bool,
     routine_phrase: Entity<TextInput>,
     routine_prompt: Entity<TextInput>,
     model: Model,
@@ -480,7 +482,7 @@ impl AppView {
             }
         })
         .detach();
-        AppView { palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, library_search, library_sel: None, library_view: None, secret_input, secret_names: Vec::new(), subs: Vec::new(), project_input, show_archived: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
+        AppView { palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, library_search, library_sel: None, library_view: None, secret_input, secret_names: Vec::new(), subs: Vec::new(), project_input, show_archived: false, move_open: false, show_archived_chats: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -633,6 +635,7 @@ impl AppView {
         self.model.open_chat(id.clone(), Vec::new());
         self.commands.clear();
         self.panel = None;
+        self.move_open = false;
         if let (Some(api), Some(ws)) = (self.api.clone(), self.model.active_ws.clone()) {
             load_messages(api.clone(), ws.clone(), id.clone(), self.tx.clone());
             load_permissions(api.clone(), ws.clone(), id.clone(), self.tx.clone());
@@ -812,6 +815,19 @@ impl AppView {
         }
     }
 
+    fn move_to(&mut self, project: &str) {
+        self.move_open = false;
+        if let (Some(ws), Some(id)) = (self.model.active_ws.clone(), self.model.open_chat_id.clone()) {
+            self.mutate_path("POST", chats::move_path(&ws, &id), Some(chats::move_body(project)));
+        }
+    }
+
+    fn restore_chat(&mut self, id: String) {
+        if let (Some(api), Some(ws)) = (self.api.clone(), self.model.active_ws.clone()) {
+            patch_chat(api, ws, id, chats::archive_body(false), self.tx.clone());
+        }
+    }
+
     fn fork(&mut self) {
         if let (Some(api), Some(ws), Some(id)) = (self.api.clone(), self.model.active_ws.clone(), self.model.open_chat_id.clone()) {
             fork_chat(api, ws, id, self.tx.clone());
@@ -951,7 +967,47 @@ impl Render for AppView {
                             cx.notify();
                         })),
                 }
-            })));
+            })))
+            .child({
+                let archived = m.archived_chats();
+                div()
+                    .flex()
+                    .flex_col()
+                    .px_2()
+                    .when(!archived.is_empty(), |d| {
+                        d.child(
+                            div()
+                                .id("toggle-archived-chats")
+                                .px_2()
+                                .py_1()
+                                .cursor_pointer()
+                                .text_sm()
+                                .text_color(rgb(MUTED))
+                                .child(SharedString::from(format!("{} archived chats ({})", if self.show_archived_chats { "Hide" } else { "Show" }, archived.len())))
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.show_archived_chats = !this.show_archived_chats;
+                                    cx.notify();
+                                })),
+                        )
+                    })
+                    .when(self.show_archived_chats, |d| {
+                        d.max_h(px(180.)).children(archived.into_iter().map(|(id, title)| {
+                            div()
+                                .id(SharedString::from(format!("arch-{id}")))
+                                .flex()
+                                .justify_between()
+                                .px_2()
+                                .py_1()
+                                .text_sm()
+                                .text_color(rgb(MUTED))
+                                .child(SharedString::from(if title.is_empty() { "New chat".to_string() } else { title }))
+                                .child(div().id(SharedString::from(format!("restore-{id}"))).cursor_pointer().text_color(rgb(ACCENT)).child("Restore").on_click(cx.listener(move |this, _, _, cx| {
+                                    this.restore_chat(id.clone());
+                                    cx.notify();
+                                })))
+                        }))
+                    })
+            });
 
         let chat_title = m
             .open_chat_id
@@ -1033,6 +1089,10 @@ impl Render for AppView {
                     this.archive();
                     cx.notify();
                 })))
+                .child(button("act-move", "Move…".into(), if self.move_open { USER_BUBBLE } else { PANEL }).on_click(cx.listener(|this, _, _, cx| {
+                    this.move_open = !this.move_open;
+                    cx.notify();
+                })))
                 .child(button("act-delete", if armed { "Click again to delete".into() } else { "Delete".into() }, if armed { 0x7a2b2b } else { PANEL }).on_click(cx.listener(|this, _, _, cx| {
                     this.delete();
                     cx.notify();
@@ -1041,6 +1101,17 @@ impl Render for AppView {
                     this.toggle_full_access();
                     cx.notify();
                 })))
+        });
+        let move_panel = self.move_open.then(|| self.open_chat_info().cloned()).flatten().map(|c| {
+            div().id("move-list").mx_4().mt_2().p_2().max_h(px(220.)).overflow_y_scroll().rounded_md().bg(rgb(PANEL)).flex().flex_col().child(div().text_sm().text_color(rgb(MUTED)).child("Move to project")).children(
+                projects::tree(&self.model.snapshot.projects, false).into_iter().filter(|n| n.id != c.project).map(|n| {
+                    let pid = n.id.clone();
+                    div().id(SharedString::from(format!("move-{}", n.id))).pl(px(8. + 14. * n.depth as f32)).py_1().rounded_md().cursor_pointer().hover(|s| s.bg(rgb(USER_BUBBLE))).text_sm().child(SharedString::from(format!("▤ {}", n.name))).on_click(cx.listener(move |this, _, _, cx| {
+                        this.move_to(&pid);
+                        cx.notify();
+                    }))
+                }),
+            )
         });
         let rename_row = self.renaming.then(|| div().mx_4().mt_2().px_3().py_2().rounded_md().bg(rgb(PANEL)).child(self.rename_input.clone()));
 
@@ -1092,7 +1163,17 @@ impl Render for AppView {
                 if let Some(e) = &msg.error {
                     bubble = bubble.child(div().text_sm().text_color(rgb(0xff6b6b)).child(SharedString::from(e.clone())));
                 }
-                div().flex().when(user, |d| d.justify_end()).child(bubble)
+                let text = msg.text.clone();
+                let copy = div().id(SharedString::from(format!("copy-{}", msg.id))).px_2().rounded_md().cursor_pointer().bg(rgb(PANEL)).text_size(px(11.)).text_color(rgb(MUTED)).child("Copy").on_click(cx.listener(move |this, _, _, cx| {
+                    cx.write_to_clipboard(gpui::ClipboardItem::new_string(text.clone()));
+                    this.model.toast = Some("Copied to clipboard".into());
+                    cx.notify();
+                }));
+                if user {
+                    div().flex().justify_end().child(bubble.child(copy))
+                } else {
+                    div().flex().child(bubble.child(copy))
+                }
             }),
         )
         .children(m.pending_permissions().iter().map(|p| {
@@ -1214,7 +1295,7 @@ impl Render for AppView {
 
         let composer = div().p_3().child(div().px_3().py_2().rounded_lg().bg(rgb(PANEL)).text_size(px(15.)).line_height(px(22.)).child(self.input.clone()));
 
-        let main = div().flex().flex_col().flex_1().min_w_0().h_full().child(header).children(actions).children(rename_row).children(picker).child(messages).children(toast).children(panel).children(suggest_box).children(file_box).child(composer);
+        let main = div().flex().flex_col().flex_1().min_w_0().h_full().child(header).children(actions).children(move_panel).children(rename_row).children(picker).child(messages).children(toast).children(panel).children(suggest_box).children(file_box).child(composer);
 
         // ---- settings ----
         let is_org = m.snapshot.workspace.kind == "org";
@@ -1774,6 +1855,19 @@ impl Render for AppView {
             .key_context("App")
             .on_action(cx.listener(|this, _: &OpenPalette, window, cx| this.open_palette(window, cx)))
             .on_action(cx.listener(|this, _: &ClosePalette, window, cx| this.close_palette(window, cx)))
+            .on_key_down(cx.listener(|this, ev: &gpui::KeyDownEvent, _, cx| {
+                // Ctrl/Cmd+1..9 switches workspace, like the web app.
+                let mods = ev.keystroke.modifiers;
+                if (if cfg!(target_os = "macos") { mods.platform } else { mods.control }) && !mods.alt && !mods.shift {
+                    if let (Some(id), Some(api)) = (this.model.workspace_for_shortcut(&ev.keystroke.key).map(String::from), this.api.clone()) {
+                        if this.model.active_ws.as_deref() != Some(&id) {
+                            activate(api, id, this.tx.clone());
+                        }
+                        this.view = View::Chat;
+                        cx.notify();
+                    }
+                }
+            }))
             .relative()
             .flex()
             .size_full()
