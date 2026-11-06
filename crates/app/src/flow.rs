@@ -799,8 +799,13 @@ impl AppView {
             let mut card = panel()
                 .child(div().child(SharedString::from(format!("{} asks to use {}", a.agent, a.title))))
                 .child(small(format!("{} · {}", a.chat_title, a.project)));
+            // Security: never let someone approve a request whose detail is cut off. Allow stays off until the full text is read in the chat.
+            let total = a.detail.chars().count();
+            let truncated = total > 300;
             if !a.detail.is_empty() {
-                card = card.child(div().font_family("monospace").text_size(px(12.)).text_color(rgb(MUTED)).child(SharedString::from(a.detail.chars().take(300).collect::<String>())));
+                let shown: String = a.detail.chars().take(300).collect();
+                let text = if truncated { format!("{shown}…(truncated, {} more characters — open the chat to read the full request)", total - 300) } else { shown };
+                card = card.child(div().font_family("monospace").text_size(px(12.)).text_color(rgb(MUTED)).child(SharedString::from(text)));
             }
             let key = format!("{}-{}", a.chat, a.id);
             p = p.child(
@@ -808,8 +813,8 @@ impl AppView {
                     div()
                         .flex()
                         .gap_2()
-                        .child(btn(cx, &format!("ap-once-{key}"), "Allow once", ACCENT, true, move |this, _| this.reply_ask(&c1.chat, &c1.id, "once")))
-                        .child(btn(cx, &format!("ap-always-{key}"), "Always allow", RAISED_OFF, true, move |this, _| this.reply_ask(&c2.chat, &c2.id, "always")))
+                        .child(btn(cx, &format!("ap-once-{key}"), "Allow once", ACCENT, !truncated, move |this, _| this.reply_ask(&c1.chat, &c1.id, "once")))
+                        .child(btn(cx, &format!("ap-always-{key}"), "Always allow", RAISED_OFF, !truncated, move |this, _| this.reply_ask(&c2.chat, &c2.id, "always")))
                         .child(btn(cx, &format!("ap-reject-{key}"), "Reject", ui::DANGER, true, move |this, _| this.reply_ask(&c3.chat, &c3.id, "reject")))
                         .child(btn(cx, &format!("ap-open-{key}"), "Open chat", RAISED_OFF, true, move |this, _| {
                             this.view = View::Chat;
