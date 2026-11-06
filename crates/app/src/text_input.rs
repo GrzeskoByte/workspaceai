@@ -936,7 +936,7 @@ mod tests {
     #[test]
     fn every_binding_is_a_valid_keystroke() {
         // KeyBinding::new panics on a keystroke GPUI cannot parse, which used to kill the app at startup.
-        assert_eq!(super::bindings().len(), 13);
+        assert_eq!(super::bindings().len(), 15);
     }
 }
 
@@ -983,7 +983,7 @@ mod line_tests {
     fn vertical_keeps_the_column() {
         let t = "abc\nde\nfghij";
         assert_eq!(vertical(t, 2, true), 6); // "de" ends at 6 (col 2 clamps to its end)
-        assert_eq!(vertical(t, 6, true), 10); // col 2 of "fghij"
+        assert_eq!(vertical(t, 6, true), 9); // col 2 of "fghij"
         assert_eq!(vertical(t, 10, false), 6);
         assert_eq!(vertical(t, 1, false), 0);
         assert_eq!(vertical(t, 12, true), t.len());
