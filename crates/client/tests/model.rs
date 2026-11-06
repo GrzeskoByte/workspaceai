@@ -8,7 +8,7 @@ fn chat(id: &str, project: &str, title: &str, updated: i64, archived: bool) -> C
     Chat { id: id.into(), project: project.into(), title: title.into(), archived, updated_at: updated, agent: String::new(), model: String::new(), effort: None, yolo: None }
 }
 fn msg(id: &str, role: &str, text: &str) -> ChatMessage {
-    ChatMessage { id: id.into(), role: role.into(), text: text.into(), tools: vec![], error: None, created_at: 0 }
+    ChatMessage { id: id.into(), role: role.into(), text: text.into(), tools: vec![], error: None, created_at: 0, artifact: None }
 }
 fn open_model() -> Model {
     let mut m = Model::default();
@@ -42,7 +42,7 @@ fn delta_for_another_chat_or_workspace_leaves_the_open_chat_alone() {
 #[test]
 fn tool_steps_replace_the_same_tool_and_append_new_ones() {
     let mut m = open_model();
-    let tool = |name: &str, status: &str| ToolStep { name: name.into(), status: status.into(), detail: None };
+    let tool = |name: &str, status: &str| ToolStep { name: name.into(), status: status.into(), detail: None, output: None };
     let ev = |t| UiEvent::ChatTool { workspace: "w1".into(), chat: "c1".into(), message_id: "a1".into(), tool: t };
     m.apply(ev(tool("bash", "running")));
     m.apply(ev(tool("bash", "ok")));

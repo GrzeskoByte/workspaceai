@@ -66,7 +66,7 @@ impl Model {
         if let Some(i) = self.messages.iter().position(|m| m.id == id) {
             return &mut self.messages[i];
         }
-        self.messages.push(ChatMessage { id: id.into(), role: "assistant".into(), text: String::new(), tools: vec![], error: None, created_at: 0 });
+        self.messages.push(ChatMessage { id: id.into(), role: "assistant".into(), text: String::new(), tools: vec![], error: None, created_at: 0, artifact: None });
         self.messages.last_mut().unwrap()
     }
 

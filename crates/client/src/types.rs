@@ -559,6 +559,9 @@ pub struct ToolStep {
     pub status: String,
     #[serde(default)]
     pub detail: Option<String>,
+    /// What the tool printed; a local address in it is offered as a preview.
+    #[serde(default)]
+    pub output: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -574,6 +577,9 @@ pub struct ChatMessage {
     pub error: Option<String>,
     #[serde(default)]
     pub created_at: i64,
+    /// The artifact this reply made or changed, shown as a card that opens the artifact panel.
+    #[serde(default)]
+    pub artifact: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

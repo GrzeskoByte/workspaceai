@@ -26,3 +26,4 @@ pub mod subscriptions;
 pub mod workspace;
 pub mod supervisor;
 pub mod types;
+pub mod web;
