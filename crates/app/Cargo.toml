@@ -17,3 +17,14 @@ chrono = "0.4"
 serde = "1"
 serde_json = "1"
 unicode-segmentation = "1"
+wry = { version = "0.57", optional = true }
+raw-window-handle = { version = "0.6", optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = { version = "0.18", optional = true }
+
+[features]
+default = ["webview"]
+# The embedded web view (artifact pages, browser panel). Linux needs libwebkit2gtk-4.1-dev and libgtk-3-dev to
+# build; `--no-default-features` builds without it and shows a notice where the page would be.
+webview = ["dep:wry", "dep:raw-window-handle", "dep:gtk"]

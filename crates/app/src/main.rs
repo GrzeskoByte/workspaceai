@@ -6,8 +6,10 @@ mod flow;
 mod md_view;
 mod onboarding;
 mod pages;
+mod panels;
 mod text_input;
 mod ui;
+mod webview;
 
 use gpui::{
     actions, div, prelude::*, px, rgb, rgba, size, App, Bounds, ExternalPaths, PathPromptOptions, KeyBinding, Context, Entity, Focusable, FontWeight, ScrollHandle, SharedString, Window, WindowBounds,
@@ -34,7 +36,7 @@ use workspaceai_client::computers;
 use workspaceai_client::connectors;
 use workspaceai_client::subscriptions::{self, SignIn, SubAction};
 use workspaceai_client::command::{self, Outcome};
-use workspaceai_client::library::{self, Body};
+use workspaceai_client::library;
 use workspaceai_client::markdown;
 use workspaceai_shared::commands::{insert_mention, mention_at, parse_slash, ChatCommand};
 use workspaceai_client::types::{AppState, Chat, ChatMessage, PermissionRequest, Snapshot, Subscription, UiEvent};
@@ -63,7 +65,8 @@ enum Msg {
     Models(String, ModelList),
     Files(String, Vec<String>),
     Secrets(String, Vec<String>),
-    ArtifactView(String, Result<library::View, String>),
+    /// An artifact's content, and the page Open Design stores for it (empty when none).
+    ArtifactView(String, Result<library::View, String>, String),
     Subscriptions(String, Vec<Subscription>),
     ChatCreated(String, Chat),
     Pairing(Option<computers::Pairing>),
@@ -193,8 +196,10 @@ fn mutate(api: Api, ws: String, method: &'static str, path: String, body: Option
 
 fn load_artifact(api: Api, ws: String, artifact: String, version: Option<u32>, tx: Sender<Msg>) {
     spawn(move || {
-        let r = api.get(&library::content_path(&ws, &artifact, version)).map_err(|e| e.to_string()).and_then(|v| library::parse_view(&v).ok_or_else(|| "The artifact has no content.".to_string()));
-        let _ = tx.send(Msg::ArtifactView(artifact, r));
+        let reply = api.get(&library::content_path(&ws, &artifact, version)).map_err(|e| e.to_string());
+        let page = reply.as_ref().map(workspaceai_client::web::page_of).unwrap_or_default();
+        let r = reply.and_then(|v| library::parse_view(&v).ok_or_else(|| "The artifact has no content.".to_string()));
+        let _ = tx.send(Msg::ArtifactView(artifact, r, page));
     });
 }
 
@@ -429,6 +434,8 @@ struct AppView {
     library_search: Entity<TextInput>,
     library_sel: Option<String>,
     library_view: Option<Result<library::View, String>>,
+    library_page: String,
+    side: panels::Side,
     secret_input: Entity<TextInput>,
     secret_names: Vec<String>,
     subs: Vec<Subscription>,
@@ -580,7 +587,24 @@ impl AppView {
         })
         .detach();
         let onb = onboarding::Onb::new(cx);
-        AppView { extra, flow, onb, palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, library_search, library_sel: None, library_view: None, secret_input, secret_names: Vec::new(), subs: Vec::new(), signin: None, signin_code, mcp_name, mcp_target, pairing: None, provider_form: None, provider_check: String::new(), project_input, show_archived: false, move_open: false, show_archived_chats: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
+        let side = panels::Side::new(cx);
+        cx.subscribe_in(&side.address, window, |this, input, event: &TextInputEvent, _window, cx| {
+            if *event == TextInputEvent::Submit {
+                let typed = input.read(cx).content().to_string();
+                this.browse(&typed);
+                cx.notify();
+            }
+        })
+        .detach();
+        #[cfg(feature = "webview")]
+        cx.spawn(async move |this, cx| loop {
+            cx.background_executor().timer(Duration::from_millis(16)).await;
+            if this.update(cx, |this, cx| this.web_tick(cx)).is_err() {
+                break;
+            }
+        })
+        .detach();
+        AppView { extra, flow, onb, palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, library_search, library_sel: None, library_view: None, library_page: String::new(), side, secret_input, secret_names: Vec::new(), subs: Vec::new(), signin: None, signin_code, mcp_name, mcp_target, pairing: None, provider_form: None, provider_check: String::new(), project_input, show_archived: false, move_open: false, show_archived_chats: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -612,6 +636,7 @@ impl AppView {
             self.onb_poll();
         }
         self.flow_pump(cx);
+        self.side_pump(cx);
         if changed {
             self.scroll.scroll_to_bottom();
             cx.notify();
@@ -685,9 +710,10 @@ impl AppView {
                     self.model.set_permissions(&chat, list);
                 }
             }
-            Msg::ArtifactView(artifact, result) => {
+            Msg::ArtifactView(artifact, result, page) => {
                 if self.library_sel.as_deref() == Some(&artifact) {
                     self.library_view = Some(result);
+                    self.library_page = page;
                 }
             }
             Msg::Subscriptions(ws, list) => {
@@ -921,6 +947,10 @@ impl AppView {
     }
 
     fn close_palette(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.side.full && !self.palette_open {
+            self.side.full = false;
+            cx.notify();
+        }
         if !self.palette_open && self.onb.nw_kind.is_some() {
             self.onb.nw_kind = None;
             cx.notify();
@@ -1064,7 +1094,7 @@ impl AppView {
             return;
         }
         self.local_id += 1;
-        self.model.messages.push(ChatMessage { id: format!("local-{}", self.local_id), role: "user".into(), text: text.clone(), tools: vec![], error: None, created_at: 0 });
+        self.model.messages.push(ChatMessage { id: format!("local-{}", self.local_id), role: "user".into(), text: text.clone(), tools: vec![], error: None, created_at: 0, artifact: None });
         match self.model.open_chat_id.clone() {
             Some(chat) => send_text(api, ws, chat, text, self.tx.clone()),
             None => match self.general_project() {
@@ -1086,7 +1116,8 @@ fn status_line(model: &Model) -> SharedString {
 }
 
 impl Render for AppView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.web_begin_frame(window);
         if self.onb.loaded && !self.extra.app.onboarded {
             return self.onboarding_view(cx).relative().text_color(rgb(TEXT)).children(self.new_workspace_dialog(cx));
         }
@@ -1296,6 +1327,10 @@ impl Render for AppView {
                     this.delete();
                     cx.notify();
                 })))
+                .child(button("act-browser", "Browser".into(), if self.side.browser.is_some() && !self.side.art_open { USER_BUBBLE } else { PANEL }).on_click(cx.listener(|this, _, _, cx| {
+                    this.toggle_browser();
+                    cx.notify();
+                })))
                 .child(button("act-full", if self.in_flight.is_pending(&c.id) { "Full access: saving…".into() } else if full { "Full access: on".into() } else { "Full access: off".into() }, if full { 0x7a4a1b } else { PANEL }).on_click(cx.listener(|this, _, _, cx| {
                     this.toggle_full_access();
                     cx.notify();
@@ -1368,10 +1403,11 @@ impl Render for AppView {
                     this.model.toast = Some("Copied to clipboard".into());
                     cx.notify();
                 }));
+                let bubble = bubble.child(copy).children(self.message_extras(msg, cx));
                 if user {
-                    div().flex().justify_end().child(bubble.child(copy))
+                    div().flex().justify_end().child(bubble)
                 } else {
-                    div().flex().child(bubble.child(copy))
+                    div().flex().child(bubble)
                 }
             }),
         )
@@ -2106,23 +2142,12 @@ impl Render for AppView {
             })))
             .when(lib_rows.is_empty(), |d| d.child(div().p_4().text_color(rgb(MUTED)).child("No artifacts yet. Ask an agent to make a doc, deck or sheet.")));
         let selected_art = self.library_sel.as_ref().and_then(|id| m.snapshot.artifacts.iter().find(|a| &a.id == id));
-        let library_main = div().id("library-view").flex_1().min_w_0().h_full().overflow_y_scroll().p(px(28.)).flex().flex_col().gap_3().child(match (selected_art, &self.library_view) {
+        let library_main = div().id("library-view").flex_1().min_w_0().h_full().p(px(28.)).flex().flex_col().gap_3().child(match (selected_art, &self.library_view) {
             (None, _) => div().text_color(rgb(MUTED)).child("Pick an artifact on the left.").into_any_element(),
-            (Some(a), None) => div().child(SharedString::from(format!("Opening {}…", a.title))).into_any_element(),
-            (Some(a), Some(Err(e))) => div().flex().flex_col().gap_2().child(ui::page_title(&a.title, "")).child(div().text_color(rgb(0xff6b6b)).child(SharedString::from(e.clone()))).child(self.library_extras(a, cx)).into_any_element(),
-            (Some(a), Some(Ok(v))) => div()
-                .flex()
-                .flex_col()
-                .gap_3()
-                .max_w(px(860.))
-                .child(ui::page_title(&a.title, &format!("{} · version {} · {}", a.kind, a.version, v.format)))
-                .child(match library::body_for(&v.format, &v.content) {
-                    Body::Markdown(t) => md_view::blocks(&markdown::parse(&t)).into_any_element(),
-                    Body::Text(t) => div().font_family("monospace").text_size(px(13.)).p_3().rounded_md().bg(rgb(PANEL)).child(SharedString::from(t)).into_any_element(),
-                    Body::Unsupported(why) => div().p_4().rounded_lg().bg(rgb(PANEL)).text_color(rgb(MUTED)).child(SharedString::from(why)).into_any_element(),
-                })
-                .child(self.library_extras(a, cx))
-                .into_any_element(),
+            (Some(a), view) => {
+                let format = view.as_ref().and_then(|r| r.as_ref().ok()).map_or(String::new(), |v| format!(" · {}", v.format));
+                div().flex().flex_col().flex_1().min_h_0().gap_3().max_w(px(1100.)).child(ui::page_title(&a.title, &format!("{} · version {}{format}", a.kind, a.version))).child(self.artifact_body(a, cx)).into_any_element()
+            }
         });
 
         let lib_on = self.view == View::Library;
@@ -2193,7 +2218,11 @@ impl Render for AppView {
         let (left, right) = match self.view {
             View::Settings => (settings_nav.into_any_element(), settings_main.into_any_element()),
             View::Library => (library_list.into_any_element(), library_main.into_any_element()),
-            View::Chat => (sidebar.into_any_element(), main.into_any_element()),
+            View::Chat => {
+                let side = self.side_panel(cx);
+                let wide = side.as_ref().is_some_and(|(_, w)| *w);
+                (sidebar.into_any_element(), div().flex().flex_1().min_w_0().h_full().when(!wide, |d| d.child(main)).children(side.map(|(p, _)| p)).into_any_element())
+            }
             View::Home => (sidebar.into_any_element(), self.home_view(cx).into_any_element()),
             View::Create => (self.create_nav(cx).into_any_element(), self.create_view(cx).into_any_element()),
             View::Approvals => (sidebar.into_any_element(), self.approvals_view(cx).into_any_element()),
@@ -2273,6 +2302,10 @@ impl Render for AppView {
                     }
                 }
             }))
+            .on_mouse_down(gpui::MouseButton::Left, cx.listener(|this, _, _, _| {
+                this.side.art.borrow().release_focus();
+                this.side.br.borrow().release_focus();
+            }))
             .relative()
             .flex()
             .size_full()
@@ -2281,6 +2314,7 @@ impl Render for AppView {
             .child(rail)
             .child(left)
             .child(right)
+            .children(self.artifact_fullscreen(cx))
             .children(overlay)
             .children(self.new_workspace_dialog(cx))
     }
@@ -2359,6 +2393,7 @@ fn main() {
         }
         return;
     }
+    webview::init();
     gpui_platform::application().run(|cx: &mut App| {
         text_input::bind_keys(cx);
         cx.bind_keys(app_bindings());

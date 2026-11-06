@@ -216,6 +216,9 @@ impl AppView {
         if kind.starts_with("flow-") {
             return self.flow_fetched(kind, v);
         }
+        if kind.starts_with("side-") {
+            return self.side_fetched(kind, v);
+        }
         let x = &mut self.extra;
         match kind {
             "web-preview" => x.web_preview = v["text"].as_str().unwrap_or("").to_string(),

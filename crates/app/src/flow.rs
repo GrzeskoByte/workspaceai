@@ -46,6 +46,8 @@ pub struct Flow {
     ds_query: Entity<TextInput>,
     art: Option<String>,
     art_view: Option<library::View>,
+    /// The page Open Design stores for the shown version (what the web view shows).
+    art_page: String,
     formats: Vec<ExportFormat>,
     tab: &'static str,
     crit: Option<Critique>,
@@ -93,6 +95,7 @@ impl Flow {
             ds_query: make(cx, "Search design systems", false),
             art: None,
             art_view: None,
+            art_page: String::new(),
             formats: vec![],
             tab: "plan",
             crit: None,
@@ -160,8 +163,12 @@ fn chip(cx: &mut Context<AppView>, id: String, label: &str, on: bool, f: impl Fn
 }
 
 impl AppView {
-    fn ws_id(&self) -> String {
+    pub(crate) fn ws_id(&self) -> String {
         self.model.active_ws.clone().unwrap_or_default()
+    }
+
+    pub(crate) fn flow_lib_ver(&self) -> Option<u32> {
+        self.flow.lib_ver
     }
 
     fn flow_open(&mut self, view: View) {
@@ -205,6 +212,7 @@ impl AppView {
     pub fn select_artifact(&mut self, id: String) {
         self.library_sel = Some(id.clone());
         self.library_view = None;
+        self.library_page.clear();
         self.flow.lib_ver = None;
         self.flow.lib_formats.clear();
         self.confirm.cancel();
@@ -268,7 +276,10 @@ impl AppView {
                     self.model.toast = Some(format!("{} saved · v{}", v["type"].as_str().unwrap_or("Artifact"), v["version"]));
                 }
             }
-            "flow-content" => self.flow.art_view = library::parse_view(&v),
+            "flow-content" => {
+                self.flow.art_view = library::parse_view(&v);
+                self.flow.art_page = workspaceai_client::web::page_of(&v);
+            }
             "flow-formats" => self.flow.formats = artifacts::parse_formats(&v),
             "flow-lib-formats" => self.flow.lib_formats = artifacts::parse_formats(&v),
             "flow-critique" => self.flow.crit = create::parse_critique(&v),
@@ -663,11 +674,14 @@ impl AppView {
         let latest = artifacts::version_rows(art).into_iter().next();
         let body = match &f.art_view {
             None => dim("Loading…").into_any_element(),
-            Some(v) => match library::body_for(&v.format, &v.content) {
-                Body::Markdown(t) if art.kind != "Deck" => md_blocks(&t).into_any_element(),
-                Body::Text(t) => mono(t).into_any_element(),
-                Body::Markdown(t) => mono(t).into_any_element(),
-                Body::Unsupported(why) => div().p_4().rounded_lg().bg(rgb(PANEL)).text_color(rgb(MUTED)).child(SharedString::from(why)).into_any_element(),
+            Some(v) => match self.art_source(&art.kind, v, &f.art_page) {
+                Some(src) => div().flex().flex_col().gap_2().child(self.device_toggle(&art.kind, cx)).child(div().h(px(520.)).rounded_md().overflow_hidden().child(self.web_slot(&self.side.art, src))).into_any_element(),
+                None => match library::body_for(&v.format, &v.content) {
+                    Body::Markdown(t) if art.kind != "Deck" => md_blocks(&t).into_any_element(),
+                    Body::Text(t) => mono(t).into_any_element(),
+                    Body::Markdown(t) => mono(t).into_any_element(),
+                    Body::Unsupported(why) => div().p_4().rounded_lg().bg(rgb(PANEL)).text_color(rgb(MUTED)).child(SharedString::from(why)).into_any_element(),
+                },
             },
         };
         let tabs = {
