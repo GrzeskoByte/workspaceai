@@ -119,9 +119,39 @@ describe('providers and web search', () => {
     expect(mk({ mode: 'exa', fetch: false }).json.permission!.webfetch).toBe('deny');
   });
 
-  it('a chat can turn web search off; org workspaces lock the backend (R-21)', async () => {
-    const chat = await ok('POST', `/api/ws/${W}/chats`, { title: 'No web', web: false });
+  it('a connection test fails when the URL serves a web page, as Open WebUI does on /v1 (R-20)', async () => {
+    const page = createServer((req, res) => {
+      if (req.method === 'POST') res.writeHead(405, { 'content-type': 'application/json' }).end('{"detail":"Method Not Allowed"}');
+      else res.writeHead(200, { 'content-type': 'text/html' }).end('<!doctype html>');
+    });
+    await new Promise<void>((done) => page.listen(0, '127.0.0.1', done));
+    const url = `http://127.0.0.1:${(page.address() as any).port}/v1`;
+    for (const model of [undefined, 'gemma']) {
+      const r = await ok('POST', '/api/onboarding/test-provider', { kind: 'custom', url, model });
+      expect(r.ok).toBe(false);
+      expect(r.error).toContain('Base URL');
+    }
+    page.close();
+  });
+
+  it('a connection test asks the model for a reply, and a saved provider can be reconfigured (R-20)', async () => {
+    const before = seen.length;
+    expect((await ok('POST', `/api/ws/${W}/providers/test`, { id: 'litellm', pkg: '@ai-sdk/openai-compatible', model: 'probe-model' })).ok).toBe(true);
+    expect(seen.slice(before).map((s) => s.model)).toEqual(['probe-model']);
+    expect((await call('PATCH', `/api/ws/${W}/providers/litellm`, { models: [' '] })).status).toBe(400);
+    await ok('PATCH', `/api/ws/${W}/providers/litellm`, { name: 'Renamed', url: fakeUrl + '/', models: ['gateway-model', 'second'] });
+    const p = sup.rt(W).ws.providers.find((x: any) => x.id === 'litellm');
+    expect(p).toMatchObject({ name: 'Renamed', baseURL: fakeUrl + '/', keyEnv: 'LITELLM_API_KEY' });
+    expect(p.models.map((m: any) => m.id)).toEqual(['gateway-model', 'second']);
+    await ok('PATCH', `/api/ws/${W}/providers/litellm`, { url: fakeUrl, models: ['gateway-model'] });
+    expect(JSON.parse(readFileSync(sup.rt(W).paths.opencodeJson, 'utf8')).provider.litellm.options.baseURL).toBe(fakeUrl);
+  });
+
+  it('web search starts off in a new chat and a chat can turn it on; org workspaces lock the backend (R-21)', async () => {
+    const chat = await ok('POST', `/api/ws/${W}/chats`, { title: 'No web' });
     expect(sup.rt(W).webEnabledFor(sup.rt(W).chat(chat.id))).toBe(false);
+    await ok('PATCH', `/api/ws/${W}/chats/${chat.id}`, { web: true });
+    if (sup.rt(W).effectiveWebMode() !== 'off') expect(sup.rt(W).webEnabledFor(sup.rt(W).chat(chat.id))).toBe(true);
     const ORG = (await ok('POST', '/api/workspaces/join-org', { name: 'Org' })).id;
     const o = await ok('GET', `/api/ws/${ORG}/snapshot`);
     expect(o.workspace.web).toMatchObject({ mode: 'searxng', locked: true });

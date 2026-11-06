@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useStore, setState, getState, switchWorkspace, refreshApp, refreshSnap, refreshModels, startEvents } from './store.ts';
+import { useStore, setState, getState, switchWorkspace, refreshApp, refreshSnap, refreshModels, startEvents, openExternal } from './store.ts';
 import { initApi } from './api.ts';
 import { Onboarding } from './onboarding/Onboarding.tsx';
 import { Shell } from './shell/Shell.tsx';
@@ -49,6 +49,19 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // The desktop window opens no new windows, so links to the web would do nothing: the system browser takes them.
+  useEffect(() => {
+    if (!window.__TAURI_INTERNALS__) return;
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as Element).closest?.('a[target="_blank"]') as HTMLAnchorElement | null;
+      if (!a) return;
+      e.preventDefault();
+      openExternal(a.href);
+    };
+    document.addEventListener('click', onClick);
+    return () => document.removeEventListener('click', onClick);
+  }, []);
+
   const settings = app?.settings;
   const theme = settings?.followSystem ? (sysDark ? 'opencode' : 'claude') : settings?.theme || 'claude';
   const w = snap?.workspace;
@@ -58,9 +71,9 @@ export function App() {
   return (
     <div className="hx" data-theme={theme} data-accent={accent} data-reduce={settings?.reduceMotion ? 'true' : 'false'}>
       {error ? (
-        <div style={{ margin: 'auto', textAlign: 'center' }} className="card rise"><div style={{ padding: 30 }}><h2 className="disp">Harness can’t reach its supervisor</h2><p className="muted">{error}</p><button className="btn" onClick={() => location.reload()}>Try again</button></div></div>
+        <div style={{ margin: 'auto', textAlign: 'center' }} className="card rise"><div style={{ padding: 30 }}><h2 className="disp">WorkspaceAI can’t reach its supervisor</h2><p className="muted">{error}</p><button className="btn" onClick={() => location.reload()}>Try again</button></div></div>
       ) : !app ? (
-        <div style={{ margin: 'auto' }} className="muted mono pulse">starting harness…</div>
+        <div style={{ margin: 'auto' }} className="muted mono pulse">starting workspaceai…</div>
       ) : !settings?.onboarded ? <Onboarding /> : <Shell />}
     </div>
   );

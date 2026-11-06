@@ -1,6 +1,6 @@
 // Minimal ACP client (Agent Client Protocol) over stdio JSON-RPC. Used for subscription agents:
 // Grok speaks ACP natively (`grok agent stdio`), opencode does too (`opencode acp`), and Claude Code
-// is reached through its ACP adapter. One process per agent per workspace; sessions live inside it.
+// and Pi are reached through their ACP adapters. One process per agent per workspace; sessions live inside it.
 import { spawn, type ChildProcess } from 'node:child_process';
 import { baseEnv } from './opencode.ts';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -191,7 +191,7 @@ export class AcpClient {
 
       this.request('initialize', {
         protocolVersion: 1,
-        clientInfo: { name: 'harness', version: '0.1.0' },
+        clientInfo: { name: 'workspaceai', version: '0.1.0' },
         clientCapabilities: { fs: { readTextFile: true, writeTextFile: true }, terminal: true },
       }, 20000).then((res) => {
         settled = true;
@@ -398,6 +398,7 @@ export function acpCommandFor(agent: { id: string; command?: string }): string {
   if (agent.command) return agent.command;
   if (agent.id === 'grok') return 'grok agent stdio';
   if (agent.id === 'claude') return 'npx -y @zed-industries/claude-code-acp';
+  if (agent.id === 'pi') return 'npx -y pi-acp@0.0.34';
   return 'opencode acp';
 }
 

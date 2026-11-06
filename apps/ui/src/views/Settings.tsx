@@ -16,8 +16,9 @@ const PAGES: [string, string, string][] = [
   ['providers', 'Model providers', 'Which models chats, loops and routines may use here.'],
   ['agents', 'Agents (ACP)', 'Coding agents chats and graph tasks can run on. opencode is the default; others connect over the Agent Client Protocol.'],
   ['connectors', 'Connectors & MCP', 'Apps and MCP servers chats can call. Credentials are kept per workspace.'],
-  ['web', 'Web search', 'Which search the agent can use in this workspace. Each chat can still turn it off.'],
+  ['web', 'Web search', 'Which search the agent can use in this workspace. Off in new chats until you turn it on with the Web chip.'],
   ['memory', 'Memory', 'What the agent remembers in this workspace, and how.'],
+  ['vaults', 'Vaults', 'Obsidian vaults this workspace can use. Notes stay in their folders.'],
   ['skills', 'Skills & plugins', 'SKILL.md folders and plugins available here.'],
   ['artifacts', 'Artifacts & sharing', 'Defaults for docs, decks, prototypes and sheets.'],
   ['opendesign', 'Open Design', 'The artifact engine. Every doc, deck, prototype and sheet an agent makes is saved, versioned and linted by Open Design.'],
@@ -55,6 +56,7 @@ export function SettingsView() {
           {cur[0] === 'connectors' && <Connectors />}
           {cur[0] === 'web' && <Web />}
           {cur[0] === 'memory' && <MemoryPanel />}
+          {cur[0] === 'vaults' && <Vaults />}
           {cur[0] === 'skills' && <Skills />}
           {cur[0] === 'artifacts' && <ArtifactsSharing />}
           {cur[0] === 'opendesign' && <OpenDesignPanel />}
@@ -69,6 +71,27 @@ export function SettingsView() {
       </div>
     </div>
   );
+}
+
+function Vaults() {
+  const vaults = useStore((s) => s.snap)!.workspace.vaults || [];
+  const [name, setName] = useState('');
+  const [path, setPath] = useState('');
+  const save = (next: typeof vaults, ok: string) => act(() => patch(`/api/ws/${wsId()}`, { vaults: next }).then(() => refreshSnap()), ok);
+  const remove = (id: string, label: string) => setState({ confirm: { title: `Remove ${label}?`, body: 'Projects lose their folders from it. Its notes stay on disk.', ok: 'Remove', run: () => void save(vaults.filter((v) => v.id !== id), `${label} removed`) } });
+  return <>
+    {vaults.map((v) => <Row key={v.id} label={v.name} note={<span className="mono">{v.path}</span>}><button type="button" className="btn" onClick={() => go('vaults', { vaultOpen: null })}>Open</button><button type="button" className="link" onClick={() => remove(v.id, v.name)}>Remove</button></Row>)}
+    {!vaults.length && <span className="muted" style={{ fontSize: 13 }}>No vaults yet. Add your vault’s folder, then attach folders of it to projects from their Vaults tab.</span>}
+    <form className="row" style={{ flexWrap: 'wrap' }} onSubmit={(e) => { e.preventDefault(); if (!path.trim()) return; void save([...vaults, { id: '', name: name.trim(), path: path.trim() }], 'Vault added').then((r) => { if (r !== undefined) { setName(''); setPath(''); } }); }}>
+      <input className="inp" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" aria-label="Vault name" />
+      <input className="inp grow" value={path} onChange={(e) => setPath(e.target.value)} placeholder="~/Documents/My Vault" aria-label="Vault folder" />
+      <button type="submit" className="btn">Add vault</button>
+    </form>
+    <div className="card" style={{ padding: '10px 14px', fontSize: 12.5, display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <span>Agents can read every Markdown note in these vaults, and edit only the folders attached to their project. Hidden folders such as <span className="mono">.obsidian</span> are off limits.</span>
+      <span className="muted">Harness enforces this on its own vault tools. Agents with shell or file tools of their own can go around it, so it isn’t a security boundary against them. Don’t attach notes those agents must never see.</span>
+    </div>
+  </>;
 }
 
 /** One settings row in the design's style: label and note on the left, the control on the right. */
@@ -184,6 +207,7 @@ function Providers() {
       <Row key={p.id} label={p.name + (p.isDefault ? ' · default' : '')} locked={!!p.locked} note={<>{p.note} · <span className="mono">{p.models.map((m) => m.id).join(', ')}</span>{p.keyEnv ? <> · key <span className="mono">{p.keyEnv}</span>{names.includes(p.keyEnv) ? ' in keychain' : p.fromOpencode ? ' from opencode' : ' not set'}</> : ''}</>}>
         <span className="row" style={{ gap: 6 }}>
           <button type="button" className="btn" onClick={() => test(p.id)}>Test</button>
+          {!isOrg && !p.locked && !p.fromOpencode && p.baseURL && <button type="button" className="btn" onClick={() => setState({ customProvider: p })}>Edit</button>}
           {!p.locked && !p.isDefault && <button type="button" className="btn" onClick={() => void act(() => patch(`/api/ws/${wsId()}/providers/${p.id}`, { isDefault: true }).then(() => refreshSnap()), p.name + ' is now the default')}>Make default</button>}
           {!p.locked && <button type="button" className="btn btn-d" onClick={() => confirm(`Remove ${p.name}?`, 'Chats using its models switch to another provider. Its key is removed from the keychain.', 'Remove', () => act(() => del(`/api/ws/${wsId()}/providers/${p.id}`).then(() => refreshSnap()), p.name + ' removed'))}>Remove</button>}
         </span>
@@ -215,7 +239,7 @@ function Agents() {
     <Row label="Add ACP agent" note="Command that starts it over stdio (JSON-RPC)" locked={orgLocked}>
       <form className="row" style={{ gap: 6 }} onSubmit={(e) => { e.preventDefault(); add(); }}><input className="inp mono" aria-label="ACP agent command" value={cmd} disabled={orgLocked} onChange={(e) => setCmd(e.target.value)} placeholder="gemini --experimental-acp" style={{ width: 260 }} /><button type="submit" className="btn" disabled={orgLocked}>Add</button></form>
     </Row>
-    <Row label="Harness provides" note="ACP client capabilities"><span className="mono" style={{ fontSize: 12 }}>file read/write, limited to the chat’s project folder</span></Row>
+    <Row label="WorkspaceAI provides" note="ACP client capabilities"><span className="mono" style={{ fontSize: 12 }}>file read/write, limited to the chat’s project folder</span></Row>
     <Row label="Ask before file writes and commands" note="Answers session/request_permission in the chat"><Switch on={ws.acpAskFirst} label="Ask first for ACP" onChange={() => void saveWs({ acpAskFirst: !ws.acpAskFirst })} /></Row>
     <span className="lbl" style={{ paddingTop: 8 }}>Subscriptions on this computer</span>
     <p className="muted" style={{ margin: 0, fontSize: 13 }}>Use the subscriptions you already pay for. Connecting copies the login on this computer into <span className="mono">data/agents/&lt;id&gt;</span> of this workspace, so each workspace keeps its own history and config.</p>
@@ -277,8 +301,8 @@ function Connectors() {
         <input className="inp mono" aria-label="MCP command or URL" value={cmd} onChange={(e) => setCmd(e.target.value)} placeholder="npx -y some-mcp" style={{ width: 260 }} /><button type="submit" className="btn">Add</button>
       </form>
     </Row>
-    <Row label="Harness memory" note="Served to opencode as the harness-memory MCP server"><span className="mono" style={{ fontSize: 12 }}>memory_search · memory_read · memory_write</span></Row>
-    <Row label="Artifacts" note={<>Harness artifact tools; every version is saved by {odSettings(ws).engine === 'open-design' ? 'Open Design' : 'the built-in store'} · <button type="button" className="link" onClick={() => setState({ setPage: 'opendesign' })}>Open Design settings</button></>}><span className="mono" style={{ fontSize: 12 }}>artifact_create · artifact_update</span></Row>
+    <Row label="WorkspaceAI memory" note="Served to opencode as the harness-memory MCP server"><span className="mono" style={{ fontSize: 12 }}>memory_search · memory_read · memory_write</span></Row>
+    <Row label="Artifacts" note={<>WorkspaceAI artifact tools; every version is saved by {odSettings(ws).engine === 'open-design' ? 'Open Design' : 'the built-in store'} · <button type="button" className="link" onClick={() => setState({ setPage: 'opendesign' })}>Open Design settings</button></>}><span className="mono" style={{ fontSize: 12 }}>artifact_create · artifact_update</span></Row>
   </>;
 }
 
@@ -393,7 +417,7 @@ function OpenDesignPanel() {
       </span>
     </Row>
     {log && <pre className="pre" style={{ maxHeight: 260 }}>{log}</pre>}
-    <Row label="Artifact engine" note={o.engine === 'open-design' ? 'Every artifact is saved, versioned and linted by Open Design; a save fails if it can’t be' : 'Harness store only — no lint, no PDF or PowerPoint export through Open Design'}>
+    <Row label="Artifact engine" note={o.engine === 'open-design' ? 'Every artifact is saved, versioned and linted by Open Design; a save fails if it can’t be' : 'WorkspaceAI store only — no lint, no PDF or PowerPoint export through Open Design'}>
       <Choice options={['open-design', 'builtin'] as const} labels={{ 'open-design': 'Open Design', builtin: 'Built-in store' }} value={o.engine} onPick={(engine) => set({ engine }, engine === 'open-design' ? 'Artifacts now go through Open Design' : 'Artifacts now use the built-in store')} />
     </Row>
     <Row label="Start with the workspace" note="Otherwise it starts on the first artifact save"><Switch on={o.autoStart} label="Start with the workspace" onChange={() => set({ autoStart: !o.autoStart }, o.autoStart ? 'Starts on the first artifact' : 'Starts with the workspace')} /></Row>
@@ -465,7 +489,7 @@ function LeanCtxPanel() {
   const needle = q.trim().toLowerCase();
   const rest = opts && needle ? opts.options.filter((o) => (o.key + ' ' + o.description).toLowerCase().includes(needle)).slice(0, 80) : [];
   return <>
-    <Row label="Status" note={st.installed ? <span className="mono">{st.bin}</span> : 'Not installed. Installs the official release (verified checksum) into the harness’s own folder; your other AI tools are left alone.'}>
+    <Row label="Status" note={st.installed ? <span className="mono">{st.bin}</span> : 'Not installed. Installs the official release (verified checksum) into WorkspaceAI’s own folder; your other AI tools are left alone.'}>
       <span className="row" style={{ gap: 8 }}>
         {st.installed && <span className="mono" style={{ fontSize: 12 }}>v{st.version}</span>}
         <button type="button" className={'btn' + (st.installed ? '' : ' btn-p')} disabled={!!busy} onClick={() => void install()}>{busy || (st.installed ? 'Update' : 'Install lean-ctx')}</button>
@@ -558,7 +582,7 @@ function DataRetention() {
     <Row label="Keep chats" note={isOrg ? 'Set by org policy' : ''} locked={isOrg}><Choice options={['Forever', '1 year', '90 days'] as const} value={ws.keepChats} disabled={isOrg} onPick={(keepChats) => void saveWs({ keepChats })} /></Row>
     <Row label="Export this workspace" note="Chats, artifacts, memory and config as .tar.gz — secrets stay in the keychain"><button type="button" className="btn" onClick={() => void download(`/api/ws/${wsId()}/export`).then(() => toast('Exported ' + ws.slug + '.tar.gz'), (e) => toast(e.message, 'error'))}>Export</button></Row>
     <span className="lbl" style={{ paddingTop: 8 }}>Archived projects</span>
-    {archived.map((p) => <Row key={p.id} label={p.name} note={<span className="mono">{p.folder}</span>}><button type="button" className="btn" onClick={() => void act(() => post(`/api/ws/${wsId()}/projects/${p.id}/restore`).then(() => { void load(); return refreshSnap(); }), p.name + ' restored')}>Restore</button></Row>)}
+    {archived.map((p) => <Row key={p.id} label={p.name} note={<span className="mono">{p.folder}</span>}><button type="button" className="btn" onClick={() => void act(() => post(`/api/ws/${wsId()}/projects/${p.id}/restore`).then(() => { void load(); return refreshSnap(); }), p.name + ' restored')}>Restore</button><button type="button" className="btn btn-d" onClick={() => confirm('Delete ' + p.name + '?', 'Permanently deletes it and its sub-projects, with all chats, artifacts, graphs (including their .bpmn files), routines and memory in them. This can’t be undone. The folders and your other files stay on disk.', 'Delete', () => act(() => del(`/api/ws/${wsId()}/projects/${p.id}`).then(() => { void load(); return refreshSnap(); }), p.name + ' deleted'))}>Delete…</button></Row>)}
     {!archived.length && <p className="muted" style={{ margin: 0 }}>Nothing archived.</p>}
   </>;
 }
@@ -593,8 +617,8 @@ function EnginePanel() {
   const run = (path: string, ok: string) => void act(() => post<EngineStatus>(path).then(async () => { await refreshSnap(); }), ok);
   return <>
     <Row label="opencode" note="Start a server for this workspace, or use one you run" locked={isOrg}>
-      <Choice options={['managed', 'remote'] as const} labels={{ managed: 'Managed by harness', remote: 'Connect to a server' }} value={e.mode} disabled={isOrg}
-        onPick={(mode) => void act(() => post(`${base}/mode`, mode === 'managed' ? { mode } : { mode, url, username, password }).then(() => refreshSnap()), mode === 'managed' ? 'Harness now starts opencode for this workspace' : 'Connected to ' + url)} />
+      <Choice options={['managed', 'remote'] as const} labels={{ managed: 'Managed by WorkspaceAI', remote: 'Connect to a server' }} value={e.mode} disabled={isOrg}
+        onPick={(mode) => void act(() => post(`${base}/mode`, mode === 'managed' ? { mode } : { mode, url, username, password }).then(() => refreshSnap()), mode === 'managed' ? 'WorkspaceAI now starts opencode for this workspace' : 'Connected to ' + url)} />
     </Row>
     <div className="card" style={{ padding: '12px 16px', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 10, alignItems: 'end' }}>
       <label className="field">Server URL<input className="inp mono" value={url} onChange={(ev) => setUrl(ev.target.value)} /></label>
@@ -613,7 +637,7 @@ function EnginePanel() {
     </span></Row>
     <VersionPin current={e.version || 'system'} running={st.version} locked={isOrg} />
     <Row label="Sync sessions both ways" note="TUI sessions appear here; chats here appear in the TUI"><Switch on={e.sync} label="Sync sessions" onChange={() => void saveWs({ engine: { ...e, sync: !e.sync } })} /></Row>
-    <Row label="Import sessions" note="Bring in sessions created outside harness; folders become projects"><button type="button" className="btn" onClick={() => void act(() => post<{ chats: number; projects: number }>(`/api/ws/${wsId()}/import-sessions`, {}).then(async (r) => { await refreshSnap(); return r; }), (r) => r.chats ? `Imported ${r.chats} chats into ${r.projects} new projects` : 'Nothing new to import')}>Scan</button></Row>
+    <Row label="Import sessions" note="Bring in sessions created outside WorkspaceAI; folders become projects"><button type="button" className="btn" onClick={() => void act(() => post<{ chats: number; projects: number }>(`/api/ws/${wsId()}/import-sessions`, {}).then(async (r) => { await refreshSnap(); return r; }), (r) => r.chats ? `Imported ${r.chats} chats into ${r.projects} new projects` : 'Nothing new to import')}>Scan</button></Row>
     <Row label="Attach the TUI" note="Continue any chat in the terminal (the chat menu copies its own command)"><span className="mono ellipsis" style={{ fontSize: 11.5, maxWidth: 420 }} title={attach}>{attach.replace(/OPENCODE_SERVER_PASSWORD='[^']*' /, '') || '—'}</span></Row>
     <Row label="Desktop shell" note="native window and updates"><span className="mono" style={{ fontSize: 12 }}>Tauri 2 · opencode and Open Design start as sidecars</span></Row>
     <Row label="Config"><span className="mono" style={{ fontSize: 12 }}>~/.harness/ws/{snap.workspace.id}/config/opencode.json</span></Row>

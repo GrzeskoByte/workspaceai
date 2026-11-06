@@ -112,6 +112,31 @@ describe('opencode permission requests', () => {
   });
 });
 
+describe('chat activity', () => {
+  it('the snapshot says which chats are working or waiting, and every change is announced', () => {
+    rt.permSessions.clear();
+    const activity = () => rt.snapshot().chatActivity[chatId];
+    const emit = rt.hooks.emit;
+    let snapshots = 0;
+    rt.hooks.emit = (e: { type: string }) => { if (e.type === 'snapshot') snapshots++; };
+    try {
+      expect(activity()).toBeUndefined();
+      rt.setLive(chatId, { chatId, messageId: 'm', text: '', tools: [], started: 1 });
+      expect(activity()).toBe('working');
+      expect(snapshots).toBe(1);
+      rt.emitPermission(rt.chat(chatId), { type: 'permission', data: { id: 'per_a', sessionID: 'ses_root', action: 'shell' } });
+      expect(activity()).toBe('waiting');
+      expect(snapshots).toBe(2);
+      rt.clearPermission(chatId, 'per_a');
+      expect(activity()).toBe('working');
+      expect(snapshots).toBe(3);
+      rt.dropLive(chatId);
+      expect(activity()).toBeUndefined();
+      expect(snapshots).toBe(4);
+    } finally { rt.hooks.emit = emit; rt.live.delete(chatId); rt.permSessions.delete('per_a'); }
+  });
+});
+
 describe('full permissions (YOLO) mode', () => {
   it('applies an allow-all session ruleset and settles asks already waiting', async () => {
     const fake = fakeClient({ pending: [[{ id: 'per_y1', sessionID: 'ses_root', action: 'shell', resources: ['pwd'] }]] });

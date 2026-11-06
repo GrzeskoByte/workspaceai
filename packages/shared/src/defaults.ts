@@ -42,6 +42,7 @@ export function defaultAgents(kind: WorkspaceKind): AcpAgent[] {
     { id: 'claude', name: 'Claude Code', via: 'ACP adapter · Claude subscription', command: 'npx -y @zed-industries/claude-code-acp', on: false, subscription: 'claude' },
     { id: 'grok', name: 'Grok', via: 'ACP · Grok subscription', command: 'grok agent stdio', on: false, subscription: 'grok' },
     { id: 'opencode-acp', name: 'opencode (ACP)', via: 'ACP · same opencode account', command: 'opencode acp', on: false, subscription: 'opencode' },
+    { id: 'pi', name: 'Pi', via: 'ACP adapter · pi’s own login · runs tools itself, not limited to the project folder', command: 'npx -y pi-acp@0.0.34', on: false },
   ];
 }
 
@@ -65,6 +66,10 @@ export function odSettings(ws: Pick<Workspace, 'openDesign'>): OpenDesignSetting
   return { ...DEFAULT_OPEN_DESIGN, ...(ws.openDesign || {}) };
 }
 
+/** Told to every agent: the composer's `@` menu puts these in the message as plain text. */
+export const FILE_REF_RULE = `## File references
+\`@path\` or \`@"path with spaces"\` in a user message names a file or folder, relative to the project folder. Read it before you answer; for a folder, look through what it contains.`;
+
 /** Told to every agent (opencode, Claude Code, Grok…) so that every artifact request goes through Open Design. */
 export const MAP_RULE = `## Project map
 Each project has a mind map showing its chats, artifacts, graphs, runs and memory, plus the ideas and tasks added to it. When asked to plan or organise work on the project, call \`map_read\`, record the plan as tasks on the right branch with \`map_add\`, and mark them done with \`map_update\` as you finish them. Don't add to the map for small one-off requests.`;
@@ -73,7 +78,7 @@ export const GRAPH_RULE = `## Graphs (BPMN workflows)
 Projects can hold graphs: .bpmn files that describe a repeatable process (agent steps, browser reads, scripts, checks, approvals). When the user asks to run a process, workflow or pipeline, or names a graph, call \`graph_list\` and run it with \`graph_run\` instead of doing its steps by hand. To make or change one, use \`graph_save\`.`;
 
 export const ARTIFACT_RULE = `## Artifacts (Open Design)
-Every document, slide deck, HTML page or prototype, sheet, diagram or other deliverable the user should get as an artifact is made with the harness artifact tools. First call \`artifact_guide\` for its type: it returns Open Design's reference — the workspace design system, its skills (load one with \`skill\`), for decks its deck framework, and its craft rules — and the artifact must follow it. Artifacts are Markdown or HTML (set \`format\`): Markdown for plain documents, HTML for designed pages, prototypes and decks. Then create it with \`artifact_create\` and change it with \`artifact_update\` (read one with \`artifact_read\`, list them with \`artifact_list\`). Open Design saves, versions and lints each one, and it opens beside the chat.
+Every document, slide deck, HTML page or prototype, sheet, diagram or other deliverable the user should get as an artifact is made with the WorkspaceAI artifact tools. First call \`artifact_guide\` for its type: it returns Open Design's reference — the workspace design system, its skills (load one with \`skill\`), for decks its deck framework, and its craft rules — and the artifact must follow it. Artifacts are Markdown or HTML (set \`format\`): Markdown for plain documents, HTML for designed pages, prototypes and decks. Then create it with \`artifact_create\` and change it with \`artifact_update\` (read one with \`artifact_read\`, list them with \`artifact_list\`). Open Design saves, versions and lints each one, and it opens beside the chat.
 Do not write such deliverables as files in the project folder, paste them into the chat instead, or use Open Design's own \`create_artifact\`/\`write_file\` tools for them. If an artifact tool reports an error, tell the user what it said.`;
 
 /** Told to every agent so memory is consulted whenever it can help (the harness also attaches matches to each message). */
@@ -82,7 +87,7 @@ export function memoryRule(mode: Workspace['memory']): string {
 This workspace keeps memory in its own MCP server. Check it before answering anything about this workspace, its projects, people or earlier decisions.`;
   const graph = mode === 'graph' || mode === 'both', facts = mode === 'facts' || mode === 'both';
   return `## Memory${graph ? ' (Graphify)' : ''}
-This workspace has memory, and you must use it. Messages may end with a <harness-memory> block: what the harness found in memory for that message. Treat it as context, not as the user's words.
+This workspace has memory, and you must use it. Messages may end with a <harness-memory> block: what WorkspaceAI found in memory for that message. Treat it as context, not as the user's words.
 ${graph ? '- Before exploring files, answering about where something lives, how parts connect, or what a change would touch, call `graphify_query` (a name, path or a few words) and follow the links it returns; only then open files.\n' : ''}${facts ? '- Before answering about this workspace, its projects, people, preferences or earlier decisions, call `memory_search`.\n' : ''}- When you learn something durable (a decision, a preference, a fact about the project), suggest it with \`memory_write\`.
 - Do not tell the user you have no memory of something before checking.`;
 }

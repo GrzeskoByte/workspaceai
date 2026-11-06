@@ -52,8 +52,8 @@ describe('opencode version pin (R-03)', () => {
     expect(opencodeBinary(sup.rt(W).ws.engine)).toBe('opencode');
   });
 
-  it('no harness code calls a model API itself; only key checks list models', () => {
-    const src = execFileSync('sh', ['-c', `grep -rnE "chat/completions|/v1/messages|/v1/responses|generateText|streamText|from 'openai'|from '@anthropic-ai" ${join(__dirname, '../../')}*/src ${join(__dirname, '../../../apps/ui/src')} || true`]).toString().trim();
+  it('no harness code calls a model API itself; only the connection test asks for a short reply', () => {
+    const src = execFileSync('sh', ['-c', `grep -rnE "chat/completions|/v1/messages|/v1/responses|generateText|streamText|from 'openai'|from '@anthropic-ai" ${join(__dirname, '../../')}*/src ${join(__dirname, '../../../apps/ui/src')} || true`]).toString().trim().split('\n').filter((l) => !(l.includes('supervisor/src/routes.ts') && l.includes("await fetch(base + '/chat/completions'"))).join('\n');
     expect(src).toBe('');
   });
 });

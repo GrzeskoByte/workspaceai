@@ -7,9 +7,10 @@ import { join } from 'node:path';
 import { openDesign } from './opendesign.ts';
 import { designMd, designSystems, DEFAULT_SYSTEM } from './pipeline.ts';
 import { odSettings } from '../../shared/src/defaults.ts';
+import { DESIGN_MD_LIMIT } from '../../shared/src/claude-design-system.ts';
 import type { WorkspaceRuntime } from './runtime.ts';
 
-export type GuideType = 'doc' | 'deck' | 'prototype' | 'sheet';
+export type GuideType = 'doc' | 'deck' | 'prototype' | 'sheet' | 'design-system';
 
 /** Open Design craft sections per artifact kind (its `craft/<id>.md`). */
 const CRAFT: Record<GuideType, string[]> = {
@@ -17,13 +18,15 @@ const CRAFT: Record<GuideType, string[]> = {
   deck: ['anti-ai-slop', 'typography', 'color'],
   prototype: ['anti-ai-slop', 'typography', 'color', 'accessibility-baseline'],
   sheet: [],
+  'design-system': ['anti-ai-slop', 'typography', 'color', 'accessibility-baseline'],
 };
 
 const FORMAT: Record<GuideType, string> = {
   doc: 'Pass `format`: "markdown" for a plain document (one H1, sections, lists, tables), or "html" for a designed page (one complete self-contained HTML file built with the design system and, if one fits, an Open Design skill below). Open Design stores the page either way.',
-  deck: 'Pass `format`: "html" (preferred) for a deck built on Open Design’s deck framework below — copy its skeleton, bind the design system’s tokens in :root, fill one <section class="slide"> per slide; or "markdown" for quick slides separated by a line with only `---`, which the harness lays onto the same framework.',
+  deck: 'Pass `format`: "html" (preferred) for a deck built on Open Design’s deck framework below — copy its skeleton, bind the design system’s tokens in :root, fill one <section class="slide"> per slide; or "markdown" for quick slides separated by a line with only `---`, which WorkspaceAI lays onto the same framework.',
   prototype: 'Pass `format: "html"`: one complete self-contained HTML file — inline CSS (the design system’s tokens as CSS custom properties on :root) and inline JS, no external network requests or CDN fonts.',
   sheet: 'CSV with a header row (`format: "csv"`), or `format: "html"` for a designed table page.',
+  'design-system': 'Pass `format: "markdown"`: a DESIGN.md with one H1 (the system’s name), a one-line summary under it, then principles, colour tokens (a table with 6-digit hex values, light and dark), type, spacing and component rules. Every value must be concrete enough to build from.',
 };
 
 /** Chats that read the guide for a kind of artifact this run (`chat:type`); artifact_create checks it. */
@@ -77,11 +80,11 @@ export async function artifactGuide(rt: WorkspaceRuntime, type: GuideType, skill
   const systems = await designSystems(rt);
   const sys = systems.find((d) => (designSystemId ? d.id === designSystemId : d.title === rt.ws.designSystem)) || systems[0];
   const out: string[] = [`# Open Design reference for this ${type}`,
-    `Follow it for the artifact you save with artifact_create / artifact_update. The design system is authoritative: use its palette, type scale, spacing and component rules exactly; do not invent other colours or fonts. Pass the complete document as \`content\` — never a summary or a file path.`,
+    `Follow it for the artifact you save with artifact_create / artifact_update. ${type === 'design-system' ? 'You are writing a new design system, not following one.' : 'The design system is authoritative: use its palette, type scale, spacing and component rules exactly; do not invent other colours or fonts.'} Pass the complete document as \`content\` — never a summary or a file path.`,
     `## Format\n${FORMAT[type]}`];
-  if (type !== 'sheet') {
+  if (type !== 'sheet' && type !== 'design-system') {
     const md = await designMd(rt, sys?.id || DEFAULT_SYSTEM).catch(() => '');
-    out.push(`## Design system: ${sys?.title || 'Claude Warm Editorial'}${sys?.source === 'open-design' ? ' (Open Design)' : ''}\n\n${md.slice(0, 14000) || '(not available)'}`);
+    out.push(`## Design system: ${sys?.title || 'Claude Warm Editorial'}${sys?.source === 'open-design' ? ' (Open Design)' : ''}\n\n${md.slice(0, sys?.source === 'workspace' ? DESIGN_MD_LIMIT : 14000) || '(not available)'}`);
   }
   let skill: OdSkill | null = null;
   if (url && type !== 'sheet') {

@@ -119,7 +119,7 @@ export function Onboarding() {
   const testProv = async () => {
     setProvTest('busy');
     type Prov = { ok: boolean; error?: string; ms?: number; models?: string[] };
-    const r: Prov = await post<Prov>('/api/onboarding/test-provider', { kind: provK, key, url }).catch((e) => ({ ok: false, error: (e as Error).message }));
+    const r: Prov = await post<Prov>('/api/onboarding/test-provider', { kind: provK, key, url, model }).catch((e) => ({ ok: false, error: (e as Error).message }));
     setProvTest(r.ok ? { ok: true, msg: provK === 'ollama' ? `Connected · ${(r.models || []).length || Object.values(ollama).filter(Boolean).length} models ready` : `Connected${r.ms ? ' · ' + r.ms + ' ms' : ''}` } : { ok: false, msg: r.error || 'That doesn’t look right — check the key and try again.' });
   };
   const testWeb = async () => {
@@ -131,7 +131,7 @@ export function Onboarding() {
 
   const blocked = (key0 === 'engine' && ((ocMode === 'remote' && !ocHas) || (ocMode === 'managed' && !detect?.found) || !odReady)) || (key0 === 'workspace' && !wsName.trim()) || (key0 === 'project' && (!projName.trim() || !projFolder.trim()));
   const hint = blocked ? ({ engine: ocMode === 'remote' && !ocHas ? 'Connect to the server first' : (ocMode === 'managed' && !detect?.found ? 'Install opencode, or connect to a server' : 'Install Open Design, or choose Install later'), workspace: 'Give the workspace a name', project: 'Name your project and pick a folder' } as Record<string, string>)[key0] || '' : '';
-  const nextLabel = ob === STEPS.length - 1 ? 'Open harness' : ob === 0 ? 'Get started' : key0 === 'model' && !tested ? 'Set up later' : key0 === 'sessions' && found.length && !nSel ? 'Start fresh' : key0 === 'web' && webMode === 'off' ? 'Skip' : 'Continue';
+  const nextLabel = ob === STEPS.length - 1 ? 'Open WorkspaceAI' : ob === 0 ? 'Get started' : key0 === 'model' && !tested ? 'Set up later' : key0 === 'sessions' && found.length && !nSel ? 'Start fresh' : key0 === 'web' && webMode === 'off' ? 'Skip' : 'Continue';
 
   const finish = async () => {
     setBusy(true);
@@ -151,7 +151,7 @@ export function Onboarding() {
       });
       await refreshApp(); await refreshSnap(); refreshModels();
       setState({ view: 'home' });
-      toast(r.imported.chats ? `Setup done — ${r.imported.chats} chats imported` : 'Setup done — welcome to harness');
+      toast(r.imported.chats ? `Setup done — ${r.imported.chats} chats imported` : 'Setup done — welcome to WorkspaceAI');
       if (r.imported.failed?.length) toast(`${r.imported.failed.length} sessions could not be copied`, 'error');
     } catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
   };
@@ -165,9 +165,9 @@ export function Onboarding() {
 
   return (
     <div className="onb-wrap" style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-deep)', padding: 32, minHeight: 0 }}>
-      <div className="card onb-card" role="dialog" aria-label="Set up harness" style={{ width: 1080, maxWidth: '100%', height: 760, maxHeight: '100%', display: 'flex', overflow: 'hidden', background: 'var(--bg0)', boxShadow: '0 24px 60px rgba(0,0,0,0.16)' }}>
+      <div className="card onb-card" role="dialog" aria-label="Set up WorkspaceAI" style={{ width: 1080, maxWidth: '100%', height: 760, maxHeight: '100%', display: 'flex', overflow: 'hidden', background: 'var(--bg0)', boxShadow: '0 24px 60px rgba(0,0,0,0.16)' }}>
         <aside className="onb-steps" style={{ flex: '0 0 280px', padding: '28px 22px', background: 'var(--bg1)', borderRight: '1px solid var(--bg2)', display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <span className="mono" style={{ fontWeight: 600, fontSize: 16 }}>harness</span>
+          <span className="mono" style={{ fontWeight: 600, fontSize: 16 }}>workspaceai</span>
           <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 2 }}>
             {STEPS.map((st, k) => (
               <li key={st[0]}><button type="button" onClick={() => setOb(k)} disabled={k > obMax} className="navrow" aria-current={k === ob ? 'step' : 'false'} style={{ gap: 12, padding: '7px 10px' }}>
@@ -185,7 +185,7 @@ export function Onboarding() {
             <div className="rise" style={{ display: 'flex', flexDirection: 'column', gap: 18, paddingTop: 40 }}>
               <span className="lbl">Welcome</span>
               <h1 className="disp" style={{ fontSize: 52, lineHeight: 1.04 }}>Your workspaces,<br />your models,<br />your machine.</h1>
-              <p style={{ margin: 0, maxWidth: 560, fontSize: 16, color: 'var(--text2)' }}>Harness keeps personal and work completely apart. Chats run on opencode, artifacts are made with Open Design, and everything stays on this computer unless you share it.</p>
+              <p style={{ margin: 0, maxWidth: 560, fontSize: 16, color: 'var(--text2)' }}>WorkspaceAI keeps personal and work completely apart. Chats run on opencode, artifacts are made with Open Design, and everything stays on this computer unless you share it.</p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12, maxWidth: 720 }}>
                 {[['Separate workspaces', 'Own chats, memory, models and connectors each'], ['Projects all the way down', 'Every chat lives in a project; projects nest'], ['Artifacts and loops', 'Docs, decks, prototypes; drag-and-drop agent graphs']].map((t, i) => (
                   <button key={t[0]} type="button" className="opt" onClick={() => setTour(i + 1)} aria-pressed={tour === i + 1}><b>{t[0]}</b><span className="muted" style={{ fontSize: 12 }}>{t[1]}</span></button>
@@ -198,9 +198,9 @@ export function Onboarding() {
           {key0 === 'engine' && (
             <div className="rise" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <h1 className="disp" style={{ fontSize: 36 }}>Connect opencode</h1>
-              <p style={{ margin: 0, color: 'var(--text2)' }}>Every chat here is an opencode session. Let harness start opencode for this workspace, or connect to a server you already run — then the same sessions show here and in the opencode TUI.</p>
+              <p style={{ margin: 0, color: 'var(--text2)' }}>Every chat here is an opencode session. Let WorkspaceAI start opencode for this workspace, or connect to a server you already run — then the same sessions show here and in the opencode TUI.</p>
               <div role="radiogroup" aria-label="How to run opencode" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
-                <button type="button" className="opt" role="radio" aria-checked={ocMode === 'managed'} aria-pressed={ocMode === 'managed'} onClick={() => { setOcMode('managed'); setSessions(null); }}><b>Start it for me</b><span className="muted" style={{ fontSize: 12 }}>Harness runs <span className="mono">opencode serve</span> per workspace on this computer</span></button>
+                <button type="button" className="opt" role="radio" aria-checked={ocMode === 'managed'} aria-pressed={ocMode === 'managed'} onClick={() => { setOcMode('managed'); setSessions(null); }}><b>Start it for me</b><span className="muted" style={{ fontSize: 12 }}>WorkspaceAI runs <span className="mono">opencode serve</span> per workspace on this computer</span></button>
                 <button type="button" className="opt" role="radio" aria-checked={ocMode === 'remote'} aria-pressed={ocMode === 'remote'} onClick={() => { setOcMode('remote'); setSessions(null); }}><b>Connect to a running server</b><span className="muted" style={{ fontSize: 12 }}>Local or remote <span className="mono">opencode serve</span>, with its sessions and config</span></button>
               </div>
               {ocMode === 'managed' ? (
@@ -231,7 +231,7 @@ export function Onboarding() {
           {key0 === 'agents' && (
             <div className="rise" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <h1 className="disp" style={{ fontSize: 36 }}>Connect your subscriptions</h1>
-              <p style={{ margin: 0, color: 'var(--text2)' }}>Use the accounts you already pay for. Harness copies the login on this computer into {wsName.trim() || 'this workspace'}’s own folder — no token is written to a config file, and another workspace never sees this history.</p>
+              <p style={{ margin: 0, color: 'var(--text2)' }}>Use the accounts you already pay for. WorkspaceAI copies the login on this computer into {wsName.trim() || 'this workspace'}’s own folder — no token is written to a config file, and another workspace never sees this history.</p>
               {subs === null && <p className="muted pulse">Looking for opencode, Claude Code and Grok…</p>}
               {subsErr && <span style={{ fontSize: 12, color: 'var(--error-text)' }}>{subsErr}</span>}
               <div className="row"><span className="grow" /><button type="button" className="btn" onClick={() => setSubs(null)}>Check again</button></div>
@@ -258,7 +258,7 @@ export function Onboarding() {
           {key0 === 'sessions' && (
             <div className="rise" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <h1 className="disp" style={{ fontSize: 36 }}>Bring your opencode chats</h1>
-              <p style={{ margin: 0, color: 'var(--text2)' }}>{!ocHas ? (ocMode === 'remote' ? 'Connect to a server on the previous step to see its sessions.' : 'Harness looks for sessions opencode already saved on this computer.') : sessions === null ? 'Looking for sessions…' : found.length ? `Found ${found.length} sessions in ${groups.length} folders ${ocMode === 'remote' ? 'on ' + ocUrl : 'in this computer’s opencode data'}. Each folder becomes a project (nested by path), and each session becomes a chat in it with its full history.` : 'No earlier sessions were found.'}</p>
+              <p style={{ margin: 0, color: 'var(--text2)' }}>{!ocHas ? (ocMode === 'remote' ? 'Connect to a server on the previous step to see its sessions.' : 'WorkspaceAI looks for sessions opencode already saved on this computer.') : sessions === null ? 'Looking for sessions…' : found.length ? `Found ${found.length} sessions in ${groups.length} folders ${ocMode === 'remote' ? 'on ' + ocUrl : 'in this computer’s opencode data'}. Each folder becomes a project (nested by path), and each session becomes a chat in it with its full history.` : 'No earlier sessions were found.'}</p>
               {scanErr && <span style={{ fontSize: 12, color: 'var(--error-text)' }}>{scanErr}</span>}
               {sessions !== null && !found.length && <div className="card rise" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 6 }}><b>No earlier sessions</b><span className="muted" style={{ fontSize: 13 }}>Chats you start here are new opencode sessions; you can open any of them in the TUI later.</span></div>}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 360, overflowY: 'auto' }}>
@@ -392,7 +392,7 @@ export function Onboarding() {
               <label className="row" style={{ justifyContent: 'space-between', maxWidth: 520, fontSize: 13 }}>Reduce motion<Switch on={reduce} label="Reduce motion" onChange={() => setReduce(!reduce)} /></label>
               <div className="card" style={{ padding: '14px 16px', maxWidth: 620, fontSize: 13, display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <span className="lbl">Summary</span>
-                {[['Workspace', wsName.trim() || 'Personal'], ['opencode', ocMode === 'remote' ? 'connected · ' + ocUrl : 'started by harness'], ['Subscriptions', Object.keys(subsOn).filter((k) => subsOn[k]).length ? Object.keys(subsOn).filter((k) => subsOn[k]).join(', ') : 'none yet'], ['Open Design', odReady === 'ok' ? 'ready' : 'install later'], ['Imported chats', String(nSel)], ['Model', { claude: 'Claude subscription', existing: 'From opencode', opencode: 'OpenCode Zen', anthropic: 'Anthropic', openrouter: 'OpenRouter', ollama: 'Ollama', custom: 'Custom endpoint' }[provK] + (provTest !== null && provTest !== 'busy' && provTest.ok ? ' · tested' : '')], ['Web search', { off: 'off', exa: 'built-in (Exa)', mcp: webProv, searxng: 'SearXNG' }[webMode]], ['Memory', { facts: 'Facts', graph: 'Graphify', both: 'Graphify + facts', mcp: 'Custom MCP' }[mem]], ['First project', projName + ' · ' + projFolder]].map((x) => <span key={x[0]} className="row" style={{ justifyContent: 'space-between', gap: 12 }}><span className="muted">{x[0]}</span><span>{x[1]}</span></span>)}
+                {[['Workspace', wsName.trim() || 'Personal'], ['opencode', ocMode === 'remote' ? 'connected · ' + ocUrl : 'started by WorkspaceAI'], ['Subscriptions', Object.keys(subsOn).filter((k) => subsOn[k]).length ? Object.keys(subsOn).filter((k) => subsOn[k]).join(', ') : 'none yet'], ['Open Design', odReady === 'ok' ? 'ready' : 'install later'], ['Imported chats', String(nSel)], ['Model', { claude: 'Claude subscription', existing: 'From opencode', opencode: 'OpenCode Zen', anthropic: 'Anthropic', openrouter: 'OpenRouter', ollama: 'Ollama', custom: 'Custom endpoint' }[provK] + (provTest !== null && provTest !== 'busy' && provTest.ok ? ' · tested' : '')], ['Web search', { off: 'off', exa: 'built-in (Exa)', mcp: webProv, searxng: 'SearXNG' }[webMode]], ['Memory', { facts: 'Facts', graph: 'Graphify', both: 'Graphify + facts', mcp: 'Custom MCP' }[mem]], ['First project', projName + ' · ' + projFolder]].map((x) => <span key={x[0]} className="row" style={{ justifyContent: 'space-between', gap: 12 }}><span className="muted">{x[0]}</span><span>{x[1]}</span></span>)}
               </div>
             </div>
           )}

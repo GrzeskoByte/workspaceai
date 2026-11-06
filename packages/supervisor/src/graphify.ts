@@ -3,9 +3,9 @@
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, statSync, watch, type FSWatcher } from 'node:fs';
-import { basename, extname, join, resolve } from 'node:path';
-import type { GraphifyStatus, MemoryGraph, MemoryGraphEdge, MemoryGraphNode } from '../../shared/src/types.ts';
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, watch, type Dirent, type FSWatcher } from 'node:fs';
+import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path';
+import type { GraphifyStatus, MemoryGraph, MemoryGraphEdge, MemoryGraphNode, MemoryNodeDetail } from '../../shared/src/types.ts';
 import type { WorkspaceRuntime } from './runtime.ts';
 import { expandHome, harnessHome } from './paths.ts';
 import { readJson, readText, writeJson } from './jsonfile.ts';
@@ -17,7 +17,7 @@ const run = promisify(execFile);
 
 const COLORS = ['#cc785c', '#5db8a6', '#5c9cf5', '#e8a55a', '#a78bfa', '#5db872', '#e06c9f', '#7dd3fc', '#f472b6', '#facc15'];
 
-const SKIP = new Set(['.git', 'node_modules', '.next', 'dist', 'build', 'out', '.cache', '.turbo', 'target', 'vendor', '.venv', 'venv', '__pycache__', '.harness']);
+export const SKIP = new Set(['.git', 'node_modules', '.next', 'dist', 'build', 'out', '.cache', '.turbo', 'target', 'vendor', '.venv', 'venv', '__pycache__', '.harness']);
 const MAX_FILES = 1800;
 const MAX_NODES = 3200;
 
@@ -207,6 +207,7 @@ function parseReal(file: string, folders: string[]): MemoryGraph | null {
       size: typeof n.size === 'number' ? n.size : typeof n.weight === 'number' ? n.weight : undefined,
       x: typeof n.x === 'number' ? n.x : undefined,
       y: typeof n.y === 'number' ? n.y : undefined,
+      path: typeof (n.source_file ?? n.file ?? n.path) === 'string' ? resolve(dirname(dirname(file)), n.source_file ?? n.file ?? n.path) : undefined,
     });
   }
   const known = new Set(nodes.map((n) => n.id));
@@ -250,6 +251,8 @@ export function buildMemoryGraph(rt: WorkspaceRuntime): MemoryGraph {
   mkdirSync(dir(rt), { recursive: true });
   writeJson(cacheFile(rt), graph);
   rt.audit('graphify.build', `${graph.source} · ${graph.nodes.length} nodes · ${graph.edges.length} edges`);
+  // Chats on the map list graph nodes, so a map on screen has to drop any that are gone.
+  rt.emit({ type: 'map', workspace: rt.id, scope: 'ws' });
   return graph;
 }
 
@@ -311,6 +314,54 @@ export function queryMemoryGraph(rt: WorkspaceRuntime, q: string): { graph: Memo
 }
 
 
+/** What a node connects to, closest first as the graph lists them. */
+export function nodeLinks(graph: MemoryGraph, id: string, limit: number): MemoryNodeDetail['links'] {
+  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+  const out: MemoryNodeDetail['links'] = [];
+  for (const e of graph.edges) {
+    if (out.length >= limit) break;
+    if (e.from !== id && e.to !== id) continue;
+    const other = byId.get(e.from === id ? e.to : e.from);
+    if (other && other.id !== id) out.push({ id: other.id, label: other.label, kind: other.kind, relation: e.kind });
+  }
+  return out;
+}
+
+const PREVIEW_TEXT = 200 * 1024, PREVIEW_MAX = 2 * 1024 * 1024, PREVIEW_IMAGE = 5 * 1024 * 1024;
+const IMAGE_TYPE: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
+const SECRET = /^\.env|^id_(rsa|dsa|ecdsa|ed25519)$|\.(pem|key|p12|pfx)$/i;
+
+/** A file's preview. graph.json is only data, so a path counts only if it really is inside a mapped folder. */
+function previewFile(rt: WorkspaceRuntime, path: string): NonNullable<MemoryNodeDetail['file']> {
+  const none = (note: string, size = 0) => ({ path, size, note });
+  let real: string;
+  try { real = realpathSync(path); } catch { return none('This file is no longer there.'); }
+  const inside = rt.ws.graphifyFolders.some((f) => { try { return real.startsWith(realpathSync(expandHome(f)) + sep); } catch { return false; } });
+  if (!inside) return none('This file is outside the mapped folders, so it isn’t shown.');
+  if (SECRET.test(basename(real))) return none('This looks like a secrets file, so it isn’t shown.');
+  const stat = statSync(real);
+  const size = stat.size;
+  if (!stat.isFile()) return none('Only files can be previewed.');
+  const type = IMAGE_TYPE[extname(real).toLowerCase()];
+  if (type) return size > PREVIEW_IMAGE ? none('This image is too large to preview.', size) : { path, size, image: `data:${type};base64,${readFileSync(real).toString('base64')}` };
+  if (size > PREVIEW_MAX) return none('This file is too large to preview.', size);
+  const bytes = readFileSync(real);
+  if (bytes.includes(0)) return none('This is a binary file.', size);
+  return { path, size, text: bytes.subarray(0, PREVIEW_TEXT).toString('utf8'), truncated: size > PREVIEW_TEXT };
+}
+
+function readPreview(rt: WorkspaceRuntime, path: string): NonNullable<MemoryNodeDetail['file']> {
+  try { return previewFile(rt, path); } catch (e) { return { path, size: 0, note: 'This file can’t be read (' + ((e as NodeJS.ErrnoException).code || 'error') + ').' }; }
+}
+
+export function memoryNodeDetail(rt: WorkspaceRuntime, id: string): MemoryNodeDetail | null {
+  const graph = getMemoryGraph(rt);
+  const node = graph.nodes.find((n) => n.id === id);
+  if (!node) return null;
+  const path = node.path || (node.kind === 'file' && id.startsWith('file:') ? id.slice(5) : undefined);
+  return { node, community: graph.communities.find((c) => c.id === node.community)?.name, links: nodeLinks(graph, id, 40), ...(path ? { file: readPreview(rt, path) } : {}) };
+}
+
 // ---------- running Graphify itself (R-23) ----------
 
 /**
@@ -350,7 +401,7 @@ export function runGraphify(rt: WorkspaceRuntime, folder: string, mode: 'extract
     p.stdout.on('data', (b) => { out = (out + b).slice(-8000); });
     p.stderr.on('data', (b) => { out = (out + b).slice(-8000); });
     p.on('error', (e) => { clearTimeout(t); done({ code: -1, output: String(e.message) }); });
-    p.on('close', (code) => { clearTimeout(t); rt.audit('graphify.' + mode, `${cwd} · exit ${code} · backend ${graphifyEnv(rt).GRAPHIFY_BACKEND}`, 'harness'); done({ code: code ?? -1, output: out }); });
+    p.on('close', (code) => { clearTimeout(t); rt.audit('graphify.' + mode, `${cwd} · exit ${code} · backend ${graphifyEnv(rt).GRAPHIFY_BACKEND}`, 'workspaceai'); done({ code: code ?? -1, output: out }); });
   });
 }
 
@@ -363,9 +414,46 @@ export async function rebuildMemoryGraph(rt: WorkspaceRuntime, mode: 'extract' |
   return { ...g, runs };
 }
 
+/**
+ * Watch a folder tree one directory at a time, leaving out SKIP, dot folders and Graphify's output. Node's recursive
+ * fs.watch on Linux takes an inotify watch for every file, node_modules included, so a big repo exhausts the system
+ * limit, and that failure arrives as an 'error' event that kills the process. Hitting the limit here only logs.
+ */
+export function watchTree(root: string, onChange: (rel: string) => void): { close(): void } {
+  const open = new Map<string, FSWatcher>();
+  const skip = (name: string) => SKIP.has(name) || name.startsWith('.') || name.startsWith('graphify-out');
+  let warned = false;
+  const warn = (dir: string, e: unknown) => {
+    if (!warned && (e as NodeJS.ErrnoException).code !== 'ENOENT') console.error(`[watch] incomplete under ${root}: ${dir}: ${e}`);
+    warned = true;
+  };
+  const add = (dir: string): void => {
+    if (open.has(dir)) return;
+    try {
+      const w = watch(dir, (_e, name) => {
+        const n = String(name || '');
+        if (!n || skip(n)) return;
+        const child = join(dir, n);
+        let st;
+        try { st = lstatSync(child, { throwIfNoEntry: false }); } catch { return; }
+        if (st?.isDirectory()) add(child);
+        else if (!st) for (const [p, x] of open) if (p === child || p.startsWith(child + sep)) { x.close(); open.delete(p); }
+        onChange(relative(root, child));
+      });
+      w.on('error', (e) => { warn(dir, e); w.close(); open.delete(dir); });
+      open.set(dir, w);
+    } catch (e) { warn(dir, e); return; }
+    let entries: Dirent[] = [];
+    try { entries = readdirSync(dir, { withFileTypes: true }); } catch { /* a file, or it vanished */ }
+    for (const e of entries) if (e.isDirectory() && !skip(e.name)) add(join(dir, e.name));
+  };
+  add(root);
+  return { close() { for (const w of open.values()) w.close(); open.clear(); } };
+}
+
 /** Watch mode: changes in a mapped folder trigger an incremental update a few seconds later. */
 export class GraphifyWatcher {
-  private watchers = new Map<string, { key: string; list: FSWatcher[] }>();
+  private watchers = new Map<string, { key: string; list: { close(): void }[] }>();
   sync(rt: WorkspaceRuntime): void {
     const want = rt.ws.graphifyWatch && (rt.ws.memory === 'graph' || rt.ws.memory === 'both') && rt.ws.graphifyFolders.length > 0;
     const key = want ? JSON.stringify(rt.ws.graphifyFolders) : '';
@@ -375,18 +463,14 @@ export class GraphifyWatcher {
     this.watchers.delete(rt.id);
     if (!want) return;
     let timer: NodeJS.Timeout | null = null;
-    const list: FSWatcher[] = [];
+    const list: { close(): void }[] = [];
     for (const f of rt.ws.graphifyFolders) {
       const folder = resolve(expandHome(f));
       if (!existsSync(folder)) continue;
-      try {
-        list.push(watch(folder, { recursive: true }, (_e, name) => {
-          const n = String(name || '');
-          if (!n || n.startsWith('graphify-out') || n.split('/').some((x) => SKIP.has(x) || x.startsWith('.'))) return;
-          if (timer) clearTimeout(timer);
-          timer = setTimeout(() => { void rebuildMemoryGraph(rt, 'update'); }, 3000);
-        }));
-      } catch { /* folder vanished */ }
+      list.push(watchTree(folder, () => {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => { void rebuildMemoryGraph(rt, 'update'); }, 3000);
+      }));
     }
     this.watchers.set(rt.id, { key, list });
   }

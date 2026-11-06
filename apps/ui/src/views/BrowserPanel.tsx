@@ -83,7 +83,7 @@ export function BrowserPanel() {
 
   const btn = { height: 28, width: 28, padding: 0, justifyContent: 'center' } as const;
   return (
-    <section aria-label="Browser" className="rise art-panel browser-panel" style={{ flex: wide ? '1 1 auto' : '0 0 560px' }}>
+    <section aria-label="Browser" className="rise art-panel browser-panel" style={{ flex: wide ? '1 1 auto' : '0 0 var(--right-w, 560px)' }}>
       <form className="row browser-bar" onSubmit={(e) => { e.preventDefault(); go(input); }}>
         <button type="button" className="btn" style={btn} onClick={() => step(-1)} disabled={hist.at <= 0} aria-label="Back"><Icon name="left" size={16} /></button>
         <button type="button" className="btn" style={btn} onClick={() => step(1)} disabled={hist.at >= hist.list.length - 1} aria-label="Forward"><Icon name="right" size={16} /></button>

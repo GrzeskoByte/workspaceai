@@ -1,8 +1,8 @@
 // A chat is an opencode session, one to one (R-16). Header shows the session id; the menu maps to the session API.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useStore, setState, go, act, wsId, refreshSnap, loadMessages, loadPermissions, toast, getState, openBrowser } from '../store.ts';
 import { post, patch, del, get } from '../api.ts';
-import { flatProjects, projectPathName } from '../../../../packages/shared/src/util.ts';
+import { flatProjects, followsBottom, projectPathName } from '../../../../packages/shared/src/util.ts';
 import type { Chat, ChatMessage, GraphMeta } from '../../../../packages/shared/src/types.ts';
 import { Markdown } from '../ui/Markdown.tsx';
 import { ModelPicker, useOutside, useAnchored, pickModel, effortLabel } from './Composer.tsx';
@@ -13,24 +13,17 @@ import { SignInCard } from './SignInCard.tsx';
 import { RunCard } from './RunCard.tsx';
 import { localUrlIn } from './BrowserPanel.tsx';
 import { CommandMenu, NoteCard, matchCommands, type ChatNote, type ChatStatus } from './Commands.tsx';
+import { FileMenu, useFileMention } from './FileMention.tsx';
 import { Icon } from '../ui/Icon.tsx';
 
 // Only messages that just arrived animate in; opening a chat with a long history shouldn't animate every row.
 const fresh = (m: ChatMessage) => Date.now() - m.createdAt < 4000;
 
 /** The reply being streamed: the only part of a chat that re-renders per token (batched to one render per frame). */
-function LiveReply({ chatId, scroller }: { chatId: string; scroller: React.RefObject<HTMLDivElement | null> }) {
+function LiveReply({ chatId, scroller, following }: { chatId: string; scroller: React.RefObject<HTMLDivElement | null>; following: React.RefObject<boolean> }) {
   const live = useStore((s) => s.live[chatId]);
   // Follow the reply while the reader is at the bottom; leave the scroll alone if they scrolled up to read.
-  const pinned = useRef(true);
-  useEffect(() => {
-    const el = scroller.current;
-    if (!el) return;
-    const onScroll = () => { pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; };
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
-  }, [scroller]);
-  useEffect(() => { const el = scroller.current; if (el && pinned.current) el.scrollTop = el.scrollHeight; }, [live?.text.length, live?.tools.length]);
+  useEffect(() => { const el = scroller.current; if (el && following.current) el.scrollTop = el.scrollHeight; }, [live?.text.length, live?.tools.length]);
   if (!live) return null;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -50,6 +43,8 @@ export function ChatView() {
   const artId = useStore((s) => s.artId);
   const browserOn = useStore((s) => !!s.browser);
   const mapOn = useStore((s) => s.mapOpen);
+  const readsOn = useStore((s) => s.readsOpen);
+  const runId = useStore((s) => s.runId);
   const models = useStore((s) => s.models);
   const agentModels = useStore((s) => s.agentModels);
   const modelGroups = useStore((s) => s.modelGroups);
@@ -78,7 +73,35 @@ export function ChatView() {
     if (!chatId) return;
     get<{ commands: ChatCommand[] }>(`/api/ws/${wsId()}/chats/${chatId}/commands`).then((r) => setCmds(r.commands), () => {});
   }, [chatId, snap.chats.find((c) => c.id === chatId)?.agent]);
-  useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' }); }, [messages?.length, chatId]);
+  const following = useRef(true);
+  const lastTop = useRef(0);
+  const shown = useRef<string | null>(null);
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const onScroll = () => {
+      following.current = followsBottom(following.current, lastTop.current, el.scrollTop, el.scrollHeight - el.scrollTop - el.clientHeight);
+      lastTop.current = el.scrollTop;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [!!chat]);
+  // Opening a chat lands on its end with no animation. After that, a new message only moves a reader who is following, or who just sent it.
+  useLayoutEffect(() => {
+    const el = scroller.current;
+    if (!el || !messages) return;
+    if (shown.current !== chatId) {
+      shown.current = chatId;
+      following.current = true;
+      el.scrollTop = el.scrollHeight;
+      lastTop.current = el.scrollTop;
+      return;
+    }
+    if (messages[messages.length - 1]?.role === 'user') following.current = true;
+    if (following.current) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+  }, [messages?.length, chatId]);
+  const composerInput = useRef<HTMLTextAreaElement>(null);
+  const files = useFileMention(chat?.project ?? '', draft, setDraft, composerInput);
   if (!chat) return <div style={{ margin: 'auto' }} className="muted">This chat is gone. <button className="link" onClick={() => go('home')}>Go home</button></div>;
 
   const ws = snap.workspace;
@@ -88,6 +111,8 @@ export function ChatView() {
   const projPath = projectPathName(snap.projects, chat.project);
   const nArts = snap.artifacts.filter((a) => a.chat === chat.id).length;
   const base = `/api/ws/${wsId()}/chats/${chat.id}`;
+  // Artifact, run and map all sit above the reads panel.
+  const readsShown = readsOn && !mapOn && !artId && !runId;
 
   const agentName = chat.agent === 'opencode' ? 'opencode' : ws.agents.find((a) => a.id === chat.agent)?.name || chat.agent;
   const showCmds = draft.startsWith('/') && !/\s/.test(draft) && !cmdHidden;
@@ -147,6 +172,7 @@ export function ChatView() {
     void runSlash('/' + c.name);
   };
   const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (files.onKey(e)) return;
     if (cmdItems.length) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); setCmdIdx((i) => (i + (e.key === 'ArrowDown' ? 1 : -1) + cmdItems.length) % cmdItems.length); return; }
       if (e.key === 'Tab') { e.preventDefault(); setDraft('/' + cmdItems[Math.min(cmdIdx, cmdItems.length - 1)].name + ' '); return; }
@@ -219,7 +245,8 @@ export function ChatView() {
         {nArts > 0 && <span className="muted" style={{ fontSize: 12 }}>{nArts} artifact{nArts === 1 ? '' : 's'}</span>}
         <span className="grow" />
         <button type="button" className="btn" onClick={() => (mapOn ? setState({ mapOpen: false, mapWide: false }) : setState({ mapOpen: true, artId: null, runId: null }))} aria-pressed={mapOn} title="The project’s mind map, beside the chat" style={{ height: 30 }}><Icon name="map" size={15} /> Map</button>
-        <button type="button" className="btn" onClick={() => (browserOn ? setState({ browser: null, browserWide: false }) : openBrowser())} aria-pressed={browserOn} title="A browser beside the chat — run the dev server or open any page" style={{ height: 30 }}><Icon name="panel" size={15} /> Browser</button>
+        <button type="button" className="btn" onClick={() => (readsShown ? setState({ readsOpen: false }) : setState({ readsOpen: true, mapOpen: false, mapWide: false, artId: null, runId: null }))} aria-pressed={readsShown} title="The memory and vault notes this session read" style={{ height: 30 }}><Icon name="memory" size={15} /> Reads</button>
+        <button type="button" className="btn" onClick={() => (browserOn && !readsOn ? setState({ browser: null, browserWide: false }) : openBrowser())} aria-pressed={browserOn} title="A browser beside the chat — run the dev server or open any page" style={{ height: 30 }}><Icon name="panel" size={15} /> Browser</button>
         <button ref={optsBtn} type="button" className="btn" onClick={() => setMenu(!menu)} aria-expanded={menu} aria-label="Chat options" style={{ height: 30, width: 30, padding: 0, justifyContent: 'center' }}><Icon name="more" /></button>
         {menu && (
           <div className="menu rise menu-sheet" style={menuPos}>
@@ -274,7 +301,7 @@ export function ChatView() {
               ))}
             </div>
           )}
-          {live && <LiveReply chatId={chat.id} scroller={scroller} />}
+          {live && <LiveReply chatId={chat.id} scroller={scroller} following={following} />}
           {messages && !messages.length && !live && <span className="muted" style={{ textAlign: 'center', paddingTop: 80 }}>New chat in {projPath}. Ask anything — it starts with this project’s instructions and memory.</span>}
           {!messages && <span className="muted pulse" style={{ textAlign: 'center', paddingTop: 80 }}>Loading the session…</span>}
         </div>
@@ -283,9 +310,10 @@ export function ChatView() {
       <div style={{ padding: '0 28px 18px', maxWidth: 760, width: '100%', margin: '0 auto', position: 'relative' }}>
         {sheet && <ActionSheet sheet={sheet} onClose={closeSheet} onRun={(cmd) => { setSheet(null); void runSlash(cmd); }} onGraph={(id, dry) => void runGraph(id, dry)} />}
         {showCmds && <CommandMenu items={cmdItems} active={Math.min(cmdIdx, cmdItems.length - 1)} agentName={agentName} onHover={setCmdIdx} onPick={pickCmd} />}
+        {files.open && <FileMenu items={files.items} active={files.active} onHover={files.setActive} onPick={files.pick} style={{ left: 28, right: 28, bottom: '100%', marginBottom: 6 }} />}
         {chat.yolo && <div className="rise" style={{ marginBottom: 6, fontSize: 11.5, color: 'var(--warning-text)', display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="zap" size={13} /> Full access is on for this chat — the agent can run tools and edit files without asking.</div>}
         <div className="card" style={{ borderRadius: 14, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <textarea rows={2} aria-label="Message" aria-autocomplete="list" placeholder={artId ? 'Ask for a change to the open artifact…' : 'Reply, ask for a doc or deck — or type / for commands'} value={draft} onChange={(e) => { setDraft(e.target.value); setCmdIdx(0); setCmdHidden(false); }} onKeyDown={onKey} style={{ resize: 'none', border: 0, outline: 'none', background: 'transparent', color: 'var(--text)', font: 'inherit' }} />
+          <textarea ref={composerInput} rows={2} aria-label="Message" aria-autocomplete="list" placeholder={artId ? 'Ask for a change to the open artifact…' : 'Reply, ask for a doc or deck — / for commands, @ for files'} value={draft} onSelect={(e) => files.track(e.currentTarget)} onChange={(e) => { setDraft(e.target.value); files.track(e.target); setCmdIdx(0); setCmdHidden(false); }} onKeyDown={onKey} style={{ resize: 'none', border: 0, outline: 'none', background: 'transparent', color: 'var(--text)', font: 'inherit' }} />
           <div className="row" style={{ flexWrap: 'wrap' }}>
             <ModelPicker agent={chat.agent} model={model} effort={chat.effort || ''} lockAgent={(messages?.length || 0) > 0} onPick={pick} open={pickerOpen} onOpenChange={setPickerOpen} />
             <button type="button" className="chip" onClick={() => go('memory')} style={{ fontSize: 11 }}><Icon name="memory" size={13} /> {{ facts: 'Facts', graph: 'Graphify', both: 'Graphify + facts', mcp: 'Custom MCP' }[ws.memory]}</button>

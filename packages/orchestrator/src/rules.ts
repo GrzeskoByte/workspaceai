@@ -1,4 +1,4 @@
-// Harness model-check rules as a bpmnlint plugin (R-25). Same shape as bpmnlint's own rules:
+// WorkspaceAI model-check rules as a bpmnlint plugin (R-25). Same shape as bpmnlint's own rules:
 // a factory returning { check(node, reporter) }. They run in the editor, before a run and in CI.
 type Node = { $type: string; id: string; name?: string; flowElements?: Node[]; laneSets?: { lanes?: { name?: string; flowNodeRef?: Node[] }[] }[]; incoming?: Flow[]; outgoing?: Flow[]; get?: (k: string) => unknown; $attrs?: Record<string, string>; loopCharacteristics?: { $type: string; loopMaximum?: number } };
 type Flow = { $type: string; id: string; sourceRef: Node; targetRef: Node; conditionExpression?: { body?: string } };

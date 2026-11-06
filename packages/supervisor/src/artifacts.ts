@@ -181,11 +181,11 @@ export class ArtifactStore {
     await openDesign.deckFramework();
     const html = toHtml(a, content, false, format);
     let failure = '';
-    const r = await openDesign.saveVersion(this.rt, a, html, source, { lint: od.lint, markdown: format === 'markdown' ? content : undefined }).catch((e) => { failure = String((e as Error).message || e); this.rt.audit('open-design.error', failure, 'harness'); return null; });
-    if (!r) { ver.od = null; this.rt.save(); throw new Error(`Open Design could not save “${a.title}” v${ver.v}${failure ? ': ' + failure : ''}. The harness kept a copy; resync it from Settings › Open Design.`); }
+    const r = await openDesign.saveVersion(this.rt, a, html, source, { lint: od.lint, markdown: format === 'markdown' ? content : undefined }).catch((e) => { failure = String((e as Error).message || e); this.rt.audit('open-design.error', failure, 'workspaceai'); return null; });
+    if (!r) { ver.od = null; this.rt.save(); throw new Error(`Open Design could not save “${a.title}” v${ver.v}${failure ? ': ' + failure : ''}. WorkspaceAI kept a copy; resync it from Settings › Open Design.`); }
     ver.od = r;
     this.manifest(a);
-    this.rt.audit('open-design.save', `${a.title} v${ver.v} · ${r.lint.length} lint finding${r.lint.length === 1 ? '' : 's'}`, 'harness');
+    this.rt.audit('open-design.save', `${a.title} v${ver.v} · ${r.lint.length} lint finding${r.lint.length === 1 ? '' : 's'}`, 'workspaceai');
     this.rt.changed();
     return true;
   }

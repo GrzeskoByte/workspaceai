@@ -10,7 +10,7 @@ export const WEB_PROVIDERS: Record<WebProvider, { pkg: string; env: string }> = 
 };
 
 /** Providers opencode resolves itself; only custom ones need a `provider` block. */
-const NATIVE = new Set(['anthropic', 'openrouter', 'openai', 'opencode', 'google', 'mistral']);
+export const NATIVE_PROVIDERS = new Set(['anthropic', 'openrouter', 'openai', 'opencode', 'google', 'mistral']);
 
 export interface OpencodeJson {
   $schema?: string;
@@ -29,7 +29,7 @@ export function providerBlock(p: Provider): Record<string, unknown> | null {
     if (m.context || m.output) entry.limit = { context: m.context ?? 128000, output: m.output ?? 8192 };
     models[m.id] = entry;
   }
-  if (NATIVE.has(p.id)) {
+  if (NATIVE_PROVIDERS.has(p.id)) {
     // Native provider: opencode already knows its SDK and models; point it at the key, and at a proxy if one is set.
     const options: Record<string, unknown> = {};
     if (p.baseURL) options.baseURL = p.baseURL;
@@ -99,7 +99,7 @@ export function buildOpencodeJson(ws: Workspace, policy: OrgPolicy | null, extra
   const servers = ws.kind === 'org' && policy ? [...policy.lockedMcp, ...ws.mcp.filter((m) => !policy.lockedMcp.some((l) => l.id === m.id))] : ws.mcp;
   for (const m of servers) { const b = mcpBlock(m); if (b) mcp[m.id] = b; }
   if (Object.keys(mcp).length) json.mcp = mcp;
-  json.permission = { ...web.permission, ...(ws.acpAskFirst ? { edit: 'ask', bash: 'ask' } : {}) };
+  json.permission = { ...web.permission, ...(ws.acpAskFirst ? { edit: 'ask', bash: 'ask', 'harness-vault_vault_write': 'ask', 'harness-vault_vault_edit': 'ask' } : {}) };
   return { json, env: web.env };
 }
 

@@ -6,7 +6,10 @@ import type { MapLink, MapOp, MapOwnNode, MapSide, MapTaskStatus, ProjectMap, Re
 import { chatsWithin, childProjects, rolledUpArtifacts, uid } from '../../shared/src/util.ts';
 import { fromMarkdown, type OutlineItem } from '../../shared/src/mindmap.ts';
 import { readJson, writeJson } from './jsonfile.ts';
+import { chatMemory } from './recall.ts';
+import { cachedMemoryGraph, nodeLinks } from './graphify.ts';
 import { expandHome } from './paths.ts';
+import { repoNodes } from './gitlab.ts';
 import type { WorkspaceRuntime } from './runtime.ts';
 
 /** `ws` is the workspace overview; anything else is a project id. */
@@ -87,6 +90,20 @@ export function deriveMap(rt: WorkspaceRuntime, scope: MapScope): { root: string
     if (parent === 'group:run-chats') looseRunChats = true;
     nodes.push({ id: 'chat:' + c.id, kind: 'chat', ref: c.id, title: c.title, meta: c.agent === 'opencode' ? 'opencode' : rt.ws.agents.find((a) => a.id === c.agent)?.name || c.agent, parent, order: c.createdAt ?? c.updatedAt });
   }
+  // What Graphify holds on each chat, folded under it.
+  for (const c of chats) {
+    const related = chatMemory(rt, c);
+    if (!related.length) continue;
+    const group = 'group:chat-memory:' + c.id;
+    nodes.push({ id: group, kind: 'group', title: 'Memory', meta: `${related.length} related`, parent: 'chat:' + c.id, order: Number.MAX_SAFE_INTEGER - 2, folded: true });
+    const graph = cachedMemoryGraph(rt)!;
+    related.forEach((n, i) => {
+      const id = `memory:${c.id}:${n.id}`;
+      const near = nodeLinks(graph, n.id, 8);
+      nodes.push({ id, kind: 'memory', ref: n.id, title: n.label, meta: n.kind, parent: group, order: i, folded: near.length > 0 });
+      near.forEach((o, k) => nodes.push({ id: `${id}>${o.id}`, kind: 'memory', ref: o.id, title: o.label, meta: `${o.relation} · ${o.kind}`, parent: id, order: k }));
+    });
+  }
   if (looseRunChats) nodes.push({ id: 'group:run-chats', kind: 'group', title: 'Earlier run chats', parent: root, order: Number.MAX_SAFE_INTEGER - 1, folded: true });
 
   for (const a of rt.state.artifacts.filter((x) => x.project === pid)) nodes.push({ id: 'artifact:' + a.id, kind: 'artifact', ref: a.id, subtype: a.type, title: a.title, meta: `${a.type.toLowerCase()} v${a.version}`, parent: a.chat && chatIds.has(a.chat) ? 'chat:' + a.chat : root, order: a.createdAt });
@@ -98,6 +115,8 @@ export function deriveMap(rt: WorkspaceRuntime, scope: MapScope): { root: string
     const target = r.what.kind === 'graph' ? 'graph:' + r.what.graph : r.what.kind === 'artifact' ? 'artifact:' + r.what.artifact : '';
     if (target) links.push({ id: `auto:${r.id}`, from: 'routine:' + r.id, to: target, label: 'runs' });
   }
+
+  nodes.push(...repoNodes(rt, scope, project!.folder, root));
 
   const facts = rt.scopeFacts(pid).filter((f) => f.status === 'approved');
   if (facts.length) {

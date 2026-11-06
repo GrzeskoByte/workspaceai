@@ -103,7 +103,7 @@ div[role="button"]:hover>.handle{opacity:1!important}
   <sc-if value="{{standalone}}" hint-placeholder-val="{{ true }}">
     <div style="height: 2px; background: var(--accent-p);"></div>
     <header style="display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--bg2);">
-      <span class="mono" style="font-weight: 600;">harness</span>
+      <span class="mono" style="font-weight: 600;">workspaceai</span>
       <span style="flex: 1 1 auto; text-align: center; color: var(--muted); font-size: 13px;">Castform <span style="color: var(--dim);">/</span> Graphs <span style="color: var(--dim);">/</span> <span style="color: var(--text);">{{graphName}}</span></span>
       <span class="mono muted" style="font-size: 11px;">bpmn-js modeller · bpmn-engine · opencode :4096</span>
     </header>
@@ -267,7 +267,7 @@ div[role="button"]:hover>.handle{opacity:1!important}
           <span class="lbl" style="padding-top: 6px;">Lanes</span>
           <span style="font-size: 12px;"><b>You</b> — user tasks: approvals, questions, reviews.</span>
           <span style="font-size: 12px;"><b>Agent</b> — agent, service and rule tasks run as an opencode session, or on another ACP agent enabled in this workspace.</span>
-          <span style="font-size: 12px;"><b>Harness</b> — triggers, tools, artifacts, memory and notifications.</span>
+          <span style="font-size: 12px;"><b>WorkspaceAI</b> — triggers, tools, artifacts, memory and notifications.</span>
           <span class="lbl" style="padding-top: 6px;">Run settings</span>
           <span style="display: flex; justify-content: space-between; font-size: 12px;">Engine <span class="mono">bpmn-engine</span></span>
           <span style="display: flex; justify-content: space-between; font-size: 12px;">Save state after every step <span style="color: var(--success-text);">on</span></span>
@@ -282,14 +282,14 @@ div[role="button"]:hover>.handle{opacity:1!important}
     <div class="rise card" style="position: absolute; right: 16px; top: 100px; width: 520px; max-height: 620px; display: flex; flex-direction: column; background: var(--bg1); box-shadow: 0 20px 50px rgba(0,0,0,0.2); z-index: 10;">
       <div style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--bg2);"><b style="flex: 1 1 auto;">BPMN 2.0 XML</b><button type="button" class="btn" onClick="{{copyXml}}" style="height: 28px;">{{copyLabel}}</button><button type="button" class="btn" onClick="{{toggleXml}}" aria-label="Close" style="height: 28px;">✕</button></div>
       <pre class="mono" style="margin: 0; padding: 12px 14px; overflow: auto; font-size: 11px; line-height: 1.55; color: var(--text2);">{{xml}}</pre>
-      <span class="muted" style="padding: 8px 14px; font-size: 11px; border-top: 1px solid var(--bg2);">Opens in any BPMN 2.0 tool. Harness-specific settings live under the harness: extension namespace.</span>
+      <span class="muted" style="padding: 8px 14px; font-size: 11px; border-top: 1px solid var(--bg2);">Opens in any BPMN 2.0 tool. WorkspaceAI-specific settings live under the harness: extension namespace.</span>
     </div>
   </sc-if>
   <sc-if value="{{noteOpen}}" hint-placeholder-val="{{ false }}"><div class="card rise" style="position: absolute; left: 50%; bottom: 170px; transform: translateX(-50%); padding: 10px 16px; font-size: 13px; background: var(--bg1); box-shadow: 0 10px 30px rgba(0,0,0,0.15); z-index: 11;">{{note}}</div></sc-if>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["claude","opencode"],"default":"claude"},"embedded":{"editor":null},"onNav":{"editor":null},"onToast":{"editor":null},"$preview":{"width":1440,"height":900}}'>
-const LANES = ['You', 'Agent · opencode', 'Harness'];
+const LANES = ['You', 'Agent · opencode', 'WorkspaceAI'];
 const LH = 190;
 const T = {
   start: ['event', 'start', 'none', 'Start', 'Starts the process (manual run or chat command)'],

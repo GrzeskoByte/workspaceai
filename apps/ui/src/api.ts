@@ -54,13 +54,15 @@ export async function download(path: string): Promise<void> {
   URL.revokeObjectURL(url);
 }
 
-export function events(onEvent: (e: UiEvent) => void): () => void {
+export function events(onEvent: (e: UiEvent) => void, onReconnect: () => void): () => void {
   let es: EventSource | null = null;
   let closed = false;
+  let lost = false;
   const open = () => {
     es = new EventSource(`${base}/api/events?token=${encodeURIComponent(token)}`);
     es.onmessage = (m) => { try { onEvent(JSON.parse(m.data)); } catch { /* ignore */ } };
-    es.onerror = () => { es?.close(); if (!closed) setTimeout(open, 1500); };
+    es.onopen = () => { if (lost) onReconnect(); lost = false; };
+    es.onerror = () => { lost = true; es?.close(); if (!closed) setTimeout(open, 1500); };
   };
   open();
   return () => { closed = true; es?.close(); };

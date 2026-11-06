@@ -18,13 +18,13 @@ for (const pkg of ['shared', 'supervisor', 'orchestrator', 'memory-mcp']) {
 }
 cpSync(join(root, 'design-systems'), join(app, 'design-systems'), { recursive: true });
 const rootPkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-writeFileSync(join(app, 'package.json'), JSON.stringify({ name: 'harness-runtime', version: rootPkg.version, private: true, type: 'module', workspaces: ['packages/*'], engines: rootPkg.engines }, null, 2));
+writeFileSync(join(app, 'package.json'), JSON.stringify({ name: 'workspaceai-runtime', version: rootPkg.version, private: true, type: 'module', workspaces: ['packages/*'], engines: rootPkg.engines }, null, 2));
 
 // Production dependencies only; workspace links become real copies so the bundle has no symlinks out of itself.
 execFileSync('npm', ['install', '--omit=dev', '--no-audit', '--no-fund', '--install-links', '--prefer-offline'], { cwd: app, stdio: 'inherit' });
 
 // The sources import each other by relative path; drop npm's workspace links, which point outside the bundle.
-rmSync(join(app, 'node_modules/@harness'), { recursive: true, force: true });
+rmSync(join(app, 'node_modules/@workspaceai'), { recursive: true, force: true });
 
 // Node with type stripping runs the .ts sources as they are; the sidecar name carries the target triple.
 const triple = execFileSync('rustc', ['-vV']).toString().match(/host: (\S+)/)[1];

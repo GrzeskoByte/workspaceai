@@ -11,7 +11,7 @@ const TOKEN = process.env.HARNESS_SUPERVISOR_TOKEN;
 const WS = process.env.HARNESS_WS;
 
 async function call(method: string, path: string, body?: unknown): Promise<any> {
-  if (!SUP || !TOKEN || !WS) throw new Error('harness supervisor is not reachable');
+  if (!SUP || !TOKEN || !WS) throw new Error('WorkspaceAI supervisor is not reachable');
   const r = await fetch(`${SUP}/api/ws/${WS}${path}`, { method, headers: { 'x-harness-token': TOKEN, 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || 'request failed ' + r.status);
@@ -21,17 +21,17 @@ async function call(method: string, path: string, body?: unknown): Promise<any> 
 const text = (t: string) => ({ content: [{ type: 'text' as const, text: t }] });
 const server = new McpServer({ name: 'harness-artifacts', version: '0.1.0' });
 
-const FORMAT_HELP = 'Set format: doc = "markdown" or "html" (a designed page); deck = "html" on Open Design’s deck framework (preferred) or "markdown" slides separated by a line with only ---; prototype = "html", one complete self-contained file (inline CSS/JS, no external network); sheet = "csv" with a header row, or "html". Content is the complete document.';
+const FORMAT_HELP = 'Set format: doc = "markdown" or "html" (a designed page); deck = "html" on Open Design’s deck framework (preferred) or "markdown" slides separated by a line with only ---; prototype = "html", one complete self-contained file (inline CSS/JS, no external network); sheet = "csv" with a header row, or "html"; design-system = "markdown", a DESIGN.md the workspace can then pick as its design system. Content is the complete document.';
 const format = z.enum(['markdown', 'html', 'csv']).optional().describe('What content is written in; see the tool description');
 
 server.registerTool('artifact_guide', {
   description: 'Read Open Design’s reference before making or revising an artifact: the workspace design system (DESIGN.md — authoritative colours, type, spacing, components), Open Design’s craft rules, its skills and, for decks, its deck framework. Call it once per chat for each artifact type, before artifact_create or artifact_update, and follow it.',
-  inputSchema: { type: z.enum(['doc', 'deck', 'prototype', 'sheet']), skill: z.string().optional().describe('An Open Design skill id from the list this tool returns, to load its workflow, seed template and example') },
+  inputSchema: { type: z.enum(['doc', 'deck', 'prototype', 'sheet', 'design-system']), skill: z.string().optional().describe('An Open Design skill id from the list this tool returns, to load its workflow, seed template and example') },
 }, async (a) => text((await call('POST', '/agent/guide', a)).guide));
 
 server.registerTool('artifact_create', {
-  description: 'Create a document, slide deck, HTML prototype or sheet as a first-class artifact, saved by Open Design and opened beside the chat. Call artifact_guide for the type first and follow its design system. ' + FORMAT_HELP,
-  inputSchema: { type: z.enum(['doc', 'deck', 'prototype', 'sheet']), title: z.string(), format, content: z.string(), note: z.string().optional() },
+  description: 'Create a document, slide deck, HTML prototype, sheet or design system as a first-class artifact, saved by Open Design and opened beside the chat. Call artifact_guide for the type first and follow its design system. ' + FORMAT_HELP,
+  inputSchema: { type: z.enum(['doc', 'deck', 'prototype', 'sheet', 'design-system']), title: z.string(), format, content: z.string(), note: z.string().optional() },
 }, async (a) => {
   const r = await call('POST', '/agent/artifacts', a);
   return text(`Created ${a.type} “${r.title}” (id ${r.id}, v${r.version}, ${r.versions?.[0]?.format || a.format || 'markdown'}) in ${r.projectPath}. Open Design saved it and it is open beside the chat.`);

@@ -125,7 +125,7 @@ export class Supervisor {
     if (policy.opencodeVersion) rt.ws.engine = { ...rt.ws.engine, version: policy.opencodeVersion };
     rt.ws.members = [{ name: 'You', email: sso.subject, role: 'Admin' }, { name: '[Member]', role: 'Member' }, { name: '[Member]', role: 'Viewer' }];
     rt.audit('sso.signin', `${sso.subject} via ${sso.idp}`, sso.subject);
-    rt.audit('policy.accept', `v${policy.version} · key ${issuer.keyId} · verified`, 'harness');
+    rt.audit('policy.accept', `v${policy.version} · key ${issuer.keyId} · verified`, 'workspaceai');
     rt.save();
     rt.writeConfig();
     return rt;
@@ -142,7 +142,7 @@ export class Supervisor {
     if (tamper) fresh.policy = { ...fresh.policy, blockPersonalKeys: false };
     const check = acceptPolicy(fresh, stored.pinnedKey, rt.policy);
     if (rt.ws.org) { rt.ws.org.policyVerified = check.ok; rt.ws.org.lastPolicyFetch = Date.now(); }
-    rt.audit('policy.refresh', check.ok ? 'verified' : String(check.reason), 'harness');
+    rt.audit('policy.refresh', check.ok ? 'verified' : String(check.reason), 'workspaceai');
     rt.changed();
     return { ok: check.ok, reason: check.reason };
   }
@@ -151,7 +151,7 @@ export class Supervisor {
   assertAllowed(rt: WorkspaceRuntime, what: 'providers' | 'members' | 'artifacts' | 'data' | 'agents' | 'web' | 'engine' | 'name'): void {
     if (rt.ws.kind !== 'org') return;
     if (['providers', 'agents', 'web', 'engine', 'name', 'data'].includes(what)) {
-      rt.audit('policy.block', `attempt to change ${what}`, 'harness');
+      rt.audit('policy.block', `attempt to change ${what}`, 'workspaceai');
       throw Object.assign(new Error('Locked by org policy'), { status: 403 });
     }
   }
@@ -287,7 +287,7 @@ export class Supervisor {
       id: uid('pc'), name: clean.slice(0, 80), os: process.platform, status: 'online', lastSeen: Date.now(),
       capabilities: { files: true, commands: true, browser: true, computerUse: false, wake: false },
       allowedApps: [], askFirst: { deleteFiles: true, sendMessages: true, purchases: true, installSoftware: true, systemSettings: true, openApps: true },
-      access: {}, activity: [{ at: Date.now(), text: 'Paired with harness' }],
+      access: {}, activity: [{ at: Date.now(), text: 'Paired with WorkspaceAI' }],
     };
     this.computers.push(c);
     this.saveComputers();

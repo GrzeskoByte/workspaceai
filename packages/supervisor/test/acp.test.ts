@@ -191,7 +191,7 @@ describe('ACP agents (R-39)', () => {
     expect(keyed.groups.find((g: any) => g.provider === 'anthropic').models.map((m: any) => m.id)).toEqual(expect.arrayContaining(PROVIDER_PRESETS.anthropic.models.map((m) => 'anthropic/' + m.id)));
 
     // A chat's model and effort picks are applied to the agent's session before the next turn.
-    const chat = await ok('POST', `/api/ws/${W}/chats`, { title: 'Pick a model', agent: 'fake' });
+    const chat = await ok('POST', `/api/ws/${W}/chats`, { title: 'Pick a model', agent: 'fake', web: true });
     await ok('PATCH', `/api/ws/${W}`, { acpAskFirst: false });
     await ok('PATCH', `/api/ws/${W}/chats/${chat.id}`, { model: 'deep', effort: 'low' });
     const seen: any[] = [];
@@ -203,7 +203,7 @@ describe('ACP agents (R-39)', () => {
     expect(JSON.parse(readFileSync(record, 'utf8')).setEffort).toEqual({ sessionId: 'S1', configId: 'reasoning_effort', value: 'low' });
     // Agents without a system-prompt hook get the harness instructions (with the artifact rule) on the first turn only.
     const firstPrompt = JSON.parse(readFileSync(record, 'utf8')).prompts.at(-1);
-    expect(firstPrompt.startsWith('Harness instructions')).toBe(true);
+    expect(firstPrompt.startsWith('WorkspaceAI instructions')).toBe(true);
     expect(firstPrompt).toContain('artifact_create');
     expect(firstPrompt.endsWith('Think hard')).toBe(true);
     expect((await ok('GET', `/api/ws/${W}/chats/${chat.id}/messages`)).messages[0].text).toBe('Think hard');

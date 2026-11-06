@@ -1,4 +1,5 @@
 // Home: a new chat always goes to a project (R-10); mode chips; needs-you, continue, coming up.
+import { useRef } from 'react';
 import { useStore, setState, go, act, wsId, refreshSnap, toast } from '../store.ts';
 import { post } from '../api.ts';
 import { projectPathName } from '../../../../packages/shared/src/util.ts';
@@ -6,7 +7,9 @@ import type { Chat } from '../../../../packages/shared/src/types.ts';
 import { ProjectPicker, ModelPicker, pickModel } from './Composer.tsx';
 import { openChat } from '../shell/Shell.tsx';
 import { describeNext } from '../../../../packages/shared/src/schedule.ts';
+import { FileMenu, useFileMention } from './FileMention.tsx';
 import { Icon } from '../ui/Icon.tsx';
+import { ChatActivity } from '../ui/ChatActivity.tsx';
 
 const MODES: [string, string, string][] = [['chat', 'Chat', 'Ask anything — it stays in the project you pick'], ['doc', 'Doc', 'Describe the document you need'], ['deck', 'Deck', 'What is the deck about, and who is it for?'], ['proto', 'Prototype', 'Describe the screen or page'], ['research', 'Research', 'What should I find out?'], ['loop', 'Loop', 'Describe a task to repeat until it’s done']];
 const MODE_PREFIX: Record<string, string> = {
@@ -32,8 +35,10 @@ export function Home() {
   const isOrg = ws.kind === 'org';
   const pid = (composeProj && snap.projects.some((p) => p.id === composeProj) ? composeProj : null) || (projId && snap.projects.some((p) => p.id === projId) ? projId : null) || ws.defaultProject || snap.projects[0].id;
   const proj = snap.projects.find((p) => p.id === pid) || snap.projects[0];
+  const composerInput = useRef<HTMLTextAreaElement>(null);
+  const files = useFileMention(proj.id, draft, (text) => setState({ draft: text }), composerInput);
   const webMode = isOrg && snap.policy ? snap.policy.web.mode : ws.web.mode;
-  const webOn = webMode !== 'off' && (homeWeb ?? true);
+  const webOn = webMode !== 'off' && (homeWeb ?? false);
   // An agent that was switched off or disconnected (Claude Code, Grok) can't take new chats; fall back to opencode.
   const agent = [homeAgent, ws.defaultAgent].find((id) => id && ws.agents.some((a) => a.id === id && a.on)) || 'opencode';
   const model = pickModel(agentModels, agent, homeModel || '', projModel(snap, pid) || ws.defaultModel || models[0] || '');
@@ -65,8 +70,9 @@ export function Home() {
       <div style={{ width: '100%', maxWidth: 860, padding: '56px 32px 32px', display: 'flex', flexDirection: 'column', gap: 26 }}>
         <h1 className="disp rise" style={{ textAlign: 'center', fontSize: 42, lineHeight: 1.1 }}>{greeting}</h1>
         <div className="card rise" style={{ position: 'relative', borderRadius: 16, padding: 14, display: 'flex', flexDirection: 'column', gap: 12, animationDelay: '.06s' }}>
-          <textarea rows={3} aria-label="Message" autoFocus placeholder={MODES.find((m) => m[0] === mode)?.[2]} value={draft} onChange={(e) => setState({ draft: e.target.value })}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+          {files.open && <FileMenu items={files.items} active={files.active} onHover={files.setActive} onPick={files.pick} style={{ left: 14, right: 14, top: '100%', marginTop: 6 }} />}
+          <textarea ref={composerInput} rows={3} aria-label="Message" autoFocus placeholder={MODES.find((m) => m[0] === mode)?.[2]} value={draft} onSelect={(e) => files.track(e.currentTarget)} onChange={(e) => { setState({ draft: e.target.value }); files.track(e.target); }}
+            onKeyDown={(e) => { if (files.onKey(e)) return; if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
             style={{ resize: 'none', border: 0, outline: 'none', background: 'transparent', color: 'var(--text)', font: 'inherit', fontSize: 16 }} />
           <div className="row" style={{ flexWrap: 'wrap' }}>
             <ProjectPicker value={proj.id} onPick={(id) => setState({ composeProj: id })} />
@@ -88,7 +94,7 @@ export function Home() {
             {!needs.length && <span className="muted" style={{ fontSize: 12 }}>Nothing waiting on you.</span>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}><span className="lbl">Continue</span>
-            {recent.map((c) => <button key={c.id} type="button" className="tile" onClick={() => openChat(c)}><b className="ellipsis" style={{ maxWidth: '100%' }}>{c.title}</b><span className="muted" style={{ fontSize: 12 }}>{projectPathName(snap.projects, c.project)}</span></button>)}
+            {recent.map((c) => <button key={c.id} type="button" className="tile" onClick={() => openChat(c)}><span className="row" style={{ gap: 6, maxWidth: '100%' }}><b className="ellipsis">{c.title}</b><ChatActivity chatId={c.id} /></span><span className="muted" style={{ fontSize: 12 }}>{projectPathName(snap.projects, c.project)}</span></button>)}
             {!recent.length && <span className="muted" style={{ fontSize: 12 }}>Your chats will show up here.</span>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}><span className="lbl">Coming up</span>

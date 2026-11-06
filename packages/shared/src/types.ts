@@ -129,6 +129,8 @@ export interface Workspace {
   memoryMcpCommand?: string;
   graphifyFolders: string[];
   graphifyWatch: boolean;
+  /** Obsidian vaults attached to this workspace. */
+  vaults?: Vault[];
   suggestMemories: boolean;
   designSystem: string;
   /** How artifacts are made and stored. Missing on older workspaces: see `odSettings`. */
@@ -204,7 +206,14 @@ export interface Project {
   createdAt: number;
   /** Starts this project's dev server for the browser beside the chat; missing means detected from the folder. */
   devCommand?: string;
+  /** Vault folders this project's agents can edit. The rest of the workspace's vaults stay read-only to them. */
+  vaults?: VaultAttachment[];
 }
+
+/** A folder of Markdown notes, usually an Obsidian vault. The files stay where they are. */
+export interface Vault { id: string; name: string; path: string }
+/** `folder` is relative to the vault; '' means the whole vault. */
+export interface VaultAttachment { vaultId: string; folder: string }
 
 export interface ToolStep { name: string; detail?: string; status: 'running' | 'ok' | 'error'; input?: string; output?: string }
 
@@ -377,6 +386,8 @@ export interface MemoryGraphNode {
   size?: number;
   x?: number;
   y?: number;
+  /** The file this node comes from, when Graphify recorded one. */
+  path?: string;
 }
 
 export interface MemoryGraphEdge {
@@ -425,6 +436,8 @@ export interface WorkspaceSnapshot {
   audit: AuditEvent[];
   engine: EngineStatus;
   policy: OrgPolicy | null;
+  /** Chats with a turn in progress; the others are idle. */
+  chatActivity: Record<string, 'working' | 'waiting'>;
 }
 
 export interface EngineStatus {
@@ -456,6 +469,8 @@ export type UiEvent =
   | { type: 'chat.permission.clear'; workspace: string; chat: string; requestId?: string }
   | { type: 'toast'; text: string }
   | { type: 'map'; workspace: string; scope: string }
+  /** Harness changed a note: the vault screen refreshes its tree and the open note. */
+  | { type: 'vault'; workspace: string; vault: string; path: string }
   | { type: 'engine'; workspace: string; status: EngineStatus }
   | { type: 'models'; workspace: string }
   | { type: 'graph.run'; workspace: string; run: GraphRun }
@@ -484,7 +499,7 @@ export interface OpenDesignSettings {
 
 // ---------- project mind maps ----------
 /** What a map node stands for. Items come from the workspace's data; idea, task and note nodes are made on the map. */
-export type MapNodeKind = 'workspace' | 'project' | 'chat' | 'artifact' | 'graph' | 'run' | 'fact' | 'routine' | 'group' | 'idea' | 'task' | 'note';
+export type MapNodeKind = 'workspace' | 'project' | 'chat' | 'artifact' | 'graph' | 'run' | 'fact' | 'memory' | 'routine' | 'group' | 'idea' | 'task' | 'note' | 'repo' | 'milestone' | 'ticket';
 export type MapTaskStatus = 'todo' | 'doing' | 'done';
 export type MapLayout = 'right' | 'balance';
 export type MapSide = 'left' | 'right';
@@ -515,6 +530,10 @@ export interface ResolvedMapNode {
   folded?: boolean;
   /** For an artifact node: its type, which picks the icon. */
   subtype?: string;
+  /** The page a repository, milestone or ticket opens. */
+  url?: string;
+  /** A repository GitLab refused without a token; `ref` is its host. */
+  needsToken?: boolean;
 }
 export interface ResolvedMap { scope: string; root: string; layout: MapLayout; nodes: ResolvedMapNode[]; links: MapLink[]; hiddenItems?: { id: string; title: string }[] }
 
@@ -529,3 +548,11 @@ export type MapOp =
   | { op: 'unhide'; id: string }
   | { op: 'remove'; id: string }
   | { op: 'setLayout'; layout: MapLayout };
+
+/** One Graphify node as the map shows it: what it connects to and, for a file, a preview. */
+export interface MemoryNodeDetail {
+  node: MemoryGraphNode;
+  community?: string;
+  links: { id: string; label: string; kind: MemoryGraphNode['kind']; relation: string }[];
+  file?: { path: string; size: number; text?: string; image?: string; truncated?: boolean; note?: string };
+}

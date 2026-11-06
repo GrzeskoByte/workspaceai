@@ -128,3 +128,23 @@ fn very_long_urls_are_not_kept_per_range() {
     let url = format!("https://x.example/{}", "a".repeat(5000));
     assert_eq!(link_of(&format!("[a]({url})")), None);
 }
+
+#[test]
+fn shorten_leaves_short_text_alone_and_cuts_long_text_on_a_char_boundary() {
+    assert_eq!(shorten("short", 10), "short");
+    let long = "ż".repeat(50);
+    let cut = shorten(&long, 10);
+    assert!(cut.starts_with(&"ż".repeat(10)) && cut.ends_with("(shortened)"), "{cut}");
+    assert_eq!(cut.chars().filter(|c| *c == 'ż').count(), 10);
+    assert_eq!(shorten("exactly10!", 10), "exactly10!");
+}
+
+#[test]
+fn parse_caps_its_input() {
+    let huge = "word ".repeat(MAX_INPUT); // far more than the cap
+    let blocks = parse(&huge);
+    let total: usize = blocks.iter().map(|b| match b { Block::Paragraph(i) => i.text.chars().count(), _ => 0 }).sum();
+    assert!(total <= MAX_INPUT + 40, "parsed {total} characters");
+    let last = match blocks.last().unwrap() { Block::Paragraph(i) => i.text.clone(), other => panic!("{other:?}") };
+    assert!(last.ends_with("(shortened)"), "{last}");
+}

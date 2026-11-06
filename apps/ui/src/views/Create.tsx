@@ -45,7 +45,7 @@ export function BriefView() {
   const [busy, setBusy] = useState('');
   const base = `/api/ws/${wsId()}/pipeline`;
 
-  useEffect(() => { get<{ systems: DS[] }>(`/api/ws/${wsId()}/design-systems`).then((r) => setSystems(r.systems)).catch(() => {}); }, []);
+  useEffect(() => { get<{ systems: DS[] }>(`/api/ws/${wsId()}/design-systems`).then((r) => { setSystems(r.systems); const d = r.systems.find((x) => x.title === snap.workspace.designSystem); if (d) setSystem(d.id); }).catch(() => {}); }, []);
   const live = art ? snap.artifacts.find((a) => a.id === art.id) || art : null;
   const sys = systems.find((d) => d.id === system);
   const run = async <T,>(label: string, fn: () => Promise<T>): Promise<T | undefined> => { setBusy(label); try { return await act(fn); } finally { setBusy(''); } };
@@ -118,7 +118,7 @@ export function BriefView() {
             {systems.filter((d) => !dsQuery || (d.title + ' ' + d.summary).toLowerCase().includes(dsQuery.toLowerCase())).slice(0, 80).map((d) => (
               <button key={d.id} type="button" className="opt" aria-pressed={system === d.id} onClick={() => setSystem(d.id)} style={{ padding: '10px 12px' }}>
                 <span className="row" style={{ gap: 3 }}>{d.swatches.slice(0, 5).map((c, i) => <span key={i} style={{ width: 16, height: 16, borderRadius: 4, background: c, border: '1px solid var(--line)' }} />)}</span>
-                <b style={{ fontSize: 13 }}>{d.title}</b><span className="muted ellipsis" style={{ fontSize: 11, maxWidth: '100%' }}>{d.source === 'harness' ? 'harness default' : d.summary}</span>
+                <b style={{ fontSize: 13 }}>{d.title}</b><span className="muted ellipsis" style={{ fontSize: 11, maxWidth: '100%' }}>{d.source === 'harness' ? 'WorkspaceAI default' : d.summary}</span>
               </button>
             ))}
           </div>

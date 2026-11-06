@@ -1,5 +1,20 @@
 import { describe, it, expect } from 'vitest';
-import { chatCommands, commandAction, findHarnessCommand, parseSlash } from '../src/commands.ts';
+import { chatCommands, commandAction, findHarnessCommand, insertMention, mentionAt, parseSlash } from '../src/commands.ts';
+
+describe('@ references', () => {
+  it('finds the one being typed at the caret', () => {
+    expect(mentionAt('@', 1)).toEqual({ start: 0, query: '' });
+    expect(mentionAt('look at @src/ma', 15)).toEqual({ start: 8, query: 'src/ma' });
+    expect(mentionAt('look at @src now', 16)).toBeNull();
+    expect(mentionAt('look at @src now', 12)).toEqual({ start: 8, query: 'src' });
+    expect(mentionAt('mail me@example.com', 19)).toBeNull();
+  });
+  it('inserts a reference and says where the caret goes', () => {
+    expect(insertMention('see @ma please', 4, 7, 'src/main.ts')).toEqual({ text: 'see @src/main.ts  please', caret: 17 });
+    expect(insertMention('@sr', 0, 3, 'src/', true)).toEqual({ text: '@src/', caret: 5 });
+    expect(insertMention('@my', 0, 3, 'my file.md').text).toBe('@"my file.md" ');
+  });
+});
 
 describe('slash commands', () => {
   it('maps each harness command to the agent’s own equivalent', () => {

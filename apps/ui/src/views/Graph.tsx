@@ -165,12 +165,12 @@ export function GraphView() {
             <div ref={host} className="graph-canvas" style={{ flex: '1 1 auto', minWidth: 0 }} />
             <aside className="card graph-insp" aria-label="Inspector" style={{ flex: '0 0 270px', padding: 12, display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto' }}>
               <span className="lbl">Inspector</span>
-              {!sel && <span className="muted" style={{ fontSize: 12 }}>Select an element. The harness group in the palette adds agent tasks, Browser steps, scripts and business rules.</span>}
+              {!sel && <span className="muted" style={{ fontSize: 12 }}>Select an element. The WorkspaceAI group in the palette adds agent tasks, Browser steps, scripts and business rules.</span>}
               {sel && <>
                 <span className="mono muted" style={{ fontSize: 11 }}>{sel.type.replace('bpmn:', '')} · {sel.id}</span>
                 <label className="field">Name<input className="inp" value={sel.name} onChange={(e) => setAttr('name', e.target.value)} /></label>
                 {isTask && sel.type !== 'bpmn:UserTask' && <>
-                  <label className="field">Harness step<select className="inp" value={sel.attrs.type || 'agent'} onChange={(e) => setAttr('type', e.target.value)}>{HARNESS_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></label>
+                  <label className="field">WorkspaceAI step<select className="inp" value={sel.attrs.type || 'agent'} onChange={(e) => setAttr('type', e.target.value)}>{HARNESS_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></label>
                   <span className="muted" style={{ fontSize: 11.5 }}>{TYPE_HELP[sel.attrs.type || 'agent']}</span>
                   {(sel.attrs.type || 'agent') !== 'script' && (sel.attrs.type || 'agent') !== 'browser' && <label className="field">Prompt<textarea className="inp" rows={4} value={sel.attrs.prompt || ''} onChange={(e) => setAttr('prompt', e.target.value)} placeholder={sel.name} /></label>}
                   {(sel.attrs.type || 'agent') === 'browser' && <label className="field">Page URL<input className="inp mono" value={sel.attrs.url || ''} onChange={(e) => setAttr('url', e.target.value)} /></label>}

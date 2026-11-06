@@ -2,14 +2,48 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useStore, setState, go, act, refreshSnap, wsId, toast, openRun } from '../store.ts';
 import { descendants } from '../../../../packages/shared/src/util.ts';
-import type { GraphRun } from '../../../../packages/shared/src/types.ts';
-import { get, put, post, patch } from '../api.ts';
+import type { GraphRun, Project, VaultAttachment } from '../../../../packages/shared/src/types.ts';
+import { get, put, post, patch, del } from '../api.ts';
 import { chatsWithin, projectPathName, rolledUpArtifacts } from '../../../../packages/shared/src/util.ts';
 import { openArtifact, openChat } from '../shell/Shell.tsx';
 import { Switch } from '../ui/Switch.tsx';
+import { ChatActivity } from '../ui/ChatActivity.tsx';
 
-const TABS = ['chats', 'artifacts', 'graphs', 'map', 'instructions'] as const;
+const TABS = ['chats', 'artifacts', 'graphs', 'map', 'vaults', 'instructions'] as const;
 const MapView = lazy(() => import('./MapView.tsx').then((m) => ({ default: m.MapView })));
+
+/** Vault folders this project's agents can edit. */
+function ProjectVaults({ proj }: { proj: Project }) {
+  const vaults = useStore((s) => s.snap)!.workspace.vaults || [];
+  const attached = proj.vaults || [];
+  const [vaultId, setVaultId] = useState(vaults[0]?.id || '');
+  const [folder, setFolder] = useState('');
+  const [dirs, setDirs] = useState<string[]>([]);
+  useEffect(() => {
+    if (!vaultId) return;
+    get<{ dirs: string[] }>(`/api/ws/${wsId()}/vaults/${vaultId}/tree`).then((r) => setDirs(r.dirs)).catch(() => setDirs([]));
+  }, [vaultId]);
+  const save = (next: VaultAttachment[], ok: string) => act(() => patch(`/api/ws/${wsId()}/projects/${proj.id}`, { vaults: next }).then(() => refreshSnap()), ok);
+  if (!vaults.length) return <div className="row"><span className="muted grow">This workspace has no vaults yet.</span><button type="button" className="btn" onClick={() => go('settings', { setPage: 'vaults' })}>Add a vault</button></div>;
+  return <>
+    <span className="muted" style={{ fontSize: 12.5 }}>Agents in this project can edit these folders. They can read the rest of the workspace’s vaults, but not change them.</span>
+    {attached.map((a) => {
+      const v = vaults.find((x) => x.id === a.vaultId);
+      return <div key={a.vaultId + a.folder} className="card row" style={{ padding: '10px 14px', gap: 10 }}>
+        <span className="grow mono ellipsis" style={{ fontSize: 12.5 }}>{v?.name} / {a.folder || '(whole vault)'}</span>
+        <button type="button" className="btn" onClick={() => go('vaults', { vaultOpen: null })}>Open vault</button>
+        <button type="button" className="link" onClick={() => void save(attached.filter((x) => x !== a), 'Folder detached. Its notes stay on disk.')}>Remove</button>
+      </div>;
+    })}
+    {!attached.length && <p className="muted">No folders attached. Agents here can only read the vaults.</p>}
+    <form className="row" style={{ flexWrap: 'wrap' }} onSubmit={(e) => { e.preventDefault(); void save([...attached, { vaultId, folder: folder.trim() }], 'Folder attached').then((r) => { if (r !== undefined) setFolder(''); }); }}>
+      {vaults.length > 1 && <select className="inp" aria-label="Vault" value={vaultId} onChange={(e) => setVaultId(e.target.value)}>{vaults.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select>}
+      <input className="inp grow" list="vault-folders" value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="Folder in the vault (empty for the whole vault)" aria-label="Vault folder" />
+      <datalist id="vault-folders">{dirs.map((d) => <option key={d} value={d} />)}</datalist>
+      <button type="submit" className="btn">Attach</button>
+    </form>
+  </>;
+}
 
 export function ProjectView() {
   const snap = useStore((s) => s.snap)!;
@@ -53,8 +87,9 @@ export function ProjectView() {
         {TABS.map((t) => <button key={t} type="button" className="tab" role="tab" aria-selected={ptab === t} onClick={() => setState({ ptab: t })}>{t[0].toUpperCase() + t.slice(1)}</button>)}
         <span className="grow" />
         {!proj.isGeneral && <button type="button" className="btn btn-d" onClick={() => setState({ confirm: { title: 'Archive ' + proj.name + '?', body: 'Chats in this project must be moved or they are archived with it.', ok: 'Archive', run: async () => { await post(`/api/ws/${wsId()}/projects/${proj.id}/archive`); await refreshSnap(); go('home'); } } })}>Archive</button>}
+        {!proj.isGeneral && <button type="button" className="btn btn-d" onClick={() => setState({ confirm: { title: 'Delete ' + proj.name + (inProj.size > 1 ? ` and its ${inProj.size - 1} sub-project${inProj.size > 2 ? 's' : ''}?` : '?'), body: 'Permanently deletes all chats, artifacts, graphs (including their .bpmn files), routines and memory in it. This can’t be undone. The folder and your other files stay on disk.', ok: 'Delete', run: async () => { if (await act(() => del(`/api/ws/${wsId()}/projects/${proj.id}`).then(() => refreshSnap()), proj.name + ' deleted')) go('home'); } } })}>Delete…</button>}
       </div>
-      {ptab === 'chats' && chats.map((c) => <button key={c.id} type="button" className="navrow" onClick={() => openChat(c)}><span className="ellipsis grow">{c.title}</span><span className="muted mono" style={{ fontSize: 11 }}>{c.sid}</span></button>)}
+      {ptab === 'chats' && chats.map((c) => <button key={c.id} type="button" className="navrow" onClick={() => openChat(c)}><span className="ellipsis grow">{c.title}</span><ChatActivity chatId={c.id} /><span className="muted mono" style={{ fontSize: 11 }}>{c.sid}</span></button>)}
       {ptab === 'chats' && !chats.length && <p className="muted">No chats in this project yet.</p>}
       {ptab === 'artifacts' && arts.map((a) => <button key={a.id} type="button" className="navrow" onClick={() => openArtifact(a)}><span className="ellipsis grow">{a.title}</span><span className="muted">{a.type} v{a.version} · {projectPathName(snap.projects, a.project)}</span></button>)}
       {ptab === 'artifacts' && !arts.length && <p className="muted">Artifacts made in this project, and in its sub-projects, show up here.</p>}
@@ -80,6 +115,7 @@ export function ProjectView() {
         ); })}
         {!graphs.length && <p className="muted">No graphs in this project yet.</p>}
       </>}
+      {ptab === 'vaults' && <ProjectVaults key={proj.id} proj={proj} />}
       {ptab === 'instructions' && <>
         <label className="row">Inherit from parents <Switch on={proj.inherit !== false} label="Inherit instructions" onChange={() => void act(() => patch(`/api/ws/${wsId()}/projects/${proj.id}`, { inherit: proj.inherit === false }).then(() => refreshSnap()))} /></label>
         {layers.filter((l) => l.kind !== 'project').map((l) => <div key={l.file} className="card" style={{ padding: 12 }}><span className="lbl">{l.name}</span><pre className="pre" style={{ marginTop: 8 }}>{l.text || 'Empty'}</pre></div>)}

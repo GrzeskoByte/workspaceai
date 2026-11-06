@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Harness memory as an MCP server (stdio). One instance per workspace, started by that workspace's opencode.
+// WorkspaceAI memory as an MCP server (stdio). One instance per workspace, started by that workspace's opencode.
 // Facts live in Markdown files; new memories written by the agent arrive as suggestions the user approves (R-22).
 // Tools: memory_search, memory_read, memory_write (exposed by opencode as harness-memory_*), plus graphify_query
 // when the workspace's memory backend is Graphify (R-23). The graph is owned by the supervisor, so the tool
@@ -20,7 +20,7 @@ const TOKEN = process.env.HARNESS_SUPERVISOR_TOKEN;
 const WS = process.env.HARNESS_WS;
 
 async function supervisor<T>(method: string, path: string): Promise<T> {
-  if (!SUP || !TOKEN || !WS) throw new Error('harness supervisor is not reachable');
+  if (!SUP || !TOKEN || !WS) throw new Error('WorkspaceAI supervisor is not reachable');
   const r = await fetch(`${SUP}/api/ws/${WS}${path}`, { method, headers: { 'x-harness-token': TOKEN, 'content-type': 'application/json' }, signal: AbortSignal.timeout(20000) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error((j as { error?: string }).error || 'request failed ' + r.status);

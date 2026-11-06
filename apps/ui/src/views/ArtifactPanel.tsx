@@ -66,7 +66,7 @@ export function ArtifactPanel() {
   };
 
   return (
-    <section aria-label="Artifact" className="rise art-panel" style={{ flex: wide ? '1 1 auto' : '0 0 520px', minWidth: 0, maxWidth: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg1)', borderLeft: '1px solid var(--bg2)', minHeight: 0 }}>
+    <section aria-label="Artifact" className="rise art-panel" style={{ flex: wide ? '1 1 auto' : '0 0 var(--right-w, 520px)', minWidth: 0, maxWidth: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg1)', borderLeft: '1px solid var(--bg2)', minHeight: 0 }}>
       <header className="row" style={{ padding: '10px 14px', borderBottom: '1px solid var(--bg2)' }}>
         <span className="mono" style={{ fontSize: 10.5, padding: '2px 6px', borderRadius: 4, background: 'var(--bg3)', color: 'var(--accent-p-text)' }}>{art.type.toUpperCase()}</span>
         <span className="mono muted" style={{ fontSize: 10.5 }} title="What this version is written in">{FORMAT_LABEL[format]}</span>
@@ -97,7 +97,7 @@ export function ArtifactPanel() {
             </div>
           ) : format === 'markdown' && art.type !== 'Deck' ? <Markdown text={content || 'Empty'} />
           : (
-            // The page as Open Design stores it, sandboxed: scripts run, but no same-origin access to the harness (security).
+            // The page as Open Design stores it, sandboxed: scripts run, but no same-origin access to the app (security).
             <iframe key={art.id + ':' + (version || art.version)} title={art.title} sandbox="allow-scripts" srcDoc={page} className="art-frame" style={{ width: '100%', border: '1px solid var(--line)', borderRadius: 10, background: 'white', ...(art.type === 'Deck' ? { aspectRatio: '16 / 9', height: 'auto', maxHeight: wide ? 'calc(100vh - 260px)' : undefined } : { height: wide ? 'calc(100vh - 260px)' : 'min(64vh, 640px)' }) }} />
           )}
 

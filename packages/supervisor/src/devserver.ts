@@ -97,6 +97,19 @@ export async function serversIn(folder: string): Promise<ListeningServer[]> {
   return [...found.values()].sort((a, b) => a.port - b.port);
 }
 
+/** Open a web page in the user's own browser; the desktop window can't open links itself. */
+export function openExternal(raw: string): Promise<void> {
+  let url = '';
+  try { const u = new URL(raw); if (/^https?:$/.test(u.protocol)) url = u.href; } catch { /* refused below */ }
+  if (!url) throw Object.assign(new Error('Only http and https pages can be opened'), { status: 400 });
+  const [cmd, ...args] = process.platform === 'darwin' ? ['open', url] : process.platform === 'win32' ? ['rundll32', 'url.dll,FileProtocolHandler', url] : ['xdg-open', url];
+  return new Promise((done, fail) => {
+    const p = spawn(cmd, args, { detached: true, stdio: 'ignore' });
+    p.once('error', () => fail(new Error(`Could not open your browser (${cmd} failed)`)));
+    p.once('spawn', () => { p.unref(); done(); });
+  });
+}
+
 /** Whether a page may be shown in a frame: its X-Frame-Options and CSP frame-ancestors. */
 export async function framePolicy(url: string): Promise<{ ok: boolean; status: number; embeddable: boolean; reason?: string }> {
   if (!/^https?:\/\//i.test(url)) return { ok: false, status: 0, embeddable: false, reason: 'Only http and https pages open here' };

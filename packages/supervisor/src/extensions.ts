@@ -12,20 +12,25 @@ import { artifactGuide, isGuided, markGuided, type GuideType } from './design-gu
 import { odSettings } from '../../shared/src/defaults.ts';
 import { readText } from './jsonfile.ts';
 import { installGraphRoutes } from './graph-tools.ts';
+import { installVaultRoutes } from './vault.ts';
 import { applyOps, resolveMap } from './maps.ts';
+import { refreshGitlab, ticketDetail, tokenName } from './gitlab.ts';
 import { toOutline } from '../../shared/src/mindmap.ts';
-import { detectDevCommand, devStatus, framePolicy, serversIn, startDev, stopDev } from './devserver.ts';
+import { detectDevCommand, devStatus, framePolicy, openExternal, serversIn, startDev, stopDev } from './devserver.ts';
 import { expandHome } from './paths.ts';
+import { keychain } from './keychain.ts';
+import { searchFiles } from './files.ts';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const MEMORY_MCP = join(here, '../../memory-mcp/src/server.ts');
 export const ARTIFACTS_MCP = join(here, '../../memory-mcp/src/artifacts-server.ts');
+export const VAULT_MCP = join(here, '../../memory-mcp/src/vault-server.ts');
 
 /** The chat whose session most recently called an artifact tool (within two minutes). */
 /** The harness tool type for each artifact kind. */
-const TOOL_TYPE: Record<string, string> = { Doc: 'doc', Deck: 'deck', Prototype: 'prototype', Sheet: 'sheet', LiveArtifact: 'prototype', Image: 'prototype', Video: 'doc', DesignSystem: 'doc' };
+const TOOL_TYPE: Record<string, string> = { Doc: 'doc', Deck: 'deck', Prototype: 'prototype', Sheet: 'sheet', LiveArtifact: 'prototype', Image: 'prototype', Video: 'doc', DesignSystem: 'design-system' };
 
 function callingChat(rt: WorkspaceRuntime): string | null {
   const recent = rt.artifactCalls.filter((c) => Date.now() - c.at < 120000).sort((a, b) => b.at - a.at)[0];
@@ -47,6 +52,8 @@ export function installExtensions(sup: Supervisor, router: Router, server: Start
       const od = odSettings(rt.ws).agentTools ? openDesign.mcpCommand(rt) : null;
       if (od) out['open-design'] = { type: 'local', command: od.command, enabled: true, environment: od.environment };
       out['harness-artifacts'] = { type: 'local', command: [process.execPath, ARTIFACTS_MCP], enabled: true, environment: env(rt) };
+      // Always registered, and scope is read on each call, so attaching a vault never has to restart running chats.
+      out['harness-vault'] = { type: 'local', command: [process.execPath, VAULT_MCP], enabled: true, environment: env(rt) };
       // lean-ctx: compressed reads, searches and shell output for every agent, when the workspace turns it on.
       const lc = rt.ws.leanCtx?.enabled !== false ? leanCtxMcp() : null;
       if (lc) out['lean-ctx'] = { type: 'local', command: lc.command, enabled: true, environment: lc.environment };
@@ -97,9 +104,31 @@ export function installExtensions(sup: Supervisor, router: Router, server: Start
     if (body.action === 'start') { rt.audit('dev.start', `${p.name} · ${p.devCommand || detected}`); return startDev(key, folder, p.devCommand || detected); }
     return devStatus(key, p.devCommand || detected);
   });
-  router.get('/api/preview/check', ({ query }) => framePolicy(String(query.get('url') || '')));
+  router.get('/api/ws/:id/projects/:pid/files', async ({ params, query }) => {
+    const p = sup.rt(params.id).project(params.pid);
+    if (!p) throw Object.assign(new Error('Project not found'), { status: 404 });
+    return { files: await searchFiles(expandHome(p.folder), String(query.get('q') || '')) };
+  });
+  router.get('/api/preview/check',({ query }) => framePolicy(String(query.get('url') || '')));
 
   // ---------- mind maps: one per project, and the workspace overview ----------
+  router.post('/api/open-external', async ({ body }) => { await openExternal(String(body.url || '')); return { ok: true }; });
+  router.get('/api/ws/:id/projects/:pid/tickets/:iid', ({ params }) => {
+    const rt = sup.rt(params.id);
+    const t = ticketDetail(rt, rt.project(params.pid)?.folder || '', Number(params.iid));
+    if (!t) throw Object.assign(new Error('That ticket is no longer open'), { status: 404 });
+    return t;
+  });
+  router.post('/api/ws/:id/projects/:pid/gitlab-token', ({ params, body }) => {
+    const rt = sup.rt(params.id);
+    const p = rt.project(params.pid);
+    if (!p) throw Object.assign(new Error('Project not found'), { status: 404 });
+    if (!body.host || !String(body.token || '').trim()) throw new Error('Paste a GitLab token first');
+    keychain.set(rt.id, tokenName(String(body.host)), String(body.token).trim());
+    refreshGitlab(rt, expandHome(p.folder));
+    rt.emit({ type: 'map', workspace: rt.id, scope: p.id });
+    return { ok: true };
+  });
   router.get('/api/ws/:id/map', ({ params }) => resolveMap(sup.rt(params.id), 'ws'));
   router.post('/api/ws/:id/map/ops', ({ params, body }) => applyOps(sup.rt(params.id), 'ws', body.ops || []));
   router.get('/api/ws/:id/projects/:pid/map', ({ params }) => resolveMap(sup.rt(params.id), params.pid));
@@ -123,12 +152,13 @@ export function installExtensions(sup: Supervisor, router: Router, server: Start
 
   // ---------- graphs as agent tools ----------
   installGraphRoutes(sup, router, callingChat);
+  installVaultRoutes(sup, router);
 
   // ---------- artifact routes (agent tools and the UI) ----------
   // Open Design's reference (design system, craft, skills); agents read it before they save, so every artifact follows it.
   router.post('/api/ws/:id/agent/guide', async ({ params, body }) => {
     const rt = sup.rt(params.id);
-    const type = (['doc', 'deck', 'prototype', 'sheet'].includes(body.type) ? body.type : 'doc') as GuideType;
+    const type = (['doc', 'deck', 'prototype', 'sheet', 'design-system'].includes(body.type) ? body.type : 'doc') as GuideType;
     const guide = await artifactGuide(rt, type, body.skill || undefined);
     markGuided(body.chat || callingChat(rt), type);
     return { guide };

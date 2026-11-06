@@ -2,7 +2,7 @@
 // and approved facts — and hands the agent what matched, so memory is used whether or not the agent thinks to ask.
 // The agents' instructions (MEMORY_RULE) tell them to go further with the memory tools when that is not enough.
 import { projectPath } from '../../shared/src/util.ts';
-import type { MemoryGraphNode } from '../../shared/src/types.ts';
+import type { Chat, MemoryGraph, MemoryGraphNode } from '../../shared/src/types.ts';
 import { cachedMemoryGraph, getMemoryGraph, queryTerms, rankNodes } from './graphify.ts';
 import type { WorkspaceRuntime } from './runtime.ts';
 
@@ -10,7 +10,7 @@ const OPEN = '<harness-memory>', CLOSE = '</harness-memory>';
 
 /** Strip the recall block from a stored user message (the transcript shows only what the user typed). */
 export function stripRecall(text: string): string {
-  return text.replace(/(\n*<harness-(memory|graph)>[\s\S]*?<\/harness-\2>)+\s*$/, '');
+  return text.replace(/(\n*<harness-(memory|graph|vault)>[\s\S]*?<\/harness-\2>)+\s*$/, '');
 }
 
 /** What memory has on this message, as a block appended to the prompt; empty when nothing matches. */
@@ -43,7 +43,7 @@ export function memoryRecall(rt: WorkspaceRuntime, pid: string, text: string): s
 
 let building = 0;
 /** The built graph; when there is none yet it is built in the background, so the next message has it. */
-function recallGraph(rt: WorkspaceRuntime) {
+export function recallGraph(rt: WorkspaceRuntime) {
   const graph = cachedMemoryGraph(rt);
   if (!graph && Date.now() - building > 60000) { building = Date.now(); setTimeout(() => { try { getMemoryGraph(rt); } catch { /* no folders yet */ } }, 0); }
   return graph;
@@ -70,4 +70,29 @@ export function memoryBrief(rt: WorkspaceRuntime, pid: string): string {
     }
   }
   return out.length ? '### What memory holds now\n' + out.join('\n').slice(0, 2400) : '';
+}
+
+const chatMemoryCache = new WeakMap<MemoryGraph, Map<string, { at: number; nodes: MemoryGraphNode[] }>>();
+
+/**
+ * The Graphify nodes a chat is about, from its title, what the user wrote and what its tools touched.
+ * ponytail: word matching like recall, so a common word can link loosely; record what recall handed the agent if that shows.
+ */
+export function chatMemory(rt: WorkspaceRuntime, chat: Chat): MemoryGraphNode[] {
+  if ((rt.ws.memory !== 'graph' && rt.ws.memory !== 'both') || rt.ws.useMemory === false) return [];
+  const graph = recallGraph(rt);
+  if (!graph) return [];
+  let cache = chatMemoryCache.get(graph);
+  if (!cache) chatMemoryCache.set(graph, cache = new Map());
+  const hit = cache.get(chat.id);
+  if (hit?.at === chat.updatedAt) return hit.nodes;
+  const messages = chat.transcript || [];
+  const words = [
+    chat.title === 'New chat' ? '' : chat.title,
+    ...messages.flatMap((m) => (m.tools || []).map((t) => t.detail || '')),
+    ...messages.filter((m) => m.role === 'user').map((m) => stripRecall(m.text)),
+  ];
+  const nodes = rankNodes(graph, queryTerms(words.join('\n')), 5);
+  cache.set(chat.id, { at: chat.updatedAt, nodes });
+  return nodes;
 }

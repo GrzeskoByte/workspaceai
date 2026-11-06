@@ -2,6 +2,7 @@
 //! items with a marker and depth. Soft line breaks stay line breaks, as people type them in chat.
 
 use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
+use std::borrow::Cow;
 use std::ops::Range;
 use std::sync::Arc;
 
@@ -82,6 +83,17 @@ impl Builder {
     }
 }
 
+/// Most characters of Markdown parsed; the rest is cut so one huge message or file cannot freeze the window.
+pub const MAX_INPUT: usize = 100_000;
+
+/// `text` unchanged when it fits in `max` characters, otherwise its first `max` characters and a notice.
+pub fn shorten(text: &str, max: usize) -> Cow<'_, str> {
+    match text.char_indices().nth(max) {
+        None => Cow::Borrowed(text),
+        Some((cut, _)) => Cow::Owned(format!("{}\n\n… (shortened)", &text[..cut])),
+    }
+}
+
 /// Longest link kept; longer ones render as plain text.
 const MAX_LINK: usize = 2048;
 
@@ -94,7 +106,8 @@ fn allowed_link(url: &str) -> Option<Arc<str>> {
 
 pub fn parse(md: &str) -> Vec<Block> {
     let mut b = Builder { blocks: vec![], inline: Inline::default(), target: None, bold: 0, italic: 0, link: vec![], lists: vec![], marker: String::new(), depth: 0, code: None, in_quote: false };
-    for event in Parser::new_ext(md, Options::ENABLE_STRIKETHROUGH) {
+    let md = shorten(md, MAX_INPUT);
+    for event in Parser::new_ext(&md, Options::ENABLE_STRIKETHROUGH) {
         match event {
             Event::Start(Tag::Paragraph) => b.target = Some(b.target.take().unwrap_or(Target::Paragraph)),
             Event::End(TagEnd::Paragraph) => b.flush(),

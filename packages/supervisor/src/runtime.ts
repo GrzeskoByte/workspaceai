@@ -5,13 +5,14 @@ import type {
   Workspace, Project, Chat, Artifact, Fact, Routine, GraphMeta, GraphRun, AuditEvent, EngineStatus, UiEvent,
   WorkspaceSnapshot, OrgPolicy, ChatMessage, ToolStep, Provider,
 } from '../../shared/src/types.ts';
-import { uid, projectPath, projectPathName, descendants, childProjects, titleCaseSegment, nestFolders } from '../../shared/src/util.ts';
+import { uid, projectPath, projectPathName, descendants, isWithin, childProjects, titleCaseSegment, nestFolders } from '../../shared/src/util.ts';
 import { buildOpencodeJson, referencedEnv, containsLiteralSecret, effectiveProviders } from '../../shared/src/opencode-config.ts';
 import { parseFacts, serializeFacts } from '../../shared/src/facts.ts';
 import { mapOcMessages, sourcesFromTools, toolLabel } from '../../shared/src/messages.ts';
 import { chatCommands, commandAction, findHarnessCommand, parseSlash, type ChatCommand, type NativeCommand } from '../../shared/src/commands.ts';
-import { generalProject, ARTIFACT_RULE, GRAPH_RULE, MAP_RULE, memoryRule } from '../../shared/src/defaults.ts';
+import { generalProject, ARTIFACT_RULE, FILE_REF_RULE, GRAPH_RULE, MAP_RULE, memoryRule } from '../../shared/src/defaults.ts';
 import { memoryBrief, memoryRecall, stripRecall } from './recall.ts';
+import { cleanAttachments, vaultRule } from './vault.ts';
 import { isAuthFailure } from './signin.ts';
 import { runSummary } from './graphs.ts';
 import { withHarnessSteps, withLayout } from '../../orchestrator/src/layout.ts';
@@ -24,9 +25,11 @@ import { readJson, writeJson, readText, writeText, appendLine } from './jsonfile
 import { keychain } from './keychain.ts';
 import { ManagedServer, OpencodeClient, OpencodeError, baseEnv, opencodeBinary, remoteUrlAllowed, type OcEvent, type OcPermission, type OcSession } from './opencode.ts';
 import { ArtifactStore } from './artifacts.ts';
+import { stopDev } from './devserver.ts';
 import { playwrightCli, chromiumArgs } from './browser.ts';
 import { AcpClient, acpCommandFor, claudeEffortCatalog, type AcpModel, type AcpPermissionRequest, findOnPath } from './acp.ts';
 import { agentEnv, agentHome, SUBSCRIPTIONS } from './subscriptions.ts';
+import { piAgentDir } from './pi-config.ts';
 import { execFile } from 'node:child_process';
 import { homedir, tmpdir } from 'node:os';
 
@@ -90,7 +93,7 @@ export class WorkspaceRuntime {
   private hooks: RuntimeHooks;
   private server: ManagedServer | null = null;
   private remote: OpencodeClient | null = null;
-  /** A managed engine another Harness process started for this same workspace (shared, not owned). */
+  /** A managed engine another WorkspaceAI process started for this same workspace (shared, not owned). */
   private attached: { pid: number; url: string; client: OpencodeClient } | null = null;
   private starting: Promise<OpencodeClient> | null = null;
   private pump: AbortController | null = null;
@@ -136,6 +139,7 @@ export class WorkspaceRuntime {
       { id: 'claude', name: 'Claude Code', via: 'ACP adapter · Claude subscription', command: 'npx -y @zed-industries/claude-code-acp', on: false, subscription: 'claude' },
       { id: 'grok', name: 'Grok', via: 'ACP · Grok subscription', command: 'grok agent stdio', on: false, subscription: 'grok' },
       { id: 'opencode-acp', name: 'opencode (ACP)', via: 'ACP · same opencode account', command: 'opencode acp', on: false, subscription: 'opencode' },
+      { id: 'pi', name: 'Pi', via: 'ACP adapter · pi’s own login · runs tools itself, not limited to the project folder', command: 'npx -y pi-acp@0.0.34', on: false },
     ];
     let changed = false;
     const before = JSON.stringify(this.ws.agents);
@@ -169,7 +173,7 @@ export class WorkspaceRuntime {
       const last = raw.find((m) => m.type === 'assistant');
       const t = last?.tokens || {};
       const model = last?.model ? `${last.model.providerID ?? ''}/${last.model.modelID ?? last.model.id ?? ''}` : this.effectiveModel(chat.project, chat.model);
-      this.audit('provider.call', `${model} · in ${t.input ?? 0} · out ${t.output ?? 0}${t.reasoning ? ' · reasoning ' + t.reasoning : ''}`, 'harness');
+      this.audit('provider.call', `${model} · in ${t.input ?? 0} · out ${t.output ?? 0}${t.reasoning ? ' · reasoning ' + t.reasoning : ''}`, 'workspaceai');
     } catch { /* engine gone; nothing to log */ }
   }
 
@@ -211,10 +215,28 @@ export class WorkspaceRuntime {
       audit: this.auditLog(60),
       engine: this.status,
       policy: this.policy,
+      chatActivity: this.chatActivity(),
     };
   }
 
   changed(): void { this.save(); this.hooks.emit({ type: 'snapshot', workspace: this.id }); }
+
+  /** Chats with a turn in progress, and whether each is waiting on the user. Sent to every window with the snapshot. */
+  private chatActivity(): Record<string, 'working' | 'waiting'> {
+    const out: Record<string, 'working' | 'waiting'> = {};
+    for (const id of this.live.keys()) out[id] = 'working';
+    for (const sid of this.permSessions.values()) { const id = this.chatForSid(sid)?.id; if (id && out[id]) out[id] = 'waiting'; }
+    for (const p of this.acpPerms.values()) if (out[p.chatId]) out[p.chatId] = 'waiting';
+    return out;
+  }
+  private activityChanged(): void { this.hooks.emit({ type: 'snapshot', workspace: this.id }); }
+  private setLive(chatId: string, turn: LiveTurn): void { const fresh = !this.live.has(chatId); this.live.set(chatId, turn); if (fresh) this.activityChanged(); }
+  private dropLive(chatId: string): void {
+    if (!this.live.delete(chatId)) return;
+    // Windows drop a chat's permission cards when its turn ends; an entry left behind would show as waiting on the next turn.
+    for (const [id, sid] of this.permSessions) if (this.chatForSid(sid)?.id === chatId) this.permSessions.delete(id);
+    this.activityChanged();
+  }
   emit(e: UiEvent): void { this.hooks.emit(e); }
 
   // ---------- engine (opencode) ----------
@@ -278,7 +300,7 @@ export class WorkspaceRuntime {
     try { process.kill(pid, 0); return true; } catch { return false; }
   }
 
-  /** Reuse the engine another Harness window/process already runs for this workspace instead of starting a second one. */
+  /** Reuse the engine another WorkspaceAI window/process already runs for this workspace instead of starting a second one. */
   private async attachExisting(): Promise<OpencodeClient | null> {
     const lock = readJson<{ pid: number; url: string } | null>(this.engineLockPath(), null);
     if (!lock?.pid || !lock.url || !WorkspaceRuntime.pidAlive(lock.pid)) return null;
@@ -289,7 +311,7 @@ export class WorkspaceRuntime {
       const info = await client.info();
       this.attached = { pid: lock.pid, url: lock.url, client };
       this.setStatus({ state: 'connected', url: lock.url, port: Number(new URL(lock.url).port) || 0, version: info.version, pid: lock.pid, sidecars: [] });
-      this.audit('engine.attach', `sharing opencode ${info.version} on 127.0.0.1:${new URL(lock.url).port}`, 'harness');
+      this.audit('engine.attach', `sharing opencode ${info.version} on 127.0.0.1:${new URL(lock.url).port}`, 'workspaceai');
       this.startPump(client);
       return client;
     } catch {
@@ -324,7 +346,7 @@ export class WorkspaceRuntime {
       keychain.set(this.id, 'OPENCODE_ENGINE_PASSWORD', server.password);
       writeJson(this.engineLockPath(), { pid: server.proc?.pid, url: server.url });
       this.setStatus({ state: 'running', url: server.url, port: server.port, version: server.version, pid: server.proc?.pid, sidecars: [{ name: 'opencode serve', state: 'running', pid: server.proc?.pid }, ...extra] });
-      this.audit('engine.start', `opencode ${server.version} on 127.0.0.1:${server.port}`, 'harness');
+      this.audit('engine.start', `opencode ${server.version} on 127.0.0.1:${server.port}`, 'workspaceai');
       this.startPump(c);
       return c;
     } catch (e) {
@@ -350,7 +372,7 @@ export class WorkspaceRuntime {
   async stopEngine(): Promise<void> {
     this.pump?.abort(); this.pump = null;
     const s = this.server; this.server = null; this.remote = null;
-    // A shared engine belongs to another Harness process; detach from it instead of killing it.
+    // A shared engine belongs to another WorkspaceAI process; detach from it instead of killing it.
     const shared = this.attached; this.attached = null;
     this.status.state = 'stopped';
     await this.closeAcp();
@@ -458,6 +480,7 @@ export class WorkspaceRuntime {
     if (!req?.id) return;
     const owner = String(req.sessionID || e.data.sessionID || chat.sid);
     this.permSessions.set(req.id, owner);
+    if (this.live.has(chat.id)) this.activityChanged();
     this.sidChats.set(owner, chat.id);
     // YOLO chats never surface a card: approve once so the turn keeps moving. The session ruleset
     // (set when the toggle flipped) normally avoids the ask altogether.
@@ -467,11 +490,13 @@ export class WorkspaceRuntime {
 
   private clearPermission(chatId: string, requestId?: string): void {
     if (requestId) this.permSessions.delete(requestId);
+    if (this.live.has(chatId)) this.activityChanged();
     this.hooks.emit({ type: 'chat.permission.clear', workspace: this.id, chat: chatId, requestId });
   }
 
   private clearPermissionsForChat(chatId: string): void {
     for (const [id, sid] of this.permSessions) if (this.chatForSid(sid)?.id === chatId) this.permSessions.delete(id);
+    if (this.live.has(chatId)) this.activityChanged();
     this.hooks.emit({ type: 'chat.permission.clear', workspace: this.id, chat: chatId });
   }
 
@@ -570,7 +595,7 @@ export class WorkspaceRuntime {
     let turn = this.live.get(chat.id);
     if (!turn && (e.type.startsWith('session.text') || e.type.startsWith('session.tool') || e.type === 'session.execution.started')) {
       turn = { chatId: chat.id, messageId: String(e.data.assistantMessageID || uid('msg')), text: '', tools: [], started: Date.now() };
-      this.live.set(chat.id, turn);
+      this.setLive(chat.id, turn);
     }
     if (!turn) return;
     if (e.type === 'session.text.delta') {
@@ -582,18 +607,18 @@ export class WorkspaceRuntime {
       const name = String(e.data.name || (turn.tools.find((t) => t.detail === id)?.name ?? 'tool'));
       let t = turn.tools.find((x) => x.detail === id);
       if (!t) { t = { name, detail: id, status: 'running' }; turn.tools.push(t); }
-      if (e.data.input) t.name = toolLabel(name, e.data.input);
+      if (e.data.input) { t.name = toolLabel(name, e.data.input); t.input = JSON.stringify(e.data.input); }
       if (/artifact|open-design|open_design/i.test(name) || /artifact_(create|update)|open-design/.test(String((e.data.input as { code?: string })?.code || ''))) { this.artifactCalls.push({ sid, at: Date.now(), tool: name }); this.artifactCalls = this.artifactCalls.filter((x) => Date.now() - x.at < 600000).slice(-50); }
       this.hooks.emit({ type: 'chat.tool', workspace: this.id, chat: chat.id, messageId: turn.messageId, tool: t });
     } else if (e.type === 'session.tool.input.ended') {
       const t = turn.tools.find((x) => x.detail === String(e.data.id));
       if (t && /artifact_(create|update)|open-design/.test(String(e.data.text || ''))) { this.artifactCalls.push({ sid, at: Date.now(), tool: 'execute' }); }
-      if (t) { try { t.name = toolLabel(t.name.split(' ')[0], JSON.parse(String(e.data.text || '{}'))); } catch { /* keep */ } this.hooks.emit({ type: 'chat.tool', workspace: this.id, chat: chat.id, messageId: turn.messageId, tool: t }); }
+      if (t) { try { t.name = toolLabel(t.name.split(' ')[0], JSON.parse(String(e.data.text || '{}'))); t.input = String(e.data.text || '{}'); } catch { /* keep */ } this.hooks.emit({ type: 'chat.tool', workspace: this.id, chat: chat.id, messageId: turn.messageId, tool: t }); }
     } else if (e.type === 'session.tool.success' || e.type === 'session.tool.failed' || e.type === 'session.tool.error') {
       const t = turn.tools.find((x) => x.detail === String(e.data.id));
       if (t) { t.status = e.type === 'session.tool.success' ? 'ok' : 'error'; this.hooks.emit({ type: 'chat.tool', workspace: this.id, chat: chat.id, messageId: turn.messageId, tool: t }); }
     } else if (e.type === 'session.execution.succeeded' || e.type === 'session.execution.failed' || e.type === 'session.execution.interrupted') {
-      this.live.delete(chat.id);
+      this.dropLive(chat.id);
       if (this.ws.kind === 'org') void this.auditProviderCall(chat);
       // The engine drops pending permissions when a turn ends; do the same in the UI.
       this.clearPermissionsForChat(chat.id);
@@ -611,13 +636,16 @@ export class WorkspaceRuntime {
     return expandHome(this.project(pid)?.folder || this.general().folder);
   }
 
+  private vaultRules = new Map<string, string>();
+
   private acpKey(agentId: string, folder: string): string { return agentId + '::' + folder; }
+  private piSignature = '';
 
   /**
    * The same MCP servers an opencode chat gets (memory, artifacts, Open Design, the workspace's connectors), in ACP's
    * `mcpServers` shape, with `{env:X}` references resolved from this workspace's environment and keychain only.
    */
-  acpMcpServers(): unknown[] {
+  acpMcpServers(folder: string): unknown[] {
     const { json } = this.configFile();
     const env = this.engineEnv();
     const resolveRef = (v: unknown) => String(v ?? '').replace(/\{env:([A-Z0-9_]+)\}/gi, (_m, k) => env[k] ?? '');
@@ -626,7 +654,7 @@ export class WorkspaceRuntime {
       if (!raw || raw.enabled === false) continue;
       const pairs = (o: Record<string, unknown> | undefined) => Object.entries(o || {}).map(([k, v]) => ({ name: k, value: resolveRef(v) }));
       if (raw.type === 'remote') out.push({ type: 'http', name, url: raw.url, headers: pairs(raw.headers) });
-      else if (Array.isArray(raw.command) && raw.command.length) out.push({ name, command: raw.command[0], args: raw.command.slice(1), env: pairs(raw.environment) });
+      else if (Array.isArray(raw.command) && raw.command.length) out.push({ name, command: raw.command[0], args: raw.command.slice(1), env: pairs(name === 'harness-vault' ? { ...raw.environment, HARNESS_PROJECT_FOLDER: folder } : raw.environment) });
     }
     return out;
   }
@@ -634,11 +662,17 @@ export class WorkspaceRuntime {
   private async acpFor(agentId: string, pid: string): Promise<AcpClient> {
     const folder = this.projectFolder(pid);
     const key = this.acpKey(agentId, folder);
+    const pi = agentId === 'pi' ? piAgentDir(this) : null;
+    // A changed provider or key only reaches Pi on a restart; never cut off a reply for it, the next message does it.
+    if (pi && pi.signature !== this.piSignature && ![...this.live.values()].some((t) => this.chat(t.chatId)?.agent === 'pi')) {
+      await this.stopAgents(['pi']);
+      this.piSignature = pi.signature;
+    }
     const existing = this.acpClients.get(key);
     if (existing?.running) return existing;
     const rec = this.ws.agents.find((a) => a.id === agentId);
     const command = acpCommandFor(rec || { id: agentId });
-    const env = rec?.subscription ? agentEnv(this, rec.subscription) : {};
+    const env = pi ? pi.env : rec?.subscription ? agentEnv(this, rec.subscription) : {};
     const client = new AcpClient({
       id: agentId,
       command,
@@ -657,7 +691,7 @@ export class WorkspaceRuntime {
           const c = this.chat(t.chatId);
           return c && c.agent === agentId && this.projectFolder(c.project) === folder;
         });
-        if (live) this.hooks.emit({ type: 'toast', text: `${SUBSCRIPTIONS[rec?.subscription || 'grok'].name} stopped${code === 0 ? '' : ' (exit ' + code + ')'}` });
+        if (live) this.hooks.emit({ type: 'toast', text: `${rec?.name || agentId} stopped${code === 0 ? '' : ' (exit ' + code + ')'}` });
       },
       log: (line) => appendLine(join(this.paths.logs, `acp-${agentId}.log`), `${new Date().toISOString()} ${line}`),
     });
@@ -728,7 +762,7 @@ export class WorkspaceRuntime {
   }
 
   /**
-   * Run a slash command typed in a chat. Harness commands run as the agent's own equivalent (see `commands.ts`);
+   * Run a slash command typed in a chat. WorkspaceAI commands run as the agent's own equivalent (see `commands.ts`);
    * anything else goes to the agent as typed: Claude Code and Grok run their own commands, opencode its server commands.
    */
   async runCommand(chatId: string, text: string): Promise<CommandResult> {
@@ -862,20 +896,20 @@ export class WorkspaceRuntime {
       if (chat.agent !== 'claude' || (client.sessionEffort.get(existing) ?? '') === effort) return { client, sessionId: existing, key };
       this.acpChatBySession.delete(key + '\n' + existing);
       try {
-        await client.loadSession({ cwd: folder, sessionId: existing, mcpServers: this.acpMcpServers(), ...this.acpSessionMeta(chat, effort) });
+        await client.loadSession({ cwd: folder, sessionId: existing, mcpServers: this.acpMcpServers(folder), ...this.acpSessionMeta(chat, effort) });
       } finally { this.acpChatBySession.set(key + '\n' + existing, chat.id); }
       return { client, sessionId: existing, key };
     }
     if (existing) {
       try {
-        const sid = await client.loadSession({ cwd: folder, sessionId: existing, mcpServers: this.acpMcpServers(), ...this.acpSessionMeta(chat, effort) });
+        const sid = await client.loadSession({ cwd: folder, sessionId: existing, mcpServers: this.acpMcpServers(folder), ...this.acpSessionMeta(chat, effort) });
         this.rememberAgentModels(chat.agent, client);
         this.acpLoaded.add(key + '\n' + sid);
         this.acpChatBySession.set(key + '\n' + sid, chat.id);
         return { client, sessionId: sid, key };
       } catch { /* agent cannot reload it; start a fresh session below */ }
     }
-    const sid = await client.newSession({ cwd: folder, mcpServers: this.acpMcpServers(), ...this.acpSessionMeta(chat, effort) });
+    const sid = await client.newSession({ cwd: folder, mcpServers: this.acpMcpServers(folder), ...this.acpSessionMeta(chat, effort) });
     this.rememberAgentModels(chat.agent, client);
     chat.sid = `acp:${chat.agent}:${sid}`;
     this.acpLoaded.add(key + '\n' + sid);
@@ -947,10 +981,11 @@ export class WorkspaceRuntime {
     if (!chatId) return Promise.resolve(null);
     const chat = this.chat(chatId);
     // YOLO chats, and workspaces that turned off "Ask before file writes and commands", auto-approve once; no card.
-    // The harness's own memory and artifact tools never need asking.
-    if (chat?.yolo || this.ws.acpAskFirst === false || /harness-(memory|artifacts)/.test(req.title)) return Promise.resolve(WorkspaceRuntime.acpChoice(req.options, 'once')?.optionId || null);
+    // The harness's own memory and artifact tools never need asking, nor does reading a vault. Vault writes do.
+    if (chat?.yolo || this.ws.acpAskFirst === false || /harness-(memory|artifacts)/.test(req.title) || /harness-vault[^a-z]*vault_(list|read|search)\b/i.test(req.title)) return Promise.resolve(WorkspaceRuntime.acpChoice(req.options, 'once')?.optionId || null);
     return new Promise((resolve) => {
       this.acpPerms.set(req.id, { chatId, options: req.options, title: req.title, detail: req.detail, resolve });
+      this.activityChanged();
       this.hooks.emit({ type: 'chat.permission', workspace: this.id, chat: chatId, request: { id: req.id, sid: chat?.sid || '', title: req.title, detail: req.detail } });
     });
   }
@@ -971,6 +1006,7 @@ export class WorkspaceRuntime {
     const pending = this.acpPerms.get(requestId);
     if (!pending || pending.chatId !== chatId) return false;
     this.acpPerms.delete(requestId);
+    this.activityChanged();
     const chosen = WorkspaceRuntime.acpChoice(pending.options, decision);
     pending.resolve(chosen?.optionId || null);
     return true;
@@ -1003,11 +1039,11 @@ export class WorkspaceRuntime {
     // Agents other than Claude Code (which has them in its system prompt) get the harness instructions with the
     // first message of the chat; the transcript keeps only what the user typed.
     if (chat.agent !== 'claude' && !parseSlash(text) && !(chat.transcript || []).some((m) => m.role === 'user')) body = this.inheritedPrefix(chat.project, chat.instructions) + '\n\n---\n\n' + body;
-    if (!parseSlash(text)) body += memoryRecall(this, chat.project, text) + this.takeGraphNotes(chat);
+    if (!parseSlash(text)) body += memoryRecall(this, chat.project, text) + this.takeGraphNotes(chat) + this.vaultNote(chat);
     // A slash command must reach the agent exactly as typed.
     if (!this.webEnabledFor(chat) && !parseSlash(text)) body += '\n\n[harness: web search is off for this chat — answer without searching the web, and say so if it matters.]';
     const turn: LiveTurn = { chatId: chat.id, messageId: uid('msg'), text: '', tools: [], started: Date.now() };
-    this.live.set(chat.id, turn);
+    this.setLive(chat.id, turn);
     this.appendTranscript(chat, { id: uid('msg'), role: 'user', text, createdAt: Date.now() });
     const slash = !!parseSlash(text);
     chat.updatedAt = Date.now();
@@ -1057,12 +1093,12 @@ export class WorkspaceRuntime {
   async quietCommand(chat: Chat, command: string): Promise<string> {
     const { client, sessionId } = await this.ensureAcpSession(chat);
     const turn: LiveTurn = { chatId: chat.id, messageId: uid('msg'), text: '', tools: [], started: Date.now(), quiet: true };
-    this.live.set(chat.id, turn);
+    this.setLive(chat.id, turn);
     try {
       await client.prompt(sessionId, command);
       if (!turn.text.trim() && chat.agent === 'claude') turn.text = this.claudeLocalCommandOutput(sessionId, turn.started);
       return turn.text.replace(/\x1b\[[0-9;]*m/g, '').trim();
-    } finally { if (this.live.get(chat.id) === turn) this.live.delete(chat.id); }
+    } finally { if (this.live.get(chat.id) === turn) this.dropLive(chat.id); }
   }
 
   private claudeLocalCommandOutput(sessionId: string, since: number): string {
@@ -1088,7 +1124,7 @@ export class WorkspaceRuntime {
   private finishAcpTurn(chat: Chat, turn: LiveTurn, outcome: string, error?: Error): void {
     const current = this.live.get(chat.id);
     if (current !== turn) return;
-    this.live.delete(chat.id);
+    this.dropLive(chat.id);
     const live = this.chat(chat.id);
     if (!live) return;
     // A sign-in that expired: the chat offers to sign in again, and the agent restarts with the new login.
@@ -1130,7 +1166,7 @@ export class WorkspaceRuntime {
     return p;
   }
 
-  updateProject(id: string, patch: Partial<Pick<Project, 'name' | 'inherit' | 'model' | 'parent'>>): Project {
+  updateProject(id: string, patch: Partial<Pick<Project, 'name' | 'inherit' | 'model' | 'parent' | 'vaults'>>): Project {
     const p = this.project(id);
     if (!p) throw new Error('Project not found');
     if (patch.parent !== undefined) {
@@ -1141,6 +1177,7 @@ export class WorkspaceRuntime {
     if (patch.name !== undefined) { if (!patch.name.trim()) throw new Error('Name the project'); p.name = patch.name.trim(); }
     if (patch.inherit !== undefined) p.inherit = patch.inherit;
     if (patch.model !== undefined) p.model = patch.model;
+    if (patch.vaults !== undefined) p.vaults = cleanAttachments(this.ws.vaults || [], patch.vaults);
     this.audit('project.update', p.name);
     this.changed();
     return p;
@@ -1166,17 +1203,36 @@ export class WorkspaceRuntime {
     this.changed();
   }
 
-  /** A project with chats can't be deleted until they are moved or archived with it (R-10). */
-  deleteProject(id: string): void {
+  /**
+   * Deletes the project and its whole sub-tree (archived parts too) with their chats, artifacts, graphs, routines,
+   * facts and maps, files included. The folders and anything else in them, AGENTS.md too, stay on disk.
+   */
+  async deleteProject(id: string): Promise<void> {
     const p = this.project(id);
     if (!p) throw new Error('Project not found');
     if (p.isGeneral) throw new Error('General can’t be deleted');
-    const ids = [id, ...descendants(this.state.projects, id)];
-    const live = this.state.chats.filter((c) => ids.includes(c.project) && !c.archived);
-    if (live.length) throw new Error(`Move or archive its ${live.length} chat${live.length === 1 ? '' : 's'} first`);
-    this.state.projects = this.state.projects.filter((x) => !ids.includes(x.id));
-    this.state.chats = this.state.chats.filter((c) => !ids.includes(c.project));
-    this.audit('project.delete', p.name);
+    // Not descendants(): it skips archived projects, which would orphan an archived sub-tree.
+    const doomed = this.state.projects.filter((x) => isWithin(this.state.projects, x.id, id));
+    const ids = new Set(doomed.map((x) => x.id));
+    const inTree = <T extends { project: string }>(xs: T[]): T[] => xs.filter((x) => ids.has(x.project));
+    // Best effort: an unreachable engine must not block the delete.
+    for (const c of inTree(this.state.chats)) await this.deleteChat(c.id).catch(() => {});
+    this.state.chats = this.state.chats.filter((c) => !ids.has(c.project));
+    for (const r of inTree(this.state.routines)) this.deleteRoutine(r.id);
+    for (const g of inTree(this.state.graphs)) this.deleteGraph(g.id);
+    for (const a of inTree(this.state.artifacts)) this.artifacts.remove(a.id);
+    // Named files, never all of .harness: a project at ~ would have ~/.harness, the whole WorkspaceAI home, there.
+    const survivors = this.state.projects.filter((x) => !ids.has(x.id));
+    for (const x of doomed) {
+      stopDev(`${this.id}:${x.id}`);
+      const folder = expandHome(x.folder);
+      if (survivors.some((s) => expandHome(s.folder) === folder)) continue; // another project shares these
+      rmSync(join(folder, '.harness', 'memory', 'facts.md'), { force: true });
+      rmSync(join(folder, '.harness', 'map.json'), { force: true });
+    }
+    this.state.projects = survivors;
+    if (ids.has(this.ws.defaultProject)) this.ws.defaultProject = this.general().id;
+    this.audit('project.delete', `${p.name} (+${ids.size - 1} sub-projects)`);
     this.changed();
   }
 
@@ -1209,8 +1265,8 @@ export class WorkspaceRuntime {
     if (chatInstructions.trim()) parts.push('## Chat instructions\n' + chatInstructions.trim());
     // Every agent is told how artifacts are made (all through Open Design), to use memory, and to use lean-ctx when on.
     const memory = this.ws.useMemory === false ? [] : [memoryRule(this.ws.memory), memoryBrief(this, pid)].filter(Boolean);
-    parts.unshift(ARTIFACT_RULE, GRAPH_RULE, MAP_RULE, ...memory, ...(this.ws.leanCtx?.enabled !== false && leanCtxBin() ? [LEANCTX_RULE] : []));
-    return 'Harness instructions, broad to narrow. The project folder\'s own AGENTS.md is narrower and wins on conflict.\n\n' + parts.join('\n\n');
+    parts.unshift(FILE_REF_RULE, ARTIFACT_RULE, GRAPH_RULE, MAP_RULE, ...memory, ...(this.ws.leanCtx?.enabled !== false && leanCtxBin() ? [LEANCTX_RULE] : []), ...[vaultRule(this, pid)].filter(Boolean));
+    return 'WorkspaceAI instructions, broad to narrow. The project folder\'s own AGENTS.md is narrower and wins on conflict.\n\n' + parts.join('\n\n');
   }
 
   effectiveModel(pid: string, chatModel = ''): string {
@@ -1243,6 +1299,7 @@ export class WorkspaceRuntime {
     const title = (o.title || 'New chat').slice(0, 80);
     const chatId = uid('chat');
     let sid = '';
+    let chatModel = o.model || '';
     if (agent === 'opencode') {
       const c = await this.client();
       const s = await c.createSession({ title, directory: expandHome(proj.folder), model, variant: o.effort || undefined });
@@ -1252,16 +1309,19 @@ export class WorkspaceRuntime {
     } else {
       const client = await this.acpFor(agent, pid);
       const folder = this.projectFolder(pid);
-      const acpSid = await client.newSession({ cwd: folder, mcpServers: this.acpMcpServers(), ...this.acpSessionMeta({ agent, project: pid, instructions: o.instructions }, o.effort || '') });
+      const acpSid = await client.newSession({ cwd: folder, mcpServers: this.acpMcpServers(folder), ...this.acpSessionMeta({ agent, project: pid, instructions: o.instructions }, o.effort || '') });
       this.rememberAgentModels(agent, client);
-      if (o.model) await client.setModel(acpSid, o.model);
+      // With no pick, Pi runs the project's or workspace's model when it offers it (its own providers may not).
+      const inherited = agent === 'pi' && !o.model ? this.effectiveModel(pid) : '';
+      if (client.models.some((m) => m.id === inherited)) chatModel = inherited;
+      if (chatModel) await client.setModel(acpSid, chatModel);
       if (o.effort && agent !== 'claude') await client.setEffort(acpSid, o.effort);
       sid = `acp:${agent}:${acpSid}`;
       const key = this.acpKey(agent, folder);
       this.acpLoaded.add(key + '\n' + acpSid);
       this.acpChatBySession.set(key + '\n' + acpSid, chatId);
     }
-    const chat: Chat = { id: chatId, project: pid, title, sid, agent, model: o.model || '', ...(o.effort ? { effort: o.effort } : {}), web: o.web ?? null, instructions: o.instructions || '', imported: false, archived: false, createdAt: Date.now(), updatedAt: Date.now(), transcript: [] };
+    const chat: Chat = { id: chatId, project: pid, title, sid, agent, model: chatModel, ...(o.effort ? { effort: o.effort } : {}), web: o.web ?? null, instructions: o.instructions || '', imported: false, archived: false, createdAt: Date.now(), updatedAt: Date.now(), transcript: [] };
     this.state.chats.push(chat);
     this.audit('chat.create', `${title} · ${projectPathName(this.state.projects, pid)} · ${sid}`);
     this.changed();
@@ -1277,7 +1337,7 @@ export class WorkspaceRuntime {
   async pushInstructions(sid: string, pid: string, chatInstructions: string): Promise<void> {
     const c = await this.client();
     const prefix = this.inheritedPrefix(pid, chatInstructions);
-    await c.req('PUT', `/api/experimental/session/${sid}/instructions/entries/harness`, { value: prefix || '' }).catch((e) => this.audit('instructions.error', String((e as Error).message).slice(0, 200), 'harness'));
+    await c.req('PUT', `/api/experimental/session/${sid}/instructions/entries/harness`, { value: prefix || '' }).catch((e) => this.audit('instructions.error', String((e as Error).message).slice(0, 200), 'workspaceai'));
   }
 
   webEnabledFor(chat: Chat): boolean { return this.effectiveWebMode() !== 'off' && chat.web !== false; }
@@ -1294,8 +1354,8 @@ export class WorkspaceRuntime {
     if (!this.instructionsPushed.has(chat.id)) { this.instructionsPushed.add(chat.id); await this.pushInstructions(chat.sid, chat.project, chat.instructions); }
     let body = text;
     if (!this.webEnabledFor(chat) && !parseSlash(text)) body += '\n\n[harness: web search is off for this chat — answer without searching the web, and say so if it matters.]';
-    if (!parseSlash(text) && !o.oc) body += memoryRecall(this, chat.project, text) + this.takeGraphNotes(chat);
-    this.live.set(chat.id, { chatId: chat.id, messageId: uid('msg'), text: '', tools: [], started: Date.now() });
+    if (!parseSlash(text) && !o.oc) body += memoryRecall(this, chat.project, text) + this.takeGraphNotes(chat) + this.vaultNote(chat);
+    this.setLive(chat.id, { chatId: chat.id, messageId: uid('msg'), text: '', tools: [], started: Date.now() });
     if (o.oc) await o.oc(c, chat.sid); else await c.prompt(chat.sid, body);
     chat.updatedAt = Date.now();
     if (chat.title === 'New chat' && !parseSlash(text)) chat.title = text.slice(0, 60);
@@ -1336,7 +1396,7 @@ export class WorkspaceRuntime {
     }
     const c = await this.client();
     await c.interrupt(chat.sid).catch(() => {});
-    this.live.delete(chatId);
+    this.dropLive(chatId);
     this.hooks.emit({ type: 'chat.done', workspace: this.id, chat: chatId, outcome: 'interrupted' });
   }
 
@@ -1346,7 +1406,7 @@ export class WorkspaceRuntime {
     if (chat.agent !== 'opencode') return chat.transcript || [];
     const c = await this.client();
     const raw = await c.messages(chat.sid);
-    const msgs = mapOcMessages(raw).filter((m) => !(m.role === 'user' && m.text.startsWith('Harness instructions, broad to narrow')));
+    const msgs = mapOcMessages(raw).filter((m) => !(m.role === 'user' && /^(WorkspaceAI|Harness) instructions, broad to narrow/.test(m.text)));
     for (const m of msgs) {
       if (m.role === 'user') m.text = stripRecall(m.text).replace(/\n\n\[harness: web search is off[^\]]*\]$/, '');
       if (m.role === 'assistant') {
@@ -1401,7 +1461,7 @@ export class WorkspaceRuntime {
       const client = this.acpClients.get(key);
       if (sid && client?.running) await client.closeSession(sid).catch(() => {});
       if (sid) { this.acpLoaded.delete(key + '\n' + sid); this.acpChatBySession.delete(key + '\n' + sid); }
-      this.live.delete(chatId);
+      this.dropLive(chatId);
     }
     this.state.chats = this.state.chats.filter((c) => c.id !== chatId);
     this.audit('chat.delete', chat.title);
@@ -1451,7 +1511,7 @@ export class WorkspaceRuntime {
         const c = await this.client();
         await c.setSessionPermissions(chat.sid, yolo ? ALLOW_ALL : []);
       } catch (e) {
-        this.audit('chat.yolo.error', String((e as Error).message || e).slice(0, 200), 'harness');
+        this.audit('chat.yolo.error', String((e as Error).message || e).slice(0, 200), 'workspaceai');
       }
       // Settle anything already waiting before the ruleset applied.
       if (yolo) await this.pendingPermissions(chat.id).catch(() => []);
@@ -1493,7 +1553,7 @@ export class WorkspaceRuntime {
   chatFromSession(s: OcSession, imported: boolean): Chat {
     const dir = s.location?.directory || this.general().folder;
     const proj = this.projectForFolder(dir);
-    const chat: Chat = { id: uid('chat'), project: proj.id, title: s.title || 'Session ' + s.id.slice(-6), sid: s.id, agent: 'opencode', model: s.model ? `${s.model.providerID}/${s.model.id}` : '', web: null, instructions: '', imported, archived: false, createdAt: s.time?.created || Date.now(), updatedAt: s.time?.updated || Date.now() };
+    const chat: Chat = { id: uid('chat'), project: proj.id, title: s.title || 'Session ' + s.id.slice(-6), sid: s.id, agent: 'opencode', model: s.model ? `${s.model.providerID}/${s.model.id}` : '', web: false, instructions: '', imported, archived: false, createdAt: s.time?.created || Date.now(), updatedAt: s.time?.updated || Date.now() };
     this.state.chats.push(chat);
     return chat;
   }
@@ -1780,6 +1840,15 @@ export class WorkspaceRuntime {
     if (!chat.graphNotes?.length) return '';
     const notes = chat.graphNotes; chat.graphNotes = [];
     return `\n\n<harness-graph>\nGraph runs the user started in this chat since your last turn:\n${notes.join('\n\n')}\n</harness-graph>`;
+  }
+
+  /** Sessions learn their vault access when they start; this tells a running one when it changed. First call is the baseline. */
+  private vaultNote(chat: Chat): string {
+    const rule = vaultRule(this, chat.project);
+    const last = this.vaultRules.get(chat.id);
+    this.vaultRules.set(chat.id, rule);
+    if (last === undefined || last === rule) return '';
+    return `\n\n<harness-vault>\nVault access changed for this chat.\n${rule || 'This workspace has no vaults now.'}\n</harness-vault>`;
   }
 
   saveStoredRun(run: GraphRun, engineState: unknown): void {

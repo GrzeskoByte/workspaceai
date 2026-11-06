@@ -1,6 +1,9 @@
 // Desktop window. Starts the supervisor, tells the UI its port and token, and
 // stops that process on quit so workspace sidecars stop with the app.
+use std::collections::hash_map::RandomState;
+use std::hash::{BuildHasher, Hasher};
 use std::io::{BufRead, BufReader};
+use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::{mpsc, Arc, Mutex};
@@ -73,7 +76,7 @@ fn runtime_root(resource_dir: Option<PathBuf>) -> Result<PathBuf, String> {
     if compiled.join("packages/supervisor/src/main.ts").is_file() {
         return Ok(compiled);
     }
-    Err("Cannot find the Harness runtime. Set HARNESS_ROOT.".into())
+    Err("Cannot find the WorkspaceAI runtime. Set HARNESS_ROOT.".into())
 }
 
 /// The Node that runs the supervisor: HARNESS_NODE, the `node` sidecar shipped next to this binary, or PATH.
@@ -91,13 +94,20 @@ fn node_binary() -> PathBuf {
 }
 
 fn start_supervisor(root: &std::path::Path) -> Result<(SupervisorInfo, SupervisorProc), String> {
-    let mut child = Command::new(node_binary())
+    let mut command = Command::new(node_binary());
+    command.env_remove("HARNESS_PORT").env_remove("HARNESS_TOKEN");
+    // A dev build restarts the supervisor when its sources change. The port and token stay the same, so the window
+    // keeps working and just reconnects.
+    if cfg!(debug_assertions) {
+        let port = TcpListener::bind(("127.0.0.1", 0)).and_then(|l| l.local_addr()).map_err(|e| e.to_string())?.port();
+        let token = format!("{:x}{:x}", RandomState::new().build_hasher().finish(), RandomState::new().build_hasher().finish());
+        command.arg("scripts/watch-supervisor.mjs").env("HARNESS_PORT", port.to_string()).env("HARNESS_TOKEN", token);
+    }
+    let mut child = command
         .arg("packages/supervisor/src/main.ts")
         .current_dir(root)
         .env("HARNESS_PARENT_STDIN", "1")
         .env_remove("HARNESS_DEV")
-        .env_remove("HARNESS_PORT")
-        .env_remove("HARNESS_TOKEN")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
@@ -152,7 +162,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![supervisor_info])
         .build(tauri::generate_context!())
-        .expect("Could not build the Harness window")
+        .expect("Could not build the WorkspaceAI window")
         .run(move |_app, event| {
             if matches!(event, RunEvent::ExitRequested { .. } | RunEvent::Exit) {
                 if let Some(mut running) = on_exit.lock().ok().and_then(|mut g| g.take()) {

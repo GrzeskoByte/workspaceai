@@ -1,5 +1,5 @@
 {
-  "name": "@harness/supervisor",
+  "name": "@workspaceai/supervisor",
   "version": "0.0.1",
   "private": true,
   "type": "module",

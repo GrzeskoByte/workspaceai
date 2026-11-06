@@ -115,10 +115,10 @@ class OpenDesignManager {
     this.daemons.set(rt.id, { proc, port, url, startedAt: Date.now() });
     proc.on('exit', () => { if (this.daemons.get(rt.id)?.proc === proc) this.daemons.delete(rt.id); });
     for (let i = 0; i < 60; i++) {
-      try { const r = await fetch(url + '/api/health', { signal: AbortSignal.timeout(1000) }); if (r.ok) { rt.audit('open-design.start', url, 'harness'); return url; } } catch { /* starting */ }
+      try { const r = await fetch(url + '/api/health', { signal: AbortSignal.timeout(1000) }); if (r.ok) { rt.audit('open-design.start', url, 'workspaceai'); return url; } } catch { /* starting */ }
       await new Promise((r) => setTimeout(r, 500));
     }
-    rt.audit('open-design.error', 'daemon did not become healthy', 'harness');
+    rt.audit('open-design.error', 'daemon did not become healthy', 'workspaceai');
     this.lastError.set(rt.id, 'The daemon did not become healthy within 30 s — see its log');
     await this.stop(rt);
     return null;

@@ -25,6 +25,7 @@ const P: Record<string, ReactNode> = {
   expand: <><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></>,
   collapse: <><path d="M4 14h6v6" /><path d="M20 10h-6V4" /><path d="M14 10l7-7" /><path d="M3 21l7-7" /></>,
   panel: <><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M15 3v18" /></>,
+  panelLeft: <><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M9 3v18" /></>,
   left: <path d="m15 18-6-6 6-6" />,
   right: <path d="m9 18 6-6-6-6" />,
   down: <path d="m6 9 6 6 6-6" />,

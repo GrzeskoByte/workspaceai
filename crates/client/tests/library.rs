@@ -75,3 +75,11 @@ fn updated_text_and_paths() {
     assert_eq!(content_path("w1", "a1", Some(3)), "/api/ws/w1/artifacts/a1/content?v=3");
     assert_eq!(content_path("w1", "..", None), "/api/ws/w1/artifacts/invalid%20id/content");
 }
+
+#[test]
+fn markdown_artifacts_are_capped_too() {
+    let big = "line\n\n".repeat(workspaceai_client::markdown::MAX_INPUT);
+    let Body::Markdown(m) = body_for("markdown", &big) else { panic!() };
+    assert!(m.chars().count() <= workspaceai_client::markdown::MAX_INPUT + 40);
+    assert!(m.ends_with("(shortened)"));
+}

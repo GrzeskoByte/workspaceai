@@ -1,6 +1,6 @@
 // Routines fire on their own (R-27): cron schedules with a time zone, one-off times, file changes, git events and
 // webhooks. Approval, "if the computer is asleep" and notifications follow the routine's settings.
-import { watch, existsSync, type FSWatcher } from 'node:fs';
+import { watch, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { CronExpressionParser } from 'cron-parser';
@@ -11,7 +11,7 @@ import { expandHome } from './paths.ts';
 import type { Supervisor } from './supervisor.ts';
 import type { WorkspaceRuntime } from './runtime.ts';
 import { startLive, updateLive } from './computers.ts';
-import { GraphifyWatcher } from './graphify.ts';
+import { GraphifyWatcher, watchTree } from './graphify.ts';
 
 function record(rt: WorkspaceRuntime, routine: Routine, run: RoutineRun): void {
   routine.runs.unshift(run);
@@ -79,7 +79,7 @@ export function dueNow(routine: Routine, now: Date): boolean {
 
 export class Scheduler {
   private timer: NodeJS.Timeout | null = null;
-  private watchers = new Map<string, FSWatcher[]>();
+  private watchers = new Map<string, { close(): void }[]>();
   private sup: Supervisor;
   readonly graphify = new GraphifyWatcher();
   constructor(sup: Supervisor) {
@@ -125,7 +125,7 @@ export class Scheduler {
       }
       this.syncWatchers(rt);
       this.graphify.sync(rt);
-      void rt.uploadAudit(now.getTime()).catch((e) => rt.audit('audit.upload.error', String((e as Error).message), 'harness'));
+      void rt.uploadAudit(now.getTime()).catch((e) => rt.audit('audit.upload.error', String((e as Error).message), 'workspaceai'));
     }
   }
 
@@ -142,15 +142,15 @@ export class Scheduler {
       const t = routine.trigger as { event: string; detail: string };
       let debounce: NodeJS.Timeout | null = null;
       const fire = (why: string) => { if (debounce) clearTimeout(debounce); debounce = setTimeout(() => void trigger(this.sup, rt, routine, why), 1500); };
-      const list: FSWatcher[] = [];
+      const list: { close(): void }[] = [];
       try {
         if (t.event === 'file.changed') {
           const sub = t.detail && t.detail !== '.' ? join(folder, t.detail.replace(/^~\/?/, '')) : folder;
-          if (existsSync(sub)) list.push(watch(sub, { recursive: true }, (_e, f) => { if (f && !String(f).startsWith('.harness') && !String(f).startsWith('.git')) fire('file changed: ' + f); }));
+          if (existsSync(sub)) list.push(watchTree(sub, (f) => fire('file changed: ' + f)));
         } else {
           const refs = join(folder, '.git', 'refs', 'heads');
           const branch = t.event === 'git.push' && t.detail && t.detail !== '*' ? t.detail : null;
-          if (existsSync(refs)) list.push(watch(refs, { recursive: true }, (_e, f) => { if (!branch || String(f) === branch) fire(`${t.event === 'git.push' ? 'push to' : 'commit on'} ${f}`); }));
+          if (existsSync(refs)) list.push(watch(refs, { recursive: true }, (_e, f) => { if (!branch || String(f) === branch) fire(`${t.event === 'git.push' ? 'push to' : 'commit on'} ${f}`); }).on('error', (e) => console.error(`[watch] ${refs}: ${e}`)));
         }
       } catch { /* folder vanished */ }
       this.watchers.set(key, list);

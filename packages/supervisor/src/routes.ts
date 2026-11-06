@@ -11,26 +11,52 @@ import { OpencodeClient, installOpencode, pinnedOpencodeBin } from './opencode.t
 import { readText } from './jsonfile.ts';
 import { join } from 'node:path';
 import { registerScreens } from './screens.ts';
+import { cleanVaults, pruneAttachments } from './vault.ts';
 import { registerPipeline } from './pipeline.ts';
 import { canSignIn, cancelSignIn, signInCode, signInState, startSignIn } from './signin.ts';
 import { SUBSCRIPTIONS, connectSubscription, detectedRows, disconnectSubscription, subscriptionStatus } from './subscriptions.ts';
-import { getMemoryGraph, graphifyStatus, graphifyVersion, queryMemoryGraph, reviewLink, rebuildMemoryGraph, installGraphify } from './graphify.ts';
+import { getMemoryGraph, graphifyStatus, graphifyVersion, memoryNodeDetail, queryMemoryGraph, reviewLink, rebuildMemoryGraph, installGraphify } from './graphify.ts';
 import type { SubscriptionId } from '../../shared/src/types.ts';
 
 const local = new LocalOpencodeData();
 
 function err(message: string, status = 400): never { throw Object.assign(new Error(message), { status }); }
 
-/** Test an OpenAI-compatible endpoint by listing its models (R-20 "connections can be tested"). */
-export async function testEndpoint(baseURL: string, key?: string): Promise<{ ok: boolean; models?: string[]; ms?: number; error?: string }> {
+/**
+ * Test an OpenAI-compatible endpoint (R-20 "connections can be tested"). With a model it asks for a short reply, the same
+ * request opencode sends, because listing models can succeed where chat fails. Without one it can only list models.
+ */
+export async function testEndpoint(baseURL: string, key?: string, model?: string): Promise<{ ok: boolean; models?: string[]; ms?: number; error?: string }> {
   if (!/^(https:\/\/|http:\/\/(localhost|127\.0\.0\.1|\[::1\])[:/])/.test(baseURL || '')) return { ok: false, error: 'Use https://, or http:// only for localhost' };
   const t0 = Date.now();
+  const base = baseURL.replace(/\/$/, '');
+  const auth: Record<string, string> = key ? { authorization: 'Bearer ' + key } : {};
+  const rejected = (status: number) => ({ ok: false, error: 'The key was rejected (' + status + ')' });
+  const notApi = { ok: false, error: 'That URL does not serve the chat API. Check the Base URL (Open WebUI uses https://your-host/api).' };
   try {
-    const r = await fetch(baseURL.replace(/\/$/, '') + '/models', { headers: key ? { authorization: 'Bearer ' + key } : {}, signal: AbortSignal.timeout(8000) });
-    if (r.status === 401 || r.status === 403) return { ok: false, error: 'The key was rejected (' + r.status + ')' };
-    if (!r.ok) return { ok: false, error: 'Endpoint answered ' + r.status };
-    const j = await r.json().catch(() => ({})) as { data?: { id: string }[] };
-    return { ok: true, models: (j.data || []).map((m) => m.id).slice(0, 50), ms: Date.now() - t0 };
+    const r = await fetch(base + '/models', { headers: auth, signal: AbortSignal.timeout(8000) });
+    if (r.status === 401 || r.status === 403) return rejected(r.status);
+    const j = r.ok ? await r.json().catch(() => null) as { data?: { id: string }[] } | null : null;
+    const models = (j?.data || []).map((m) => m.id).slice(0, 50);
+    if (!model) {
+      if (!r.ok) return { ok: false, error: 'Endpoint answered ' + r.status };
+      return j ? { ok: true, models, ms: Date.now() - t0 } : notApi;
+    }
+    const c = await fetch(base + '/chat/completions', {
+      method: 'POST',
+      headers: { ...auth, 'content-type': 'application/json' },
+      body: JSON.stringify({ model, messages: [{ role: 'user', content: 'Reply with OK.' }], max_tokens: 8 }),
+      signal: AbortSignal.timeout(60000), // a local model may have to load first
+    });
+    if (c.status === 401 || c.status === 403) return rejected(c.status);
+    if (c.status === 405) return notApi;
+    const reply = await c.json().catch(() => null) as { choices?: unknown[]; error?: string | { message?: string }; detail?: unknown } | null;
+    if (!c.ok) {
+      const why = typeof reply?.error === 'string' ? reply.error : reply?.error?.message || (typeof reply?.detail === 'string' ? reply.detail : '');
+      return { ok: false, error: `Model ${model} failed: endpoint answered ${c.status}${why ? ' · ' + why.slice(0, 160) : ''}` };
+    }
+    if (!Array.isArray(reply?.choices) || !reply.choices.length) return notApi;
+    return { ok: true, models, ms: Date.now() - t0 };
   } catch (e) {
     return { ok: false, error: 'No answer from ' + baseURL + ' (' + String((e as Error).message).slice(0, 80) + ')' };
   }
@@ -61,7 +87,7 @@ export function buildRouter(): Router {
   r.post('/api/onboarding/test-remote', ({ sup, body }) => sup.testRemote(body.url, body.username, body.password));
   r.post('/api/onboarding/test-provider', async ({ body }) => {
     if (body.kind === 'ollama') return testEndpoint('http://localhost:11434/v1');
-    if (body.kind === 'custom') return testEndpoint(body.url, body.key);
+    if (body.kind === 'custom') return testEndpoint(body.url, body.key, body.model);
     if (body.kind === 'anthropic') {
       if ((body.key || '').trim().length < 8) return { ok: false, error: 'That doesn’t look like an Anthropic key.' };
       try {
@@ -166,6 +192,7 @@ export function buildRouter(): Router {
   r.post('/api/graphify/install', () => installGraphify());
   r.get('/api/ws/:id/graphify/graph', ({ sup, params, query }) => getMemoryGraph(sup.rt(params.id), query.get('rebuild') === '1'));
   r.get('/api/ws/:id/graphify/query', ({ sup, params, query }) => queryMemoryGraph(sup.rt(params.id), query.get('q') || ''));
+  r.get('/api/ws/:id/graphify/node', ({ sup, params, query }) => memoryNodeDetail(sup.rt(params.id), query.get('id') || '') || err('That node is not in the graph', 404));
   r.post('/api/ws/:id/graphify/review/:rid', ({ sup, params, body }) => {
     const status = body.status === 'kept' ? 'kept' : body.status === 'dropped' ? 'dropped' : 'pending';
     return { review: reviewLink(sup.rt(params.id), params.rid, status) };
@@ -176,17 +203,18 @@ export function buildRouter(): Router {
   r.patch('/api/ws/:id', ({ sup, params, body }) => {
     const rt = sup.rt(params.id);
     const ws = rt.ws;
-    const allowed: (keyof Workspace)[] = ['name', 'accent', 'instructions', 'defaultModel', 'defaultProject', 'memory', 'memoryMcpCommand', 'graphifyFolders', 'graphifyWatch', 'suggestMemories', 'designSystem', 'openDesign', 'useMemory', 'memoryRecall', 'leanCtx', 'web', 'agents', 'defaultAgent', 'acpAskFirst', 'members', 'skills', 'visibility', 'publicLinks', 'keepChats', 'routineAskFirst', 'routineIfAsleep', 'engine'];
+    const allowed: (keyof Workspace)[] = ['name', 'accent', 'instructions', 'defaultModel', 'defaultProject', 'memory', 'memoryMcpCommand', 'graphifyFolders', 'graphifyWatch', 'vaults', 'suggestMemories', 'designSystem', 'openDesign', 'useMemory', 'memoryRecall', 'leanCtx', 'web', 'agents', 'defaultAgent', 'acpAskFirst', 'members', 'skills', 'visibility', 'publicLinks', 'keepChats', 'routineAskFirst', 'routineIfAsleep', 'engine'];
     const lockedInOrg: (keyof Workspace)[] = ['name', 'web', 'agents', 'defaultAgent', 'engine', 'keepChats', 'publicLinks'];
     for (const k of Object.keys(body) as (keyof Workspace)[]) {
       if (!allowed.includes(k)) err('Unknown setting ' + String(k));
       if (ws.kind === 'org' && lockedInOrg.includes(k)) {
         // Per-chat toggles stay usable; only the workspace-level choice is locked (R-21, R-36).
         if (k === 'web' && body.web && body.web.mode === ws.web.mode && body.web.searxngUrl === ws.web.searxngUrl) { /* ask/showSources changes are fine */ }
-        else { rt.audit('policy.block', 'change ' + String(k), 'harness'); err('Locked by org policy', 403); }
+        else { rt.audit('policy.block', 'change ' + String(k), 'workspaceai'); err('Locked by org policy', 403); }
       }
       if (k === 'defaultModel' && ws.kind === 'org' && rt.policy && !rt.policy.allowedModels.includes(body[k])) err('That model is not allowed by your organization', 403);
       if (k === 'openDesign' && body.openDesign?.engine && !['open-design', 'builtin'].includes(body.openDesign.engine)) err('Artifact engine must be open-design or builtin');
+      if (k === 'vaults') { body.vaults = cleanVaults(body.vaults); pruneAttachments(rt, body.vaults); }
       (ws as any)[k] = k === 'web' || k === 'engine' || k === 'openDesign' || k === 'leanCtx' ? { ...(ws as any)[k], ...body[k] } : body[k];
       if (k === 'name') ws.initials = sup.initialsFor(body.name);
     }
@@ -293,15 +321,27 @@ export function buildRouter(): Router {
     const url = body.url || p?.baseURL;
     const key = body.key || (p?.keyEnv ? keychain.get(rt.id, p.keyEnv) : null) || undefined;
     if (!url) return { ok: true, note: 'opencode resolves this provider itself' };
-    return testEndpoint(url, key);
+    // Only OpenAI-style SDKs have this chat route; a proxy for another SDK can only be listed.
+    return testEndpoint(url, key, /openai/.test(body.pkg || p?.npm || '') ? body.model || p?.models[0]?.id : undefined);
   });
   r.patch('/api/ws/:id/providers/:pid', ({ sup, params, body }) => {
     const rt = sup.rt(params.id);
     sup.assertAllowed(rt, 'providers');
     const p = rt.ws.providers.find((x) => x.id === params.pid) || err('Provider not found', 404);
+    if (p.locked) err('This provider is managed by org policy', 403);
+    const models: string[] | null = Array.isArray(body.models) ? body.models.map((m: string) => String(m).trim()).filter(Boolean) : null;
+    if (models && !models.length) err('At least one model is required');
     if (body.isDefault) { for (const x of rt.ws.providers) x.isDefault = x.id === p.id; rt.ws.defaultModel = p.id + '/' + p.models[0].id; }
-    if (Array.isArray(body.models)) p.models = body.models.map((m: string) => ({ id: m }));
+    if (body.name) p.name = String(body.name);
+    if (body.url) { p.baseURL = String(body.url); p.note = (p.npm || '') + ' · ' + p.baseURL; }
+    if (models) {
+      p.models = models.map((m) => p.models.find((x) => x.id === m) || { id: m });
+      if (rt.ws.defaultModel?.startsWith(p.id + '/') && !models.includes(rt.ws.defaultModel.slice(p.id.length + 1))) rt.ws.defaultModel = p.id + '/' + models[0];
+    }
+    if (body.key && p.keyEnv) keychain.set(rt.id, p.keyEnv, body.key);
+    if (body.url || models || body.key) rt.audit('provider.edit', p.id + ' → opencode.json');
     rt.writeConfig(); rt.changed();
+    if ((body.url || models || body.key) && rt.status.state === 'running') rt.restartEngine().catch(() => {});
     return { ok: true };
   });
   r.del('/api/ws/:id/providers/:pid', ({ sup, params }) => {
@@ -362,7 +402,7 @@ export function buildRouter(): Router {
   r.patch('/api/ws/:id/projects/:pid', ({ sup, params, body }) => sup.rt(params.id).updateProject(params.pid, body));
   r.post('/api/ws/:id/projects/:pid/archive', ({ sup, params }) => ({ hiddenSubprojects: sup.rt(params.id).archiveProject(params.pid) }));
   r.post('/api/ws/:id/projects/:pid/restore', ({ sup, params }) => { sup.rt(params.id).restoreProject(params.pid); return { ok: true }; });
-  r.del('/api/ws/:id/projects/:pid', ({ sup, params }) => { sup.rt(params.id).deleteProject(params.pid); return { ok: true }; });
+  r.del('/api/ws/:id/projects/:pid', async ({ sup, params }) => { await sup.rt(params.id).deleteProject(params.pid); return { ok: true }; });
   r.get('/api/ws/:id/projects/:pid/agents', ({ sup, params }) => { const rt = sup.rt(params.id); return { file: rt.agentsFile(params.pid), text: rt.readAgents(params.pid) }; });
   r.put('/api/ws/:id/projects/:pid/agents', ({ sup, params, body }) => { sup.rt(params.id).writeAgents(params.pid, String(body.text ?? '')); return { ok: true }; });
   r.get('/api/ws/:id/projects/:pid/layers', ({ sup, params }) => ({ layers: sup.rt(params.id).instructionLayers(params.pid) }));
@@ -405,7 +445,7 @@ export function buildRouter(): Router {
   r.post('/api/ws/:id/chats', async ({ sup, params, body }) => {
     const rt = sup.rt(params.id);
     sup.sendAllowed(rt);
-    const chat = await rt.createChat({ project: body.project, title: body.title || (body.text ? String(body.text).slice(0, 60) : 'New chat'), agent: body.agent, model: body.model, effort: body.effort ? String(body.effort) : undefined, web: body.web, instructions: body.instructions });
+    const chat = await rt.createChat({ project: body.project, title: body.title || (body.text ? String(body.text).slice(0, 60) : 'New chat'), agent: body.agent, model: body.model, effort: body.effort ? String(body.effort) : undefined, web: body.web ?? false, instructions: body.instructions });
     if (body.text) await rt.send(chat.id, body.text);
     return chat;
   });

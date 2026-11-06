@@ -6,7 +6,7 @@
       "h": 900,
       "is_interactive": true,
       "page": "prototype",
-      "title": "Harness prototype — onboarding through every screen (press Play)",
+      "title": "WorkspaceAI prototype — onboarding through every screen (press Play)",
       "w": 1440,
       "x": 0,
       "y": 0
@@ -243,7 +243,7 @@
       "fill": "teal",
       "page": "prototype",
       "size": 24,
-      "text": "Graphs are BPMN 2.0 — modelled with bpmn-js, run by bpmn-engine\n\nEvents: start (none, timer, message, conditional), intermediate (timer, message), end (none, error, terminate).\nTasks: user, agent (opencode or an ACP agent), service, browser step (Playwright MCP), script, business rule, send, receive; call activity and sub-process.\nGateways: exclusive, parallel, inclusive, event-based. Markers: loop ↻, multi-instance ||| / ≡; boundary timer and error events. Lanes You · Agent · Harness.\n\nModel check must pass before Run. Run executes in bpmn-engine: user tasks wait for a signal, state is saved after every step and can be paused and resumed. Dry run sends nothing. The bpmn.io logo stays visible, as its licence requires.",
+      "text": "Graphs are BPMN 2.0 — modelled with bpmn-js, run by bpmn-engine\n\nEvents: start (none, timer, message, conditional), intermediate (timer, message), end (none, error, terminate).\nTasks: user, agent (opencode or an ACP agent), service, browser step (Playwright MCP), script, business rule, send, receive; call activity and sub-process.\nGateways: exclusive, parallel, inclusive, event-based. Markers: loop ↻, multi-instance ||| / ≡; boundary timer and error events. Lanes You · Agent · WorkspaceAI.\n\nModel check must pass before Run. Run executes in bpmn-engine: user tasks wait for a signal, state is saved after every step and can be paused and resumed. Dry run sends nothing. The bpmn.io logo stays visible, as its licence requires.",
       "w": 520,
       "x": 2080,
       "y": 0
@@ -279,7 +279,7 @@
       "kind": "title1",
       "maxW": 2960,
       "page": "prototype",
-      "text": "Harness prototype",
+      "text": "WorkspaceAI prototype",
       "w": 240,
       "x": 0,
       "y": -300
@@ -443,5 +443,5 @@
       "name": "Earlier static screens"
     }
   ],
-  "title": "Workspace Harness"
+  "title": "Workspace WorkspaceAI"
 }

@@ -1,12 +1,12 @@
 {
-  "name": "@harness/desktop",
+  "name": "@workspaceai/desktop",
   "version": "0.0.1",
   "private": true,
-  "description": "Tauri 2 window for Harness. It starts the supervisor and stops it on quit.",
+  "description": "Tauri 2 window for WorkspaceAI. It starts the supervisor and stops it on quit.",
   "scripts": {
-    "dev": "tauri dev",
+    "dev": "tauri dev --config '{\"bundle\":{\"externalBin\":[],\"resources\":[]}}'",
     "build": "tauri build",
-    "dev:hot": "tauri dev --config '{\"build\":{\"beforeDevCommand\":\"bash -c \\\"d=$PWD; while [ $d != / ] && [ ! -f $d/packages/supervisor/src/main.ts ]; do d=$(dirname $d); done; exec npm --prefix $d --workspace @harness/ui run dev\\\"\"}}'"
+    "dev:hot": "tauri dev --config '{\"build\":{\"beforeDevCommand\":\"d=$PWD; while [ $d != / ] && [ ! -f $d/packages/supervisor/src/main.ts ]; do d=$(dirname $d); done; exec npm --prefix $d --workspace @workspaceai/ui run dev\"},\"bundle\":{\"externalBin\":[],\"resources\":[]}}'"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.4"

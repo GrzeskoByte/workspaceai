@@ -3,11 +3,14 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { get } from '../api.ts';
 import { wsId } from '../store.ts';
-import type { GraphRun } from '../../../../packages/shared/src/types.ts';
+import type { GraphRun, MemoryNodeDetail } from '../../../../packages/shared/src/types.ts';
 import { graphPreview, type GraphPreview } from '../../../../packages/shared/src/bpmnPreview.ts';
 import { stepState } from './runPaint.ts';
+import { Markdown } from '../ui/Markdown.tsx';
+import { gitlabMarkdown } from '../../../../packages/shared/src/markdown.ts';
+import { initialsOf } from '../../../../packages/shared/src/util.ts';
 
-type Loaded<T> = { state: 'loading' } | { state: 'ready'; value: T } | { state: 'error' };
+type Loaded<T> = { state: 'loading' } | { state: 'ready'; value: T } | { state: 'error'; message: string };
 const cache = new Map<string, Promise<unknown>>();
 function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
   let p = cache.get(key) as Promise<T> | undefined;
@@ -25,7 +28,7 @@ function useLoaded<T>(key: string, load: () => Promise<T>): Loaded<T> {
   useEffect(() => {
     let stop = false;
     setGot({ state: 'loading' });
-    cached(key, load).then((value) => { if (!stop) setGot({ state: 'ready', value }); }, () => { if (!stop) setGot({ state: 'error' }); });
+    cached(key, load).then((value) => { if (!stop) setGot({ state: 'ready', value }); }, (e) => { if (!stop) setGot({ state: 'error', message: (e as Error).message }); });
     return () => { stop = true; };
   }, [key]);
   return got;
@@ -83,5 +86,89 @@ export function GraphPreviewView({ id, version, run, large }: { id: string; vers
         );
       })}
     </svg>
+  );
+}
+
+/** A Graphify node on the map: its connections, which can be followed here, and its file. */
+/** What GitLab returns for a ticket, as far as the preview shows it. */
+interface Ticket {
+  title: string; web_url: string; description?: string | null; state?: string; labels?: string[]; due_date?: string | null; created_at?: string; updated_at?: string; user_notes_count?: number;
+  references?: { full?: string }; author?: { name: string } | null; assignees?: { name: string }[]; assignee?: { name: string } | null;
+  milestone?: { title: string; due_date?: string | null } | null; task_completion_status?: { count: number; completed_count: number };
+}
+const day = (d?: string | null) => (d ? new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '');
+
+function Person({ name }: { name: string }) {
+  return <span className="ticket-person"><span className="ticket-avatar" aria-hidden>{initialsOf(name)}</span>{name}</span>;
+}
+
+/** A GitLab ticket from the map's copy, laid out to read: GitLab's own page refuses to be shown here. */
+export function TicketPreview({ project, iid }: { project: string; iid: string }) {
+  const [state, setState] = useState<Loaded<Ticket>>({ state: 'loading' });
+  useEffect(() => {
+    let stop = false;
+    setState({ state: 'loading' });
+    get<Ticket>(`/api/ws/${wsId()}/projects/${project}/tickets/${iid}`).then((value) => { if (!stop) setState({ state: 'ready', value }); }, (e) => { if (!stop) setState({ state: 'error', message: (e as Error).message }); });
+    return () => { stop = true; };
+  }, [project, iid]);
+  if (state.state !== 'ready') return <div className="ticket"><p className={'muted' + (state.state === 'loading' ? ' pulse' : '')}>{state.state === 'loading' ? 'Loading…' : state.message}</p></div>;
+  const t = state.value;
+  const people = t.assignees?.length ? t.assignees : t.assignee ? [t.assignee] : [];
+  const tasks = t.task_completion_status;
+  const due = t.due_date || t.milestone?.due_date;
+  const late = !!due && new Date(due + 'T23:59:59') < new Date();
+  const text = gitlabMarkdown(t.description || '', t.web_url);
+  return (
+    <div className="ticket">
+      <div className="ticket-main">
+        <span className="lbl">{t.references?.full || `#${iid}`}</span>
+        <h1 className="disp ticket-title">{t.title}</h1>
+        <div className="ticket-sub">
+          <span className={'ticket-state ' + (t.state === 'closed' ? 'closed' : 'open')}><span className="dot" aria-hidden />{t.state === 'closed' ? 'Closed' : 'Open'}</span>
+          {t.author && <span className="muted">Opened {day(t.created_at)} by {t.author.name}</span>}
+        </div>
+        <hr />
+        {text ? <div className="ticket-body"><Markdown text={text} /></div> : <p className="muted">No description.</p>}
+      </div>
+      <aside className="ticket-side" aria-label="Ticket details">
+        <div><span className="lbl">Assignee{people.length > 1 ? 's' : ''}</span>{people.length ? people.map((p) => <Person key={p.name} name={p.name} />) : <span className="muted">No one yet</span>}</div>
+        {t.milestone && <div><span className="lbl">Milestone</span><span>{t.milestone.title}</span></div>}
+        {due && <div><span className="lbl">Due</span><span className={late ? 'ticket-late' : undefined}>{day(due + 'T12:00:00')}{late ? ' · overdue' : ''}</span></div>}
+        {!!t.labels?.length && <div><span className="lbl">Labels</span><span className="ticket-labels">{t.labels.map((l) => <span key={l} className="ticket-label">{l}</span>)}</span></div>}
+        {!!tasks?.count && <div><span className="lbl">Tasks</span><span>{tasks.completed_count} of {tasks.count} done</span><span className="ticket-bar" role="img" aria-label={`${tasks.completed_count} of ${tasks.count} tasks done`}><span style={{ width: (tasks.completed_count / tasks.count) * 100 + '%' }} /></span></div>}
+        {!!t.user_notes_count && <div><span className="lbl">Discussion</span><span>{t.user_notes_count} comment{t.user_notes_count === 1 ? '' : 's'} on GitLab</span></div>}
+        {t.updated_at && <div><span className="lbl">Updated</span><span>{day(t.updated_at)}</span></div>}
+      </aside>
+    </div>
+  );
+}
+
+export function MemoryPreview({ id }: { id: string }) {
+  const [cur, setCur] = useState(id);
+  useEffect(() => setCur(id), [id]);
+  // Each opening reads the file again; the shared cache is for previews that have a version.
+  const [opened] = useState(() => Date.now());
+  const got = useLoaded(`mem:${wsId()}:${opened}:${cur}`, () => get<MemoryNodeDetail>(`/api/ws/${wsId()}/graphify/node?id=${encodeURIComponent(cur)}`));
+  if (got.state === 'loading') return note('Loading…');
+  // A supervisor started before this screen was built has no such route: say so rather than blame the node.
+  if (got.state === 'error') return note(got.message.startsWith('No route') ? 'WorkspaceAI is running older code than this screen. Restart it to preview memory.' : got.message);
+  const { node, community, links, file } = got.value;
+  return (
+    <div className="map-memory">
+      <div className="row" style={{ gap: 8 }}>
+        {cur !== id && <button type="button" className="chip" onClick={() => setCur(id)}>Back</button>}
+        <b>{node.label}</b><span className="muted" style={{ fontSize: 12 }}>{node.kind}{community ? ' · ' + community : ''}</span>
+      </div>
+      {links.length > 0 && <div className="row" style={{ flexWrap: 'wrap', gap: 6 }} aria-label="Connections">
+        {links.map((l, i) => <button key={l.id + i} type="button" className="chip" title={l.kind} onClick={() => setCur(l.id)}><span className="muted">{l.relation}</span> {l.label}</button>)}
+      </div>}
+      {file && <>
+        <span className="mono muted ellipsis" style={{ fontSize: 11 }} title={file.path}>{file.path}</span>
+        {file.note && <span className="muted">{file.note}</span>}
+        {file.image && <img src={file.image} alt={'Preview of ' + node.label} style={{ maxWidth: '100%', alignSelf: 'flex-start' }} />}
+        {file.text !== undefined && <pre className="pre map-memory-file">{file.text}</pre>}
+        {file.truncated && <span className="muted" style={{ fontSize: 12 }}>Showing the start of this file.</span>}
+      </>}
+    </div>
   );
 }

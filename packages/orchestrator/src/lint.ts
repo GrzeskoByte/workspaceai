@@ -35,7 +35,7 @@ function makeLinter() {
     config: { rules: RULES },
     resolver: {
       resolveRule(pkg: string, ruleName: string) {
-        // Harness rules ship as a bpmnlint plugin ("harness/<rule>").
+        // WorkspaceAI rules ship as a bpmnlint plugin ("harness/<rule>").
         if (pkg === 'bpmnlint-plugin-harness' || pkg === 'harness') return HARNESS_RULES[ruleName];
         return require('bpmnlint/rules/' + ruleName);
       },

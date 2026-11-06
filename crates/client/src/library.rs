@@ -1,6 +1,7 @@
 //! The Library: artifacts the agents made, and how one is shown.
 
 use crate::api::seg;
+use crate::markdown::{shorten, MAX_INPUT};
 use crate::types::{Artifact, Project};
 use chrono::{DateTime, Utc};
 use serde_json::Value;
@@ -54,14 +55,8 @@ pub enum Body {
 
 pub fn body_for(format: &str, content: &str) -> Body {
     match format {
-        "markdown" => Body::Markdown(content.to_string()),
-        "csv" | "json" | "svg" => {
-            if content.chars().count() > MAX_SHOWN {
-                Body::Text(format!("{}\n… (shortened)", content.chars().take(MAX_SHOWN).collect::<String>()))
-            } else {
-                Body::Text(content.to_string())
-            }
-        }
+        "markdown" => Body::Markdown(shorten(content, MAX_INPUT).into_owned()),
+        "csv" | "json" | "svg" => Body::Text(shorten(content, MAX_SHOWN).into_owned()),
         "html" => Body::Unsupported("This is an HTML page. Previews need the web view, which arrives with the Open Design embed.".into()),
         other => Body::Unsupported(format!("The native app cannot show “{other}” yet.")),
     }

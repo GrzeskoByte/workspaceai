@@ -66,12 +66,24 @@ export function findHarnessCommand(name: string): HarnessCommand | undefined {
   return HARNESS_COMMANDS.find((c) => c.name === n || c.aliases?.includes(n));
 }
 
+/** The `@` reference being typed at the caret, if any. An `@` inside a word (an email address) is not one. */
+export function mentionAt(text: string, caret: number): { start: number; query: string } | null {
+  const m = /(^|\s)@([^\s@"]*)$/.exec(text.slice(0, caret));
+  return m ? { start: m.index + m[1].length, query: m[2] } : null;
+}
+
+/** Replaces the reference typed from `start` to `caret` with `path`; `open` leaves it unfinished to keep completing. */
+export function insertMention(text: string, start: number, caret: number, path: string, open = false): { text: string; caret: number } {
+  const ref = '@' + (/\s/.test(path) ? `"${path}"` : path) + (open ? '' : ' ');
+  return { text: text.slice(0, start) + ref + text.slice(caret), caret: start + ref.length };
+}
+
 /** A command as the composer lists it. `runsAs` says what actually runs for this chat's agent. */
 export interface ChatCommand { name: string; description: string; hint?: string; source: 'harness' | 'agent'; runsAs?: string; sheet?: boolean }
 
 export interface NativeCommand { name: string; description?: string; hint?: string }
 
-/** Harness commands mapped for `agent`, then the agent's own commands that the harness does not already cover. */
+/** WorkspaceAI commands mapped for `agent`, then the agent's own commands that the harness does not already cover. */
 export function chatCommands(agent: string, agentName: string, nativeCmds: NativeCommand[]): ChatCommand[] {
   const out: ChatCommand[] = [];
   const covered = new Set<string>();

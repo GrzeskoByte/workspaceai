@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Harness prototype</title>
+<title>WorkspaceAI prototype</title>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -105,7 +105,7 @@ div[role="button"]:hover>.handle{opacity:1!important}
   <div style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center; background: var(--bg-deep); padding: 32px;">
     <div class="card" role="dialog" aria-label="Set up harness" style="width: 1080px; height: 760px; display: flex; overflow: hidden; background: var(--bg0); box-shadow: 0 24px 60px rgba(0,0,0,0.16);">
       <aside style="flex: 0 0 280px; padding: 28px 22px; background: var(--bg1); border-right: 1px solid var(--bg2); display: flex; flex-direction: column; gap: 18px;">
-        <span class="mono" style="font-weight: 600; font-size: 16px;">harness</span>
+        <span class="mono" style="font-weight: 600; font-size: 16px;">workspaceai</span>
         <ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px;">
           <sc-for list="{{obSteps}}" as="st" hint-placeholder-count="9">
             <li><button type="button" onClick="{{st.go}}" disabled="{{st.locked}}" class="navrow" aria-current="{{st.cur}}" style="width: 100%; gap: 12px; padding: 7px 10px;">
@@ -123,7 +123,7 @@ div[role="button"]:hover>.handle{opacity:1!important}
           <div class="rise" style="display: flex; flex-direction: column; gap: 18px; padding-top: 40px;">
             <span class="lbl">Welcome</span>
             <h1 class="disp" style="margin: 0; font-size: 52px; line-height: 1.04;">Your workspaces,<br>your models,<br>your machine.</h1>
-            <p style="margin: 0; max-width: 560px; font-size: 16px; color: var(--text2);">Harness keeps personal and work completely apart. Chats run on opencode, artifacts are made with Open Design, and everything stays on this computer unless you share it.</p>
+            <p style="margin: 0; max-width: 560px; font-size: 16px; color: var(--text2);">WorkspaceAI keeps personal and work completely apart. Chats run on opencode, artifacts are made with Open Design, and everything stays on this computer unless you share it.</p>
             <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; max-width: 720px;">
               <button type="button" class="opt" onClick="{{tour1}}" aria-pressed="{{tourSel1}}"><b>Separate workspaces</b><span class="muted" style="font-size: 12px;">Own chats, memory, models and connectors each</span></button>
               <button type="button" class="opt" onClick="{{tour2}}" aria-pressed="{{tourSel2}}"><b>Projects all the way down</b><span class="muted" style="font-size: 12px;">Every chat lives in a project; projects nest</span></button>
@@ -136,9 +136,9 @@ div[role="button"]:hover>.handle{opacity:1!important}
         <sc-if value="{{obEngine}}" hint-placeholder-val="{{ false }}">
           <div class="rise" style="display: flex; flex-direction: column; gap: 14px;">
             <h1 class="disp" style="margin: 0; font-size: 36px;">Connect opencode</h1>
-            <p style="margin: 0; color: var(--text2);">Every chat here is an opencode session. Let harness start opencode for this workspace, or connect to a server you already run — then the same sessions show here and in the opencode TUI.</p>
+            <p style="margin: 0; color: var(--text2);">Every chat here is an opencode session. Let workspaceai start opencode for this workspace, or connect to a server you already run — then the same sessions show here and in the opencode TUI.</p>
             <div role="radiogroup" aria-label="How to run opencode" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
-              <button type="button" class="opt" role="radio" aria-pressed="{{ocManaged}}" onClick="{{pickManaged}}"><b>Start it for me</b><span class="muted" style="font-size: 12px;">Harness runs <span class="mono">opencode serve</span> per workspace on this computer</span></button>
+              <button type="button" class="opt" role="radio" aria-pressed="{{ocManaged}}" onClick="{{pickManaged}}"><b>Start it for me</b><span class="muted" style="font-size: 12px;">WorkspaceAI runs <span class="mono">opencode serve</span> per workspace on this computer</span></button>
               <button type="button" class="opt" role="radio" aria-pressed="{{ocRemote}}" onClick="{{pickRemote}}"><b>Connect to a running server</b><span class="muted" style="font-size: 12px;">Local or remote <span class="mono">opencode serve</span>, with its sessions and config</span></button>
             </div>
             <sc-if value="{{ocIsManaged}}" hint-placeholder-val="{{ true }}">
@@ -356,7 +356,7 @@ div[role="button"]:hover>.handle{opacity:1!important}
 <sc-if value="{{isApp}}" hint-placeholder-val="{{ false }}">
   <div style="height: 2px; background: var(--ws-accent); transition: background-color .4s ease;"></div>
   <header style="display: flex; align-items: center; gap: 12px; padding: 7px 14px; border-bottom: 1px solid var(--bg2);">
-    <span class="mono" style="font-weight: 600;">harness</span>
+    <span class="mono" style="font-weight: 600;">workspaceai</span>
     <nav aria-label="Breadcrumb" style="display: flex; align-items: center; gap: 6px; font-size: 13px; flex: 1 1 auto; min-width: 0;">
       <sc-for list="{{crumbs}}" as="c" hint-placeholder-count="3">
         <span class="muted" style="color: var(--dim);">{{c.sep}}</span><button type="button" class="link" onClick="{{c.go}}" style="color: {{c.color}};">{{c.label}}</button>
@@ -1045,7 +1045,7 @@ class Component extends DCLogic {
       ocConnMsg: s.ocConn === 'ok' ? 'Connected · opencode [VERSION] · ' + OC_SESS.length + ' sessions in 3 folders · 2 providers configured' : (s.ocConn === 'bad' ? 'Can’t reach that server — check the URL (http:// or https://) and the password.' : (s.ocConn === 'busy' ? 'GET /global/health …' : 'Connect to continue.')),
       ocConnColor: s.ocConn === 'ok' ? 'var(--success-text)' : (s.ocConn === 'bad' ? 'var(--error-text)' : 'var(--muted)'),
       connectOc: () => { const u = (s.ocUrl == null ? 'http://127.0.0.1:4096' : s.ocUrl).trim(); const bad = !/^https?:\/\/[^\s]+$/.test(u) || (!/127\.0\.0\.1|localhost/.test(u) && (s.ocPass || '').length < 4); this.setState({ ocConn: 'busy' }); clearTimeout(this.ocConnTimer); this.ocConnTimer = setTimeout(() => this.setState({ ocConn: bad ? 'bad' : 'ok' }), 1000); },
-      sessIntro: sessFound.length ? 'Found ' + sessFound.length + ' sessions in 3 folders ' + (ocMode === 'remote' ? 'on ' + (s.ocUrl || 'http://127.0.0.1:4096') : 'in this computer’s opencode data') + '. Each folder becomes a project (nested by path), and each session becomes a chat in it with its full history.' : (ocMode === 'remote' ? 'Connect to a server on the previous step to see its sessions.' : 'Harness looks for sessions opencode already saved on this computer.'),
+      sessIntro: sessFound.length ? 'Found ' + sessFound.length + ' sessions in 3 folders ' + (ocMode === 'remote' ? 'on ' + (s.ocUrl || 'http://127.0.0.1:4096') : 'in this computer’s opencode data') + '. Each folder becomes a project (nested by path), and each session becomes a chat in it with its full history.' : (ocMode === 'remote' ? 'Connect to a server on the previous step to see its sessions.' : 'WorkspaceAI looks for sessions opencode already saved on this computer.'),
       sessNone: !sessFound.length, sessSome: !!sessFound.length,
       sessGroups: Array.from(new Set(sessFound.map((x) => x.dir))).map((d) => { const on = !(s.dirOff || {})[d]; const seg = d.split('/').at(-1); const parent = Array.from(new Set(sessFound.map((x) => x.dir))).find((o) => d.indexOf(o + '/') === 0); return { dir: d, target: !on ? 'skipped' : (parent ? 'sub-project “' + seg.charAt(0).toUpperCase() + seg.slice(1) + '” inside ' + parent.split('/').at(-1).charAt(0).toUpperCase() + parent.split('/').at(-1).slice(1) : 'project “' + seg.charAt(0).toUpperCase() + seg.slice(1) + '”'), on: on ? 'true' : 'false', toggle: () => this.setState({ dirOff: Object.assign({}, s.dirOff || {}, { [d]: on }) }),
         items: sessFound.filter((x) => x.dir === d).map((x) => { const io = sessOn(x); return { id: x.id, title: x.title, n: x.n, when: x.when, on: io ? 'true' : 'false', mark: io ? '✓' : '', dis: !on, toggle: () => this.setState({ sessOff: Object.assign({}, s.sessOff || {}, { [x.id]: io }) }) }; }) }; }),
@@ -1396,9 +1396,9 @@ class Component extends DCLogic {
       agents: ['Agents (ACP)', isOrg ? 'Your organization allows opencode only.' : 'Coding agents chats and graph tasks can run on. opencode is the default; others connect over the Agent Client Protocol.', (ws.agents || []).map((a) => ({ label: a.name + (a.id === ws.defAgent ? ' · default' : ''), note: a.builtin ? 'opencode serve (HTTP) · also speaks ACP via opencode acp' : a.via + ' · ' + a.cmd, isToggle: true, on: a.on ? 'true' : 'false', dis: !!a.builtin || isOrg, act: () => { if (a.builtin) { this.toast('opencode is always on'); return; } if (isOrg) { this.toast('Locked by org policy'); return; } this.upd((w) => { w.agents = w.agents.map((x) => (x.id === a.id ? Object.assign({}, x, { on: !x.on }) : x)); if (a.on && w.defAgent === a.id) w.defAgent = 'opencode'; return w; }); this.toast(a.name + (a.on ? ' off' : ' on · initialize → session/new')); } })).concat([
         R.choice('Default agent', 'Used for new chats in this workspace', (ws.agents || []).filter((a) => a.on).map((a) => a.name), ((ws.agents || []).find((a) => a.id === ws.defAgent) || { name: 'opencode' }).name, (o) => this.upd((w) => { w.defAgent = w.agents.find((a) => a.name === o).id; return w; }), isOrg),
         R.input('Add ACP agent', 'Command that starts it over stdio (JSON-RPC)', s.acpDraft || '', (e) => this.setState({ acpDraft: e.target.value }), 'Add', () => { const t = (s.acpDraft || '').trim(); if (!t) return; this.upd((w) => { w.agents = w.agents.concat([{ id: uid('ag'), name: t.split(/\s+/)[0], via: 'ACP', cmd: t, on: true }]); return w; }); this.setState({ acpDraft: '' }); this.toast('Added ' + t.split(/\s+/)[0] + ' · initialize ok'); }, isOrg),
-        R.text('Harness provides', 'ACP client capabilities', 'fs read/write and terminal, limited to the chat’s project folder'),
+        R.text('WorkspaceAI provides', 'ACP client capabilities', 'fs read/write and terminal, limited to the chat’s project folder'),
         R.toggle('Ask before file writes and commands', 'Answers session/request_permission in the chat', 'acpask', true),
-        R.text('Chats on other agents', '', 'Still live in a project; history is kept by harness and reloaded with session/load')
+        R.text('Chats on other agents', '', 'Still live in a project; history is kept by workspaceai and reloaded with session/load')
       ])],
       web: ['Web search', isOrg ? 'Set by your organization. Queries go to its own search service.' : 'Which search the agent can use in this workspace. Each chat can still turn it off.', [
         R.choice('Search', 'opencode websearch, an MCP search server, or none', ['Off', 'Built-in (Exa)', 'Search provider', 'SearXNG'], { off: 'Off', exa: 'Built-in (Exa)', mcp: 'Search provider', searxng: 'SearXNG' }[ws.web.mode], (o) => { this.upd((w) => { w.web = Object.assign({}, w.web, { mode: { Off: 'off', 'Built-in (Exa)': 'exa', 'Search provider': 'mcp', SearXNG: 'searxng' }[o] }); return w; }); this.toast('Web search · ' + o + ' · opencode restarted'); }, ws.web.locked)
@@ -1412,10 +1412,10 @@ class Component extends DCLogic {
         R.text('Config', 'written to opencode.json', ws.web.mode === 'exa' ? 'OPENCODE_ENABLE_EXA=true' : (ws.web.mode === 'off' ? 'websearch: deny' : (ws.web.mode === 'mcp' ? 'mcp.' + ws.web.prov.toLowerCase() : 'mcp.searxng')))
       ])],
       engine: ['Engine', 'The processes behind this workspace. Every chat is an opencode session.', [
-        R.choice('opencode', 'Start a server for this workspace, or use one you run', ['Managed by harness', 'Connect to a server'], ws.oc && ws.oc.mode === 'remote' ? 'Connect to a server' : 'Managed by harness', (o) => { this.upd((w) => { w.oc = Object.assign({}, w.oc, { mode: o === 'Connect to a server' ? 'remote' : 'managed', url: w.oc.url || 'http://127.0.0.1:4096' }); return w; }); this.toast(o === 'Connect to a server' ? 'Connected to ' + ((ws.oc && ws.oc.url) || 'http://127.0.0.1:4096') : 'Harness now starts opencode for ' + ws.name); }, isOrg),
+        R.choice('opencode', 'Start a server for this workspace, or use one you run', ['Managed by harness', 'Connect to a server'], ws.oc && ws.oc.mode === 'remote' ? 'Connect to a server' : 'Managed by harness', (o) => { this.upd((w) => { w.oc = Object.assign({}, w.oc, { mode: o === 'Connect to a server' ? 'remote' : 'managed', url: w.oc.url || 'http://127.0.0.1:4096' }); return w; }); this.toast(o === 'Connect to a server' ? 'Connected to ' + ((ws.oc && ws.oc.url) || 'http://127.0.0.1:4096') : 'WorkspaceAI now starts opencode for ' + ws.name); }, isOrg),
         R.input('Server URL', ws.oc && ws.oc.mode === 'remote' ? 'Basic auth; password in the keychain' : 'Used only when connecting to a server', s.ocUrlEdit != null ? s.ocUrlEdit : ((ws.oc && ws.oc.url) || 'http://127.0.0.1:4096'), (e) => this.setState({ ocUrlEdit: e.target.value }), 'Reconnect', () => { const t = (s.ocUrlEdit || (ws.oc && ws.oc.url) || '').trim(); if (!/^https?:\/\//.test(t)) { this.toast('Use http:// or https://'); return; } this.upd((w) => { w.oc = Object.assign({}, w.oc, { url: t }); return w; }); this.setState({ ocUrlEdit: null }); this.toast('Reconnected · ' + t); }, !(ws.oc && ws.oc.mode === 'remote')),
         R.toggle('Sync sessions both ways', 'TUI sessions appear here; chats here appear in the TUI', 'ocsync', true),
-        R.button('Import sessions', 'Bring in sessions created outside harness; folders become projects', 'Scan', () => this.toast('Scanned /session · nothing new to import')),
+        R.button('Import sessions', 'Bring in sessions created outside workspaceai; folders become projects', 'Scan', () => this.toast('Scanned /session · nothing new to import')),
         R.text('Attach the TUI', '', 'opencode attach ' + (ws.oc && ws.oc.mode === 'remote' ? ws.oc.url : 'http://127.0.0.1:' + (4096 + (s.wss || []).indexOf(ws)))),
         R.text('Desktop shell', 'native window and updates', 'Tauri 2 · opencode and Open Design start as sidecars'),
         R.text('Version', 'pinned per workspace', '[VERSION] · ' + (ws.oc && ws.oc.mode === 'remote' ? ws.oc.url : '127.0.0.1:' + (4096 + (s.wss || []).indexOf(ws)))), R.text('Config', '', '~/.harness/ws/' + ws.slug + '/config/opencode.json'), R.text('Open Design', '', 'running · loopback only'), R.button('Restart servers', 'Open chats reconnect on their own', s.engine === 'restarting' ? 'Restarting…' : 'Restart', () => { this.setState({ engine: 'restarting' }); clearTimeout(this.engTimer); this.engTimer = setTimeout(() => { this.setState({ engine: null }); this.toast('Servers restarted'); }, 1600); }), R.button('Logs', 'Last 500 lines', 'Open logs', () => this.toast('Logs opened in a new window (demo)'))]],

@@ -6,6 +6,12 @@ export function uid(prefix: string): string {
   return prefix + '_' + Date.now().toString(36) + seq.toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
+/** Whether a chat keeps following new text after a scroll: any move up lets go, and coming back near the bottom follows again. */
+export function followsBottom(following: boolean, lastTop: number, top: number, gapToBottom: number): boolean {
+  if (top < lastTop) return false;
+  return following || gapToBottom < 80;
+}
+
 export function slugify(name: string, fallback = 'workspace'): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || fallback;
 }

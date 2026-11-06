@@ -7,7 +7,7 @@ import { get, patch } from '../api.ts';
 import { projectPathName } from '../../../../packages/shared/src/util.ts';
 import { openArtifact, openChat } from './Shell.tsx';
 
-const SCREENS: [View, string][] = [['home', 'Home'], ['artifacts', 'Artifacts'], ['graph', 'Graph editor'], ['routines', 'Routines'], ['computers', 'Computers'], ['memory', 'Memory'], ['settings', 'Settings']];
+const SCREENS: [View, string][] = [['home', 'Home'], ['artifacts', 'Artifacts'], ['design-systems', 'Design systems'], ['graph', 'Graph editor'], ['routines', 'Routines'], ['computers', 'Computers'], ['memory', 'Memory'], ['settings', 'Settings']];
 
 function Item({ value, keywords, onSelect, label, meta }: { value: string; keywords?: string[]; onSelect: () => void; label?: string; meta?: string }) {
   return (
@@ -66,7 +66,7 @@ export function Palette() {
           </Command.Group>
           <Command.Group heading="Chats">
             {snap.chats.map((c) => (
-              <Item key={c.id} value={c.title + ' ' + c.id} keywords={['chat', c.sid]} label={c.title} meta={projectPathName(snap.projects, c.project)} onSelect={run(() => openChat(c))} />
+              <Item key={c.id} value={c.title + ' ' + c.id} keywords={['chat', c.sid]} label={c.title} meta={(snap.chatActivity[c.id] ? snap.chatActivity[c.id] + ' · ' : '') + projectPathName(snap.projects, c.project)} onSelect={run(() => openChat(c))} />
             ))}
           </Command.Group>
           <Command.Group heading="Artifacts">

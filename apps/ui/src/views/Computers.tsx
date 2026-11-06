@@ -23,7 +23,7 @@ export function ComputersView() {
       <span className="muted" style={{ fontSize: 13 }}>Each computer is set up once; each workspace separately decides whether it may use it, and which folders.</span>
       {code && <div className="card rise" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 16, borderColor: 'var(--accent-p)' }}>
         <span className="mono disp" style={{ fontSize: 30, letterSpacing: '.12em' }}>{code.code}</span>
-        <span className="grow" style={{ fontSize: 13 }}>On the other computer, open Harness → <b>Link this computer</b> and type this code. It expires {new Date(code.expires).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. A new computer gets no workspace until you allow one.</span>
+        <span className="grow" style={{ fontSize: 13 }}>On the other computer, open WorkspaceAI → <b>Link this computer</b> and type this code. It expires {new Date(code.expires).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. A new computer gets no workspace until you allow one.</span>
         <button type="button" className="btn" onClick={() => { setCode(null); void refreshApp(); }}>Done</button>
       </div>}
       {computers.map((c) => <ComputerCard key={c.id} c={c} open={open === c.id} onToggle={() => setOpen(open === c.id ? null : c.id)} />)}

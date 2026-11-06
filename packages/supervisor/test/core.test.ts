@@ -172,9 +172,6 @@ describe('supervisor API', () => {
     const snap = await ok('GET', `/api/ws/${A}/snapshot`);
     expect(snap.projects.find((p: any) => p.id === quick.project).isGeneral).toBe(true);
     expect((await call('POST', `/api/ws/${A}/chats/${chat.id}/move`, { project: 'nope' })).status).toBe(400);
-    const del = await call('DELETE', `/api/ws/${A}/projects/${sub}`);
-    expect(del.status).toBe(400);
-    expect(del.data.error).toMatch(/Move or archive/);
     const general = snap.projects.find((p: any) => p.isGeneral).id;
     expect((await call('POST', `/api/ws/${A}/projects/${general}/archive`)).status).toBe(400);
     expect((await call('DELETE', `/api/ws/${A}/projects/${general}`)).status).toBe(400);
@@ -186,6 +183,36 @@ describe('supervisor API', () => {
     for (const c of after.chats) expect(after.projects.some((p: any) => p.id === c.project)).toBe(true);
     await ok('POST', `/api/ws/${A}/projects/${sub}/restore`);
     expect((await ok('GET', `/api/ws/${A}/snapshot`)).chats.some((c: any) => c.id === chat.id)).toBe(true);
+  });
+
+  it('deleting a project removes its whole sub-tree and everything in it', async () => {
+    const top = (await ok('POST', `/api/ws/${A}/projects`, { name: 'Doomed', parent: null })).id;
+    const kid = (await ok('POST', `/api/ws/${A}/projects`, { name: 'Doomed kid', parent: top })).id;
+    const grandkid = (await ok('POST', `/api/ws/${A}/projects`, { name: 'Doomed grandkid', parent: kid })).id;
+    const live = await ok('POST', `/api/ws/${A}/chats`, { title: 'Live chat', project: kid });
+    const old = await ok('POST', `/api/ws/${A}/chats`, { title: 'Archived chat', project: grandkid });
+    const g = await ok('POST', `/api/ws/${A}/graphs`, { project: kid, name: 'Doomed graph' });
+    const rt = sup.rt(A);
+    const art = rt.artifacts.create({ project: top, type: 'Doc', title: 'Doomed doc', content: '# x' });
+    rt.addFact('Doomed fact', kid);
+    const folder = rt.project(grandkid).folder;
+    const artDir = rt.artifacts.dir(art);
+    const facts = rt.factsFile(kid);
+    const graphFile = g.file;
+    const before = rt.ws.defaultProject;
+    rt.ws.defaultProject = kid;
+    expect([artDir, facts, graphFile].map((f) => existsSync(f))).toEqual([true, true, true]);
+    // An archived sub-project goes too, though descendants() can't see it.
+    await ok('POST', `/api/ws/${A}/projects/${grandkid}/archive`);
+    await ok('DELETE', `/api/ws/${A}/projects/${top}`);
+    expect(rt.state.projects.filter((p: any) => [top, kid, grandkid].includes(p.id))).toEqual([]);
+    expect(rt.state.chats.filter((x: any) => [live.id, old.id].includes(x.id))).toEqual([]);
+    expect(rt.state.graphs.some((x: any) => x.id === g.id)).toBe(false);
+    expect(rt.state.artifacts.some((x: any) => x.id === art.id)).toBe(false);
+    expect([artDir, facts, graphFile].map((f) => existsSync(f))).toEqual([false, false, false]);
+    expect(rt.ws.defaultProject).toBe(rt.general().id);
+    expect(existsSync(folder)).toBe(true);
+    rt.ws.defaultProject = before;
   });
 
   it('exports a workspace without secrets', async () => {

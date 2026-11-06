@@ -1,9 +1,11 @@
 // Minimal external store: app state from the supervisor + the active workspace snapshot + UI navigation.
 import { useSyncExternalStore } from 'react';
-import type { AppState, WorkspaceSnapshot, ChatMessage, ToolStep, GraphRun, ModelGroup, ModelOption } from '../../../packages/shared/src/types.ts';
+import type { AppState, Provider, WorkspaceSnapshot, ChatMessage, ToolStep, GraphRun, ModelGroup, ModelOption } from '../../../packages/shared/src/types.ts';
 import { get, post, events } from './api.ts';
 
-export type View = 'home' | 'chat' | 'artifacts' | 'project' | 'settings' | 'graph' | 'map' | 'routines' | 'computers' | 'memory' | 'brief' | 'generate';
+export type View = 'home' | 'chat' | 'artifacts' | 'project' | 'settings' | 'graph' | 'map' | 'routines' | 'computers' | 'memory' | 'brief' | 'generate' | 'vaults' | 'design-systems';
+
+export interface Layout { leftW?: number; rightW?: number; leftHidden: boolean; rightHidden: boolean }
 
 export interface LiveTurn { text: string; tools: ToolStep[]; messageId: string }
 
@@ -29,13 +31,20 @@ export interface UiState {
   mapWide: boolean;
   /** Bumped when a map changed or a run moved, so an open map refetches. */
   mapTick: number;
+  /** The memory and vault notes this chat read, beside the chat. */
+  readsOpen: boolean;
+  /** The note open on the Vaults screen. */
+  vaultOpen: { vault: string; path: string } | null;
+  /** Bumped when Harness changed a note, so the Vaults screen refetches. */
+  vaultTick: number;
   composeProj: string | null;
   setPage: string;
   ptab: string;
   open: Record<string, boolean>;
   palette: boolean;
   newWs: null | { type: 'team' | 'personal' | 'org'; name: string };
-  customProvider: boolean;
+  /** The add dialog (true), or the provider being edited. */
+  customProvider: boolean | Provider;
   confirm: null | { title: string; body: string; ok: string; run: () => void | Promise<void> };
   toasts: { id: number; text: string; kind?: 'error' }[];
   messages: Record<string, ChatMessage[]>;
@@ -44,6 +53,8 @@ export interface UiState {
   /** Narrow windows: the project sidebar and workspace rail slide in as a drawer. */
   navOpen: boolean;
   homeAgent: string | null;
+  /** Sidebar widths and collapsed state; kept per browser profile. */
+  layout: Layout;
   homeWeb: boolean | null;
   homeModel: string | null;
   homeEffort: string | null;
@@ -59,16 +70,34 @@ export interface UiState {
   error: string | null;
 }
 
+function applyLayout(l: Layout): void {
+  if (l.leftW) document.documentElement.style.setProperty('--left-w', l.leftW + 'px');
+  if (l.rightW) document.documentElement.style.setProperty('--right-w', l.rightW + 'px');
+}
+function loadLayout(): Layout {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem('harness.layout') || '{}'); } catch { /* per-viewer convenience only */ }
+  const l = { leftHidden: false, rightHidden: false, ...saved };
+  applyLayout(l);
+  return l;
+}
+
 let state: UiState = {
-  app: null, snap: null, view: 'home', projId: null, chatId: null, artId: null, artWide: false, browser: null, browserWide: false, graphId: null, runId: null, runWide: false, mapOpen: false, mapWide: false, mapTick: 0, composeProj: null, setPage: 'general', ptab: 'chats',
+  app: null, snap: null, view: 'home', projId: null, chatId: null, artId: null, artWide: false, browser: null, browserWide: false, graphId: null, runId: null, runWide: false, mapOpen: false, mapWide: false, mapTick: 0, readsOpen: false, vaultOpen: null, vaultTick: 0, composeProj: null, setPage: 'general', ptab: 'chats',
   open: {}, palette: false, newWs: null, customProvider: false, confirm: null, toasts: [], messages: {}, live: {}, permissions: {},
-  navOpen: false, homeAgent: null, homeWeb: null, homeModel: null, homeEffort: null, mode: 'chat', draft: '', models: [], modelGroups: [], agentModels: {}, runs: [], ready: false, error: null,
+  navOpen: false, layout: loadLayout(), homeAgent: null, homeWeb: null, homeModel: null, homeEffort: null, mode: 'chat', draft: '', models: [], modelGroups: [], agentModels: {}, runs: [], ready: false, error: null,
 };
 
 export interface AgentModels { models: ModelOption[]; current: string }
 const subs = new Set<() => void>();
 
 export function getState(): UiState { return state; }
+export function setLayout(patch: Partial<Layout>): void {
+  const layout = { ...state.layout, ...patch };
+  applyLayout(layout);
+  try { localStorage.setItem('harness.layout', JSON.stringify(layout)); } catch { /* per-viewer convenience only */ }
+  setState({ layout });
+}
 export function setState(patch: Partial<UiState> | ((s: UiState) => Partial<UiState>)): void {
   const p = typeof patch === 'function' ? patch(state) : patch;
   state = { ...state, ...p };
@@ -159,7 +188,7 @@ function omit<T>(o: Record<string, T>, k: string): Record<string, T> { const c =
 export async function switchWorkspace(id: string): Promise<void> {
   // Switching never stops the other workspace's server: its chats keep running (R-05).
   const app = await post<AppState>(`/api/workspaces/${id}/activate`);
-  setState({ app, snap: null, view: 'home', chatId: null, artId: null, composeProj: null, projId: null, messages: {}, live: {}, models: [], modelGroups: [], agentModels: {}, runs: [] });
+  setState({ app, snap: null, view: 'home', chatId: null, artId: null, vaultOpen: null, composeProj: null, projId: null, messages: {}, live: {}, models: [], modelGroups: [], agentModels: {}, runs: [] });
   await refreshSnap();
   refreshModels();
   const name = app.workspaces.find((w) => w.id === id)?.name;
@@ -219,6 +248,7 @@ export function startEvents(): () => void {
         });
       } break;
       case 'map': if (e.workspace === wsId()) setState((s) => ({ mapTick: s.mapTick + 1 })); break;
+      case 'vault': if (e.workspace === wsId()) setState((s) => ({ vaultTick: s.vaultTick + 1 })); break;
       case 'toast': toast(e.text); break;
       // A run started from the chat on screen opens beside it, so it can be watched step by step.
       case 'graph.run': if (e.workspace === wsId()) setState((s) => {
@@ -234,12 +264,22 @@ export function startEvents(): () => void {
       }); break;
       default: break;
     }
+  }, () => {
+    // The supervisor came back (a dev restart, or the connection dropped): catch up, and drop turns that ended meanwhile.
+    refreshApp();
+    refreshSnap().then(() => setState((s) => ({ live: Object.fromEntries(Object.entries(s.live).filter(([chat]) => s.snap?.chatActivity[chat])) })));
   });
+}
+
+/** Open a web page in the user's own browser. */
+export function openExternal(url: string): void {
+  if (window.__TAURI_INTERNALS__) post('/api/open-external', { url }).catch((e) => toast((e as Error).message, 'error'));
+  else window.open(url, '_blank', 'noopener');
 }
 
 /** Open a page in the browser beside the chat (closes an open artifact, which would cover it). */
 export function openBrowser(url = ''): void {
-  setState((s) => ({ browser: { url: url || s.browser?.url || '' }, artId: null, artWide: false }));
+  setState((s) => ({ browser: { url: url || s.browser?.url || '' }, artId: null, artWide: false, readsOpen: false }));
 }
 
 /** Show a graph run beside the chat or project. */

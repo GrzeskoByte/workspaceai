@@ -1,6 +1,6 @@
 # Claude Warm Editorial
 
-> Default design system for Harness artifacts. Source: DESIGN-claude.md (Claude-design-analysis).
+> Default design system for WorkspaceAI artifacts. Source: DESIGN-claude.md (Claude-design-analysis).
 
 ## Principles
 - Tinted cream canvas, never pure white. Depth comes from cream-vs-dark surfaces, not shadows.

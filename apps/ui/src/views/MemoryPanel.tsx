@@ -113,7 +113,7 @@ export function MemoryPanel() {
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>
           {status?.installed
             ? 'Graphify is installed. Build runs graphify extract on each folder with only this workspace’s allowed model (code-only when none fits); watching runs graphify update on change.'
-            : 'Graphify is not installed on this computer, so harness builds its own folder and file index. Install Graphify to get its code-and-docs graph on this same screen.'}
+            : 'Graphify is not installed on this computer, so WorkspaceAI builds its own folder and file index. Install Graphify to get its code-and-docs graph on this same screen.'}
           {' '}Nothing from another workspace is included.
         </p>
         {status?.graphFile && <span className="mono muted ellipsis" style={{ fontSize: 11 }}>{status.graphFile}</span>}

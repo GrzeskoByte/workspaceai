@@ -17,7 +17,7 @@ export function parseFacts(md: string, scope: string): Fact[] {
 }
 
 export function serializeFacts(facts: Fact[], title: string): string {
-  const lines = [`# ${title}`, '', '<!-- Managed by harness. Each line is one fact; suggestions wait for approval. -->', ''];
+  const lines = [`# ${title}`, '', '<!-- Managed by WorkspaceAI. Each line is one fact; suggestions wait for approval. -->', ''];
   for (const f of facts) {
     const meta = [`id:${f.id}`, `status:${f.status}`, `at:${f.createdAt}`];
     if (f.source) meta.push(`source:${encodeURIComponent(f.source)}`);

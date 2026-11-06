@@ -1,6 +1,6 @@
 // The main window: workspace rail, project tree sidebar, main view, artifact panel, overlays (R-01).
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { useStore, setState, go, switchWorkspace, act, wsId, refreshSnap, getState, type View } from '../store.ts';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useStore, setState, setLayout, go, switchWorkspace, act, wsId, refreshSnap, getState, type View } from '../store.ts';
 import { post, patch } from '../api.ts';
 import { projectPath, childProjects, fuzzyScore } from '../../../../packages/shared/src/util.ts';
 import type { Artifact, Chat, GraphMeta, Project } from '../../../../packages/shared/src/types.ts';
@@ -9,17 +9,21 @@ import { ChatView } from '../views/Chat.tsx';
 import { ArtifactPanel, ART_ICON } from '../views/ArtifactPanel.tsx';
 import { BrowserPanel } from '../views/BrowserPanel.tsx';
 import { Icon } from '../ui/Icon.tsx';
+import { ChatActivity, ProjectActivity } from '../ui/ChatActivity.tsx';
 import { Library } from '../views/Library.tsx';
+import { DesignSystemsView } from '../views/DesignSystems.tsx';
 import { ProjectView } from '../views/Project.tsx';
 import { SettingsView } from '../views/Settings.tsx';
 import { Palette } from './Palette.tsx';
 import { NewWorkspace } from './NewWorkspace.tsx';
 import { CustomProvider } from '../views/CustomProvider.tsx';
 import { Confirm, Toasts } from './Overlays.tsx';
+import { SessionReadsPanel } from '../views/SessionReads.tsx';
 // The graph editor (bpmn-js and its CSS) is most of the bundle; it loads when the Graphs screen first opens.
 const MapView = lazy(() => import('../views/MapView.tsx').then((m) => ({ default: m.MapView })));
 const RunPanel = lazy(() => import('../views/RunPanel.tsx').then((m) => ({ default: m.RunPanel })));
 const GraphView = lazy(() => import('../views/Graph.tsx').then((m) => ({ default: m.GraphView })));
+const VaultView = lazy(() => import('../views/Vault.tsx').then((m) => ({ default: m.VaultView })));
 import { RoutinesView } from '../views/Routines.tsx';
 import { ComputersView } from '../views/Computers.tsx';
 import { MemoryView } from '../views/Memory.tsx';
@@ -34,6 +38,27 @@ export function openArtifact(a: Artifact): void {
 
 export function openChat(c: Chat): void { go('chat', { chatId: c.id, projId: c.project, artId: null }); }
 
+// Drag or arrow keys resize the pane beside the handle. Dragging writes the CSS variable directly, so nothing re-renders until release.
+function Resizer({ side }: { side: 'left' | 'right' }) {
+  const drag = useRef<{ x: number; w: number } | null>(null);
+  const clamp = (w: number) => side === 'left' ? Math.min(560, Math.max(200, w)) : Math.max(320, Math.min(window.innerWidth - 480, w));
+  const paneWidth = (el: HTMLElement) => (side === 'left' ? el.previousElementSibling : el.nextElementSibling)?.getBoundingClientRect().width || 0;
+  const save = (w: number) => setLayout(side === 'left' ? { leftW: w } : { rightW: w });
+  const widthAt = (e: ReactPointerEvent) => clamp(drag.current!.w + (side === 'left' ? 1 : -1) * (e.clientX - drag.current!.x));
+  return (
+    <div className="resizer" role="separator" aria-orientation="vertical" aria-label={side === 'left' ? 'Resize projects sidebar' : 'Resize side panel'} tabIndex={0}
+      onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); drag.current = { x: e.clientX, w: paneWidth(e.currentTarget) }; }}
+      onPointerMove={(e) => { if (drag.current) document.documentElement.style.setProperty(side === 'left' ? '--left-w' : '--right-w', widthAt(e) + 'px'); }}
+      onPointerUp={(e) => { if (drag.current) { save(widthAt(e)); drag.current = null; } }}
+      onPointerCancel={() => { drag.current = null; setLayout({}); }}
+      onKeyDown={(e: ReactKeyboardEvent<HTMLDivElement>) => {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        e.preventDefault();
+        save(clamp(paneWidth(e.currentTarget) + ((e.key === 'ArrowRight') === (side === 'left') ? 16 : -16)));
+      }} />
+  );
+}
+
 export function Shell() {
   const view = useStore((s) => s.view);
   const snap = useStore((s) => s.snap);
@@ -45,9 +70,16 @@ export function Shell() {
   const runWide = useStore((s) => s.runWide);
   const mapOn = useStore((s) => s.mapOpen);
   const mapWide = useStore((s) => s.mapWide);
+  const readsOn = useStore((s) => s.readsOpen);
   const chatId = useStore((s) => s.chatId);
   const active = useStore((s) => s.app?.settings.activeWorkspace);
   const navOpen = useStore((s) => s.navOpen);
+  const leftHidden = useStore((s) => s.layout.leftHidden);
+  const rightHidden = useStore((s) => s.layout.rightHidden);
+  // Opening something in the side panel has to show it, even if the panel was collapsed.
+  useEffect(() => {
+    if ((artId || runId || mapOn || readsOn || browserOn) && getState().layout.rightHidden) setLayout({ rightHidden: false });
+  }, [artId, runId, mapOn, readsOn, browserOn]);
   useEffect(() => {
     if (!navOpen) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setState({ navOpen: false }); };
@@ -59,36 +91,45 @@ export function Shell() {
   const artOpen = !!artId && snap.artifacts.some((a) => a.id === artId) && (view === 'chat' || view === 'artifacts');
   // An open artifact covers the browser; closing it shows the browser again.
   const runOpen = !!runId && !artOpen && (view === 'chat' || view === 'project');
-  // Side panels, by priority: artifact, run, map, browser. Closing one shows the next.
+  // Side panels, by priority: artifact, run, map, reads, browser. Closing one shows the next.
   const chatProject = view === 'chat' ? snap.chats.find((c) => c.id === chatId)?.project : undefined;
   const mapOpen = mapOn && !artOpen && !runOpen && !!chatProject;
-  const browserOpen = browserOn && !artOpen && !runOpen && !mapOpen && (view === 'chat' || view === 'project');
+  const readsOpen = readsOn && !artOpen && !runOpen && !mapOpen && !!chatProject;
+  const browserOpen = browserOn && !artOpen && !runOpen && !mapOpen && !readsOpen && (view === 'chat' || view === 'project');
+  const focus = artOpen && artWide ? 'art-focus' : runOpen && runWide ? 'run-focus' : mapOpen && mapWide ? 'map-focus' : browserOpen && browserWide ? 'browser-focus' : undefined;
+  // A panel filling the main area has nothing beside it to resize or collapse.
+  const sidePanel = (artOpen || runOpen || mapOpen || readsOpen || browserOpen) && !focus;
   return (
     <>
       <div style={{ height: 2, background: 'var(--ws-accent)', transition: 'background-color .4s ease', flex: '0 0 auto' }} />
-      <Header />
+      <Header sidePanel={sidePanel} />
       <div style={{ flex: '1 1 auto', display: 'flex', minHeight: 0 }}>
         {navOpen && <div className="shell-scrim" onClick={() => setState({ navOpen: false })} />}
-        <div className={'shell-nav' + (navOpen ? ' open' : '')}>
+        <div className={'shell-nav' + (navOpen ? ' open' : '') + (leftHidden ? ' left-hidden' : '')}>
           <Rail />
           <Sidebar />
+          <Resizer side="left" />
         </div>
-        <main className={artOpen && artWide ? 'art-focus' : runOpen && runWide ? 'run-focus' : mapOpen && mapWide ? 'map-focus' : browserOpen && browserWide ? 'browser-focus' : undefined} style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', minHeight: 0, position: 'relative' }}>
+        <main className={focus || (sidePanel && rightHidden ? 'right-hidden' : undefined)} style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', minHeight: 0, position: 'relative' }}>
           {view === 'home' && <Home />}
           {view === 'chat' && <ChatView />}
           {view === 'artifacts' && <Library />}
+          {view === 'design-systems' && <DesignSystemsView />}
           {view === 'project' && <ProjectView />}
           {view === 'settings' && <SettingsView />}
           {view === 'map' && <Suspense fallback={<div style={{ margin: 'auto' }} className="muted pulse">Loading the map…</div>}><MapView scope="ws" /></Suspense>}
           {view === 'graph' && <Suspense fallback={<div style={{ margin: 'auto' }} className="muted pulse">Loading the graph editor…</div>}><GraphView /></Suspense>}
+          {view === 'vaults' && <Suspense fallback={<div style={{ margin: 'auto' }} className="muted pulse">Loading your notes…</div>}><VaultView /></Suspense>}
           {view === 'routines' && <RoutinesView />}
           {view === 'computers' && <ComputersView />}
           {view === 'memory' && <MemoryView />}
           {view === 'brief' && <BriefView />}
           {view === 'generate' && <GenerateView />}
+          {sidePanel && <Resizer side="right" />}
           {artOpen && <ArtifactPanel />}
           {runOpen && <Suspense fallback={<section className="art-panel run-panel" style={{ flex: '0 0 560px' }}><span className="muted pulse" style={{ margin: 'auto' }}>Loading the run…</span></section>}><RunPanel /></Suspense>}
-          {mapOpen && <section aria-label="Project map" className="rise art-panel map-panel" style={{ flex: mapWide ? '1 1 auto' : '0 0 620px' }}><Suspense fallback={<span className="muted pulse" style={{ margin: 'auto' }}>Loading the map…</span>}><MapView scope={chatProject!} compact focus={'chat:' + chatId} wide={mapWide} onWide={() => setState({ mapWide: !mapWide })} onClose={() => setState({ mapOpen: false, mapWide: false })} /></Suspense></section>}
+          {mapOpen && <section aria-label="Project map" className="rise art-panel map-panel" style={{ flex: mapWide ? '1 1 auto' : '0 0 var(--right-w, 620px)' }}><Suspense fallback={<span className="muted pulse" style={{ margin: 'auto' }}>Loading the map…</span>}><MapView scope={chatProject!} compact focus={'chat:' + chatId} wide={mapWide} onWide={() => setState({ mapWide: !mapWide })} onClose={() => setState({ mapOpen: false, mapWide: false })} /></Suspense></section>}
+          {readsOpen && <SessionReadsPanel chatId={chatId!} project={chatProject!} />}
           {browserOpen && <BrowserPanel />}
         </main>
       </div>
@@ -101,9 +142,11 @@ export function Shell() {
   );
 }
 
-const VIEW_NAMES: Partial<Record<View, string>> = { home: 'Home', artifacts: 'Artifacts', graph: 'Graphs', routines: 'Routines', computers: 'Computers', memory: 'Memory', settings: 'Settings', brief: 'New artifact', generate: 'Generating' };
+const VIEW_NAMES: Partial<Record<View, string>> = { home: 'Home', artifacts: 'Artifacts', graph: 'Graphs', routines: 'Routines', computers: 'Computers', memory: 'Memory', vaults: 'Vaults', settings: 'Settings', brief: 'New artifact', generate: 'Generating' };
 
-function Header() {
+function Header({ sidePanel }: { sidePanel: boolean }) {
+  const leftHidden = useStore((s) => s.layout.leftHidden);
+  const rightHidden = useStore((s) => s.layout.rightHidden);
   const snap = useStore((s) => s.snap)!;
   const view = useStore((s) => s.view);
   const projId = useStore((s) => s.projId);
@@ -123,13 +166,15 @@ function Header() {
   return (
     <header style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '7px 14px', borderBottom: '1px solid var(--bg2)', flex: '0 0 auto' }}>
       <button type="button" className="chip shell-menu" aria-label="Projects and workspaces" aria-expanded={navOpen} onClick={() => setState({ navOpen: !navOpen })}><Icon name="menu" /></button>
-      <span className="mono hdr-brand" style={{ fontWeight: 600 }}>harness</span>
+      <button type="button" className="chip hdr-left-toggle" aria-label={leftHidden ? 'Show projects sidebar' : 'Hide projects sidebar'} title={leftHidden ? 'Show projects sidebar' : 'Hide projects sidebar'} aria-expanded={!leftHidden} onClick={() => setLayout({ leftHidden: !leftHidden })}><Icon name="panelLeft" size={14} /></button>
+      <span className="mono hdr-brand" style={{ fontWeight: 600 }}>workspaceai</span>
       <nav aria-label="Breadcrumb" className="row grow" style={{ gap: 6, fontSize: 13, minWidth: 0, overflow: 'hidden' }}>
         {crumbs.map((c, i) => <span key={i} className="row" style={{ gap: 6, minWidth: 0 }}>{i > 0 && <span style={{ color: 'var(--dim)' }}>/</span>}<button type="button" className="link ellipsis" onClick={c.go} style={{ color: i === crumbs.length - 1 ? 'var(--text)' : 'var(--muted)', maxWidth: 260 }}>{c.label}</button></span>)}
       </nav>
       <button type="button" className="btn hdr-search" aria-label="Search or jump to" onClick={() => setState({ palette: true })} style={{ height: 28, minWidth: 240, justifyContent: 'space-between', color: 'var(--muted)' }}><span className="hdr-text">Search or jump to…</span><span className="hdr-icon"><Icon name="search" size={14} /></span> <span className="mono hdr-text" style={{ fontSize: 11 }}>⌘K</span></button>
       <button type="button" className="chip mono" onClick={() => go('settings', { setPage: 'engine' })} aria-label={engLabel} title={e.error || engLabel} style={{ fontSize: 11 }}><span className={'dot ' + (e.state === 'starting' || e.state === 'restarting' ? 'pulse' : '')} style={{ width: 6, height: 6, background: engDot }} /><span className="hdr-text">{engLabel}</span></button>
       <button type="button" className="chip" onClick={toggleTheme} aria-label="Switch theme"><Icon name="contrast" size={14} /> <span className="hdr-text">{theme === 'claude' ? 'Claude' : 'opencode'}</span></button>
+      {sidePanel && <button type="button" className="chip" aria-label={rightHidden ? 'Show side panel' : 'Hide side panel'} title={rightHidden ? 'Show side panel' : 'Hide side panel'} aria-expanded={!rightHidden} onClick={() => setLayout({ rightHidden: !rightHidden })}><Icon name="panel" size={14} /></button>}
     </header>
   );
 }
@@ -145,7 +190,7 @@ function Rail() {
       ))}
       <button type="button" aria-label="Add workspace" title="New workspace or join an organization" onClick={() => setState({ newWs: { type: 'team', name: '' } })} style={{ width: 40, height: 40, borderRadius: 10, border: '1px dashed var(--line3)', background: 'transparent', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="plus" size={18} /></button>
       <span style={{ flex: '1 1 auto' }} />
-      {([['routines', 'clock', 'Routines'], ['computers', 'monitor', 'Computers'], ['memory', 'memory', 'Memory'], ['settings', 'settings', 'Settings']] as [View, string, string][]).map((n) => (
+      {([['routines', 'clock', 'Routines'], ['computers', 'monitor', 'Computers'], ['memory', 'memory', 'Memory'], ['vaults', 'doc', 'Vaults'], ['settings', 'settings', 'Settings']] as [View, string, string][]).map((n) => (
         <button key={n[0]} type="button" aria-label={n[2]} title={n[2]} onClick={() => go(n[0])} style={{ width: 40, height: 36, borderRadius: 9, border: 0, background: view === n[0] ? 'var(--bg3)' : 'transparent', color: view === n[0] ? 'var(--text)' : 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={n[1]} size={18} /></button>
       ))}
     </nav>
@@ -162,9 +207,6 @@ function Sidebar() {
   const artId = useStore((s) => s.artId);
   const graphId = useStore((s) => s.graphId);
   const open = useStore((s) => s.open);
-  // Only which chats are streaming matters here, not each token (a string keeps the selector stable).
-  const streamingKey = useStore((s) => Object.keys(s.live).sort().join(','));
-  const live = useMemo(() => new Set(streamingKey ? streamingKey.split(',') : []), [streamingKey]);
   const [q, setQ] = useState('');
   const [addFor, setAddFor] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -201,7 +243,7 @@ function Sidebar() {
         for (const c of chats) {
           const made = arts.filter((a) => a.chat === c.id);
           const madeGraphs = graphs.filter((g) => g.chat === c.id);
-          out.push({ key: c.id, kind: 'chat', label: c.title, depth: depth + 1, icon: 'chat', iconColor: 'var(--muted)', meta: live.has(c.id) ? '…' : made.length + madeGraphs.length ? String(made.length + madeGraphs.length) : c.imported ? 'imported' : '', cur: view === 'chat' && chatId === c.id, caret: '', chat: c, onOpen: () => openChat(c) });
+          out.push({ key: c.id, kind: 'chat', label: c.title, depth: depth + 1, icon: 'chat', iconColor: 'var(--muted)', meta: made.length + madeGraphs.length ? String(made.length + madeGraphs.length) : c.imported ? 'imported' : '', cur: view === 'chat' && chatId === c.id, caret: '', chat: c, onOpen: () => openChat(c) });
           for (const a of made) out.push({ key: a.id, kind: 'artifact', label: a.title, depth: depth + 2, icon: ART_ICON[a.type] || 'layers', iconColor: 'var(--accent-p-text)', meta: a.type.toLowerCase() + ' v' + a.version, cur: artId === a.id, caret: '', onOpen: () => openArtifact(a) });
           for (const g of madeGraphs) out.push(graphRow(g, depth + 2));
         }
@@ -212,7 +254,7 @@ function Sidebar() {
     };
     walk(null, 0);
     return out;
-  }, [snap, open, q, addFor, view, projId, chatId, artId, graphId, live]);
+  }, [snap, open, q, addFor, view, projId, chatId, artId, graphId]);
 
   const commit = async (parent: string | null) => {
     const name = draft.trim();
@@ -235,7 +277,7 @@ function Sidebar() {
   };
 
   return (
-    <aside aria-label="Projects" style={{ flex: '0 0 272px', display: 'flex', flexDirection: 'column', gap: 10, padding: 12, background: 'var(--bg1)', borderRight: '1px solid var(--bg2)', minHeight: 0 }}>
+    <aside aria-label="Projects" style={{ flex: '0 0 var(--left-w, 272px)', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: 12, background: 'var(--bg1)', borderRight: '1px solid var(--bg2)', minHeight: 0 }}>
       <button type="button" className="navrow" onClick={() => setState({ palette: true })} style={{ padding: '8px 10px', background: 'var(--bg2)' }}>
         <span className="mono" style={{ width: 28, height: 28, borderRadius: 7, background: 'var(--bg3)', color: 'var(--ws-accent-text)', fontWeight: 700, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{ws.initials}</span>
         <span className="grow" style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}><b style={{ fontSize: 13 }}>{ws.name}</b><span className="muted" style={{ fontSize: 11 }}>{ws.kind === 'org' ? 'Organization · policy-managed' : ws.kind === 'team' ? 'Team workspace' : 'Personal workspace'}</span></span>
@@ -247,7 +289,7 @@ function Sidebar() {
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter projects and chats" style={{ flex: '1 1 auto', minWidth: 0, border: 0, outline: 'none', background: 'transparent', color: 'var(--text)', font: 'inherit', fontSize: 13 }} />
       </label>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {([['home', 'home', 'Home', ''], ['artifacts', 'layers', 'Artifacts', String(snap.artifacts.length)], ['graph', 'workflow', 'Graphs', String(snap.graphs.length || '')], ['map', 'map', 'Map', ''], ['routines', 'clock', 'Routines', routinesWaiting ? routinesWaiting + ' waiting' : ''], ['memory', 'memory', 'Memory', String(snap.facts.filter((f) => f.status === 'suggested').length || '') && snap.facts.filter((f) => f.status === 'suggested').length + ' to review']] as [View, string, string, string][]).map((n) => (
+        {([['home', 'home', 'Home', ''], ['artifacts', 'layers', 'Artifacts', String(snap.artifacts.length)], ['design-systems', 'palette', 'Design systems', ''], ['graph', 'workflow', 'Graphs', String(snap.graphs.length || '')], ['map', 'map', 'Map', ''], ['routines', 'clock', 'Routines', routinesWaiting ? routinesWaiting + ' waiting' : ''], ['memory', 'memory', 'Memory', String(snap.facts.filter((f) => f.status === 'suggested').length || '') && snap.facts.filter((f) => f.status === 'suggested').length + ' to review']] as [View, string, string, string][]).map((n) => (
           <button key={n[0]} type="button" className="navrow" aria-current={view === n[0] ? 'page' : 'false'} onClick={() => go(n[0])}><span style={{ width: 18, display: 'flex', justifyContent: 'center', color: view === n[0] ? 'var(--text)' : 'var(--muted)' }}><Icon name={n[1]} size={16} /></span>{n[2]}<span className="muted" style={{ marginLeft: 'auto', fontSize: 11 }}>{n[3] === '0' ? '' : n[3]}</span></button>
         ))}
       </div>
@@ -270,6 +312,7 @@ function Sidebar() {
               <span style={{ width: 12, color: 'var(--muted)', display: 'inline-flex', transform: t.open ? 'rotate(90deg)' : 'none', transition: 'transform .2s ease' }}>{t.caret && <Icon name="right" size={12} stroke={2} />}</span>
               <span style={{ color: t.iconColor, minWidth: 14, display: 'inline-flex', justifyContent: 'center' }}><Icon name={t.icon} size={14} /></span>
               <span className="ellipsis grow" style={{ textAlign: 'left' }}>{t.label}</span>
+              {t.kind === 'chat' ? <ChatActivity chatId={t.key} /> : t.project && !t.open ? <ProjectActivity projectId={t.project.id} /> : null}
               <span className="muted mono" style={{ fontSize: 10.5 }}>{t.meta}</span>
             </button>
             {t.kind === 'project' && t.project && <>

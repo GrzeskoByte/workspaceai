@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Harness",
+  "productName": "WorkspaceAI",
   "version": "0.0.1",
-  "identifier": "local.harness.desktop",
+  "identifier": "local.workspaceai.desktop",
   "build": {
     "beforeDevCommand": "bash -c 'd=\"$PWD\"; while [ \"$d\" != \"/\" ] && [ ! -f \"$d/packages/supervisor/src/main.ts\" ]; do d=$(dirname \"$d\"); done; exec npm --prefix \"$d\" --workspace @harness/ui run serve'",
     "devUrl": "http://127.0.0.1:5173",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Harness",
+        "title": "WorkspaceAI",
         "width": 1280,
         "height": 840,
         "minWidth": 960,

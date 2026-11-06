@@ -102,7 +102,7 @@ div[role="button"]:hover>.handle{opacity:1!important}
 <div class="hx" data-theme="{{theme}}" style="position: relative; width: {{rootW}}; height: {{rootH}}; display: flex; flex-direction: column; background: var(--bg0); color: var(--text); font-family: var(--font-ui); font-size: 14px; line-height: 1.5; overflow: hidden;">
   <sc-if value="{{standalone}}" hint-placeholder-val="{{ true }}">
     <div style="height: 2px; background: var(--accent-p);"></div>
-    <header style="display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--bg2);"><span class="mono" style="font-weight: 600;">harness</span><span style="flex: 1 1 auto; text-align: center; color: var(--muted); font-size: 13px;">Settings / <span style="color: var(--text);">Computers</span></span></header>
+    <header style="display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--bg2);"><span class="mono" style="font-weight: 600;">workspaceai</span><span style="flex: 1 1 auto; text-align: center; color: var(--muted); font-size: 13px;">Settings / <span style="color: var(--text);">Computers</span></span></header>
   </sc-if>
   <div style="flex: 1 1 auto; display: flex; min-height: 0;">
     <aside aria-label="Computers" style="flex: 0 0 290px; padding: 12px; background: var(--bg1); border-right: 1px solid var(--bg2); display: flex; flex-direction: column; gap: 6px; overflow-y: auto;">
@@ -122,7 +122,7 @@ div[role="button"]:hover>.handle{opacity:1!important}
         <span style="display: flex; flex-direction: column;">
           <sc-if value="{{notRenaming}}" hint-placeholder-val="{{ true }}"><span class="disp" style="font-size: 28px;">{{cur.name}}</span></sc-if>
           <sc-if value="{{renaming}}" hint-placeholder-val="{{ false }}"><span style="display: flex; gap: 6px;"><input class="inp" type="text" value="{{nameDraft}}" onChange="{{onName}}" aria-label="Computer name" style="width: 260px;"><button type="button" class="btn btn-p" onClick="{{saveName}}">Save</button></span></sc-if>
-          <span class="muted" style="font-size: 13px;">{{cur.os}} · harness {{cur.app}} · opencode {{cur.oc}}</span>
+          <span class="muted" style="font-size: 13px;">{{cur.os}} · workspaceai {{cur.app}} · opencode {{cur.oc}}</span>
         </span>
         <button type="button" class="btn" onClick="{{startRename}}">Rename</button>
         <span class="chip" style="margin-left: auto; display: inline-flex; align-items: center; gap: 8px; cursor: default;"><span class="{{cur.dotCls}}" style="width: 8px; height: 8px; border-radius: 50%; background: {{cur.dot}};"></span>{{cur.status}}</span>
@@ -186,7 +186,7 @@ div[role="button"]:hover>.handle{opacity:1!important}
     <div style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 5;">
       <div role="dialog" aria-label="Pair a computer" class="card rise" style="width: 460px; padding: 24px; background: var(--bg1); display: flex; flex-direction: column; gap: 14px;">
         <span class="disp" style="font-size: 22px;">Pair a computer</span>
-        <span style="font-size: 13px; color: var(--text2);">Open harness on the other computer, choose <b>Link to account</b>, and enter this code.</span>
+        <span style="font-size: 13px; color: var(--text2);">Open workspaceai on the other computer, choose <b>Link to account</b>, and enter this code.</span>
         <span class="mono" style="align-self: center; font-size: 34px; letter-spacing: 0.2em; padding: 10px 18px; border-radius: 10px; background: var(--bg2);">{{pairCode}}</span>
         <span class="muted" style="font-size: 12px; text-align: center;">{{pairStatus}}</span>
         <div style="display: flex; gap: 8px;"><button type="button" class="btn" onClick="{{newCode}}" style="flex: 1 1 auto; justify-content: center;">New code</button><button type="button" class="btn btn-p" onClick="{{simulatePair}}" disabled="{{pairing}}" style="flex: 1 1 auto; justify-content: center;">{{pairBtn}}</button><button type="button" class="btn" onClick="{{closePair}}">Close</button></div>

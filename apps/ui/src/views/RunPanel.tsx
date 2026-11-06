@@ -78,7 +78,7 @@ export function RunPanel() {
   const done = steps.filter((s) => run?.completed.includes(s.id)).length;
   const btn = { height: 28, width: 28, padding: 0, justifyContent: 'center' } as const;
   return (
-    <section aria-label="Graph run" className="rise art-panel run-panel" style={{ flex: wide ? '1 1 auto' : '0 0 560px' }}>
+    <section aria-label="Graph run" className="rise art-panel run-panel" style={{ flex: wide ? '1 1 auto' : '0 0 var(--right-w, 560px)' }}>
       <header className="row" style={{ gap: 8, padding: '12px 14px', borderBottom: '1px solid var(--bg2)' }}>
         <span aria-hidden className={status === 'running' ? 'pulse' : undefined} style={{ color: TONE[status], display: 'flex' }}><Icon name="workflow" size={18} /></span>
         <span className="grow" style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>

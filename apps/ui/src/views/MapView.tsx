@@ -1,19 +1,23 @@
 // A project's mind map (or the workspace overview). Everything the project holds appears on it by itself; ideas, tasks
 // and notes are added here, items can be moved between branches, and any two nodes can be linked. Positions are
 // computed here and never saved. Nodes are HTML over an SVG layer of edges, under one pan-and-zoom transform.
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { useStore, setState, toast, wsId, go, getState, openRun, refreshSnap } from '../store.ts';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useStore, setState, toast, wsId, go, getState, openRun, refreshSnap, act, openExternal } from '../store.ts';
 import { get, post } from '../api.ts';
 import { childrenOf, isCollapsed, layoutMap, toMarkdown, type MapBox } from '../../../../packages/shared/src/mindmap.ts';
 import type { Chat, GraphRun, MapLayout, MapOp, MapTaskStatus, ResolvedMap, ResolvedMapNode } from '../../../../packages/shared/src/types.ts';
 import { Icon } from '../ui/Icon.tsx';
 import { openArtifact, openChat } from '../shell/Shell.tsx';
 import { ART_ICON } from './ArtifactPanel.tsx';
-import { ArtifactPreview, GraphPreviewView } from './MapPreview.tsx';
+import { ArtifactPreview, GraphPreviewView, MemoryPreview, TicketPreview } from './MapPreview.tsx';
+import { ChatActivity } from '../ui/ChatActivity.tsx';
 
-const FILTERS = [['chat', 'Chats'], ['artifact', 'Artifacts'], ['graph', 'Graphs'], ['run', 'Runs'], ['memory', 'Memory'], ['routine', 'Routines'], ['own', 'Notes and tasks']] as const;
+const FILTERS = [['chat', 'Chats'], ['artifact', 'Artifacts'], ['graph', 'Graphs'], ['run', 'Runs'], ['memory', 'Memory'], ['routine', 'Routines'], ['repo', 'Repository and tickets'], ['own', 'Notes and tasks']] as const;
 type FilterKey = (typeof FILTERS)[number][0];
-const filterOf = (n: ResolvedMapNode): FilterKey | null => (n.kind === 'fact' || n.id === 'group:memory' ? 'memory' : n.own ? 'own' : n.kind === 'chat' || n.kind === 'artifact' || n.kind === 'graph' || n.kind === 'run' || n.kind === 'routine' ? n.kind : null);
+// Memory opens where it is: no screen behind it, so these only have a preview.
+const opensInPlace = (n: ResolvedMapNode) => n.kind === 'memory' || n.kind === 'fact';
+const isMemoryGroup = (n: ResolvedMapNode) => n.id === 'group:memory' || n.id.startsWith('group:chat-memory:');
+const filterOf = (n: ResolvedMapNode): FilterKey | null => (n.kind === 'fact' || n.kind === 'memory' || isMemoryGroup(n) ? 'memory' : n.own ? 'own' : n.kind === 'repo' || n.kind === 'milestone' || n.kind === 'ticket' ? 'repo' : n.kind === 'chat' || n.kind === 'artifact' || n.kind === 'graph' || n.kind === 'run' || n.kind === 'routine' ? n.kind : null);
 
 const NEXT_STATUS: Record<MapTaskStatus, MapTaskStatus> = { todo: 'doing', doing: 'done', done: 'todo' };
 const STATUS_ICON: Record<MapTaskStatus, string> = { todo: 'circle', doing: 'dot', done: 'check' };
@@ -27,8 +31,12 @@ function iconOf(n: ResolvedMapNode): string {
     case 'graph': return 'workflow';
     case 'run': return 'play';
     case 'fact': return 'memory';
-    case 'group': return n.id === 'group:memory' ? 'memory' : 'chat';
+    case 'memory': return 'memory';
+    case 'group': return isMemoryGroup(n) ? 'memory' : 'chat';
     case 'routine': return 'clock';
+    case 'repo': return 'branch';
+    case 'milestone': return 'filter';
+    case 'ticket': return 'circle';
     case 'idea': return 'sparkle';
     case 'note': return 'doc';
     default: return STATUS_ICON[n.status || 'todo'];
@@ -49,6 +57,7 @@ function textWidth(text: string, font: string): number {
 const UI_FONT = 'Inter, ui-sans-serif, system-ui, sans-serif';
 const THUMB_W = 240, THUMB_H = 130, HEAD_H = 46;
 const hasThumb = (n: ResolvedMapNode) => n.kind === 'artifact' || n.kind === 'graph';
+const hasPreview = (n: ResolvedMapNode) => hasThumb(n) || opensInPlace(n) || n.kind === 'ticket';
 function sizeOf(n: ResolvedMapNode, isRoot: boolean, previews: boolean): { w: number; h: number } {
   if (previews && hasThumb(n)) return { w: THUMB_W, h: HEAD_H + THUMB_H };
   if (isRoot) return { w: Math.min(320, Math.max(150, textWidth(n.title, `600 15px ${UI_FONT}`) + 64)), h: 48 };
@@ -109,6 +118,10 @@ export function MapView({ scope, compact, focus, onClose, wide, onWide }: { scop
   const [q, setQ] = useState('');
   const [previews, setPreviews] = useState<boolean>(() => storedJson(prefKey + '.previews', true));
   const [peek, setPeek] = useState<string | null>(null);
+  const [tokenFor, setTokenFor] = useState('');
+  const [tokenDraft, setTokenDraft] = useState('');
+  const [starting, setStarting] = useState(false);
+  const actionsBar = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState<{ ids: Set<string>; dx: number; dy: number } | null>(null);
   const runs = useStore((s) => s.runs);
   const seen = useRef(new Set<string>());
@@ -148,7 +161,7 @@ export function MapView({ scope, compact, focus, onClose, wide, onWide }: { scop
     if (!off.length) return map;
     const byId = new Map(map.nodes.map((n) => [n.id, n]));
     const gone = (n: ResolvedMapNode) => { const f = filterOf(n); return !!f && off.includes(f); };
-    const nodes = map.nodes.filter((n) => !gone(n) && !(n.id === 'group:memory' && off.includes('memory'))).map((n) => {
+    const nodes = map.nodes.filter((n) => !gone(n) && !(isMemoryGroup(n) && off.includes('memory'))).map((n) => {
       let p = n.parent;
       while (p && byId.get(p) && gone(byId.get(p)!)) p = byId.get(p)!.parent;
       return p === n.parent ? n : { ...n, parent: p };
@@ -360,13 +373,16 @@ export function MapView({ scope, compact, focus, onClose, wide, onWide }: { scop
       case 'graph': go('graph', { graphId: n.ref || null }); return;
       case 'run': if (n.ref) { if (getState().view !== 'chat' && getState().view !== 'project') go('project', { projId: scope === 'ws' ? projectId : scope, ptab: 'map' }); openRun(n.ref); } return;
       case 'project': if (n.ref && n.ref !== scope) go('project', { projId: n.ref, ptab: 'map' }); else if (n.ref) go('project', { projId: n.ref, ptab: 'chats' }); return;
-      case 'fact': go('memory'); return;
-      case 'group': if (n.id === 'group:memory') go('memory'); return;
+      case 'fact': case 'memory': setPeek(n.id); return;
+      case 'group': if (isMemoryGroup(n)) setOverrides((o) => ({ ...o, [n.id]: !isCollapsed(n, open) })); return;
       case 'routine': go('routines'); return;
+      // GitLab's pages refuse to be shown in a frame, so they go to the system browser.
+      case 'repo': case 'milestone': case 'ticket': if (n.url) openExternal(n.url); return;
       default: return;
     }
   };
-  const canOpen = (n: ResolvedMapNode) => !n.own && n.kind !== 'workspace' && n.id !== 'group:run-chats';
+  const canOpen = (n: ResolvedMapNode) => !n.own && n.kind !== 'workspace' && n.id !== 'group:run-chats' && (n.kind !== 'milestone' || !!n.url);
+  const addToken = (n: ResolvedMapNode) => void act(() => post(`/api/ws/${wsId()}/projects/${scope}/gitlab-token`, { host: n.ref, token: tokenDraft }), 'Token saved · asking GitLab').then((r) => { if (r) { setTokenDraft(''); setTokenFor(''); } });
 
   const toggle = (id: string) => { const n = nodeById.get(id); if (n) setOverrides((o) => ({ ...o, [id]: !isCollapsed(n, o) })); };
   const refocus = () => host.current?.focus({ preventScroll: true });
@@ -405,14 +421,18 @@ export function MapView({ scope, compact, focus, onClose, wide, onWide }: { scop
 
   // Work from a node: the chat is created on its branch.
   const chatFrom = async (n: ResolvedMapNode, prompt: string, title: string) => {
-    if (!projectId) return;
+    if (!projectId || starting) return;
+    // An agent can take up to a minute to open a session, so the wait has to show.
+    setStarting(true);
     try {
-      const chat = await post<Chat>(`/api/ws/${wsId()}/chats`, { project: projectId, title: title.slice(0, 60), agent: snap.workspace.defaultAgent });
+      const chat = await post<Chat>(`/api/ws/${wsId()}/chats`, { project: projectId, title: title.slice(0, 60) });
       await refreshSnap();
-      await apply([{ op: 'move', id: 'chat:' + chat.id, parent: n.id }]).catch(() => {});
+      // The workspace map shows projects, not their chats, so there is no branch to put it on.
+      if (scope !== 'ws') await apply([{ op: 'move', id: 'chat:' + chat.id, parent: n.id }]);
       openChat(chat);
       await post(`/api/ws/${wsId()}/chats/${chat.id}/send`, { text: prompt });
     } catch (e) { toast((e as Error).message, 'error'); }
+    finally { setStarting(false); }
   };
   const planWith = (n: ResolvedMapNode) => chatFrom(n, `Break “${n.title}” down into concrete tasks. Use map_read to see the project map, then add them with map_add under the node ${n.id}. Ask me only if something is truly unclear.`, 'Plan · ' + n.title);
   const runGraph = async (n: ResolvedMapNode) => {
@@ -465,7 +485,7 @@ export function MapView({ scope, compact, focus, onClose, wide, onWide }: { scop
   };
   const onKey = (e: React.KeyboardEvent) => {
     if (peek && e.key === 'Escape') { e.preventDefault(); setPeek(null); return; }
-    if (editing || (e.target as HTMLElement).tagName === 'INPUT') return;
+    if (editing || (e.target as HTMLElement).closest('input, button')) return;
     if (selLink && (e.key === 'Delete' || e.key === 'Backspace')) {
       e.preventDefault();
       if (selLink.startsWith('auto:')) toast('This link comes from the routine itself'); else void apply([{ op: 'unlink', id: selLink }]);
@@ -483,7 +503,7 @@ export function MapView({ scope, compact, focus, onClose, wide, onWide }: { scop
     if (e.key === 'F2' && n.own) return act(() => setEditing({ id, text: n.title }));
     if (e.key === 'Escape') return act(() => { setMenu(null); setSel(null); setSelLink(null); });
     if (e.key.startsWith('Arrow') && e.altKey) return act(() => shift(id, e.key));
-    if (e.key === 'p' && !n.own && hasThumb(n)) return act(() => setPeek(id));
+    if (e.key === 'p' && !n.own && hasPreview(n)) return act(() => setPeek(id));
     if (e.key.startsWith('Arrow')) return act(() => { const next = nav(e.key, id); if (next) setSel(next); });
     if (n.own && e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) return act(() => setEditing({ id, text: e.key }));
   };
@@ -514,6 +534,13 @@ export function MapView({ scope, compact, focus, onClose, wide, onWide }: { scop
   const peekNode = peek ? nodeById.get(peek) : undefined;
   const selected = sel ? nodeById.get(sel) : undefined;
   const selBox = sel ? boxes.get(sel) : undefined;
+  // The bar sits over its node but stays on the canvas, or the actions at its ends can't be reached.
+  useLayoutEffect(() => {
+    const el = actionsBar.current, canvasEl = host.current;
+    if (!el || !canvasEl || !selBox) return;
+    const half = el.offsetWidth / 2, anchor = (selBox.x + selBox.w / 2) * view.k + view.x;
+    el.style.left = Math.max(half + 8, Math.min(canvasEl.clientWidth - half - 8, anchor)) + 'px';
+  });
   const iconBtn: CSSProperties = { height: 28, width: 28, padding: 0, justifyContent: 'center' };
   const setLayout = (l: MapLayout) => void apply([{ op: 'setLayout', layout: l }]);
   const hiddenItems = map?.hiddenItems || [];
@@ -594,11 +621,12 @@ export function MapView({ scope, compact, focus, onClose, wide, onWide }: { scop
                 {editing?.id === b.id
                   ? <input className="map-edit" autoFocus value={editing.text} aria-label="Node text" placeholder="Type…" onPointerDown={(e) => e.stopPropagation()} onChange={(e) => setEditing({ ...editing, text: e.target.value })} onBlur={() => void commitEdit()} onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); void commitEdit('sibling'); } if (e.key === 'Tab') { e.preventDefault(); void commitEdit('child'); } if (e.key === 'Escape') { e.preventDefault(); closing.current = true; if (editing.fresh) void apply([{ op: 'remove', id: b.id }]); setEditing(null); refocus(); } }} />
                   : <span className="map-txt"><span className="ellipsis map-title" title={n.title}>{n.title}</span>{n.meta && <span className="ellipsis map-meta" title={n.meta}>{n.meta}</span>}</span>}
+                {n.kind === 'chat' && n.ref && <ChatActivity chatId={n.ref} />}
             </>;
             return (
               <div key={b.id} className={`map-node kind-${n.kind}${isRoot ? ' root' : ''}${sel === b.id ? ' sel' : ''}${dropping}${dim}${moving}${thumb ? ' has-thumb' : ''}${n.status === 'done' ? ' done' : ''}`} style={{ transform: `translate(${b.x}px, ${b.y}px)`, width: b.w, height: b.h }} data-node={b.id} role="treeitem" aria-selected={sel === b.id} aria-label={n.title}
                 onPointerDown={(e) => { if (e.button !== 0) return; e.stopPropagation(); pointers.current.delete(e.pointerId); setMenu(null); setSel(b.id); setSelLink(null); gesture.current = { type: 'node', id: b.id, sx: e.clientX, sy: e.clientY, ...(() => { const m = toMapXY(e.clientX, e.clientY); return { mx: m.x, my: m.y }; })(), moved: false }; refocus(); }}
-                onDoubleClick={() => { if (n.own) setEditing({ id: n.id, text: n.title }); else if (canOpen(n)) openNode(n); }}>
+                onDoubleClick={() => { if (n.own) setEditing({ id: n.id, text: n.title }); else if (n.kind === 'ticket') setPeek(n.id); else if (canOpen(n)) openNode(n); }}>
                 {thumb ? <>
                   <div className="map-head">{head}</div>
                   <div className="map-thumb">{seen.current.has(b.id) && (n.kind === 'artifact'
@@ -613,15 +641,22 @@ export function MapView({ scope, compact, focus, onClose, wide, onWide }: { scop
           {ghost && drop?.zone === 'side' && gesture.current?.type === 'node' && <div className="map-ghost" style={{ transform: `translate(${ghost.x + 10}px, ${ghost.y + 10}px)` }}>{nodeById.get(gesture.current.id)?.parent === shownMap?.root && shownMap?.layout === 'balance' ? `Move to the ${ghost.x < 0 ? 'left' : 'right'} side` : 'Drop near a node to place it here'}</div>}
         </div>
 
-        {selected && selBox && !editing && !dragging && <div className="map-actions" style={{ left: Math.max(8, (selBox.x + selBox.w / 2) * view.k + view.x), top: Math.max(8, selBox.y * view.k + view.y - 42) }} onPointerDown={(e) => e.stopPropagation()}>
-          {hasThumb(selected) && <button type="button" className="chip" onClick={() => setPeek(selected.id)} title="P"><Icon name="image" size={12} /> Preview</button>}
-          {canOpen(selected) && <button type="button" className="chip" onClick={() => openNode(selected)}><Icon name="external" size={12} /> Open</button>}
+        {selected && selBox && !editing && !dragging && <div ref={actionsBar} className="map-actions" style={{ top: Math.max(8, selBox.y * view.k + view.y - 42) }} onPointerDown={(e) => e.stopPropagation()}>
+          {hasPreview(selected) && <button type="button" className="chip" onClick={() => setPeek(selected.id)} title="P"><Icon name="image" size={12} /> Preview</button>}
+          {canOpen(selected) && !opensInPlace(selected) && <button type="button" className="chip" onClick={() => openNode(selected)}><Icon name="external" size={12} /> Open</button>}
           {selected.kind === 'graph' && <button type="button" className="chip" onClick={() => void runGraph(selected)}><Icon name="play" size={12} /> Run</button>}
+          {selected.needsToken && (tokenFor === selected.id
+            ? <form className="row" style={{ gap: 4 }} onSubmit={(e) => { e.preventDefault(); addToken(selected); }}><input className="inp" type="password" autoFocus autoComplete="off" aria-label={`GitLab token for ${selected.ref}`} placeholder={`read_api token for ${selected.ref}`} value={tokenDraft} onChange={(e) => setTokenDraft(e.target.value)} style={{ height: 26, width: 210 }} /><button type="submit" className="chip" disabled={!tokenDraft.trim()}>Save</button></form>
+            : <button type="button" className="chip" onClick={() => setTokenFor(selected.id)}><Icon name="lock" size={12} /> Add token</button>)}
           <button type="button" className="chip" onClick={() => void addNode(selected.id)} title="Tab"><Icon name="plus" size={12} /> Add</button>
           {selected.own && <button type="button" className="chip" onClick={() => setEditing({ id: selected.id, text: selected.title })} title="F2"><Icon name="compose" size={12} /> Edit</button>}
           {selected.own && selected.kind !== 'task' && <button type="button" className="chip" onClick={() => void apply([{ op: 'update', id: selected.id, kind: 'task' }])}><Icon name="check" size={12} /> Make task</button>}
-          {selected.own && <button type="button" className="chip" onClick={() => void chatFrom(selected, selected.title, selected.title)}><Icon name="chat" size={12} /> Start a chat</button>}
-          {selected.own && <button type="button" className="chip" onClick={() => void planWith(selected)}><Icon name="sparkle" size={12} /> Plan with the agent</button>}
+          {selected.own && (starting
+            ? <span className="chip pulse" role="status"><Icon name="chat" size={12} /> Starting the chat…</span>
+            : <>
+              <button type="button" className="chip" onClick={() => void chatFrom(selected, selected.title, selected.title)}><Icon name="chat" size={12} /> Start a chat</button>
+              <button type="button" className="chip" onClick={() => void planWith(selected)}><Icon name="sparkle" size={12} /> Plan with the agent</button>
+            </>)}
           {selected.id !== shownMap?.root && <>
             <button type="button" className="chip" aria-label="Move up" title="Move up (Alt+↑)" onClick={() => shift(selected.id, 'ArrowUp')}><Icon name="up" size={12} /></button>
             <button type="button" className="chip" aria-label="Move down" title="Move down (Alt+↓)" onClick={() => shift(selected.id, 'ArrowDown')}><Icon name="down" size={12} /></button>
@@ -633,12 +668,12 @@ export function MapView({ scope, compact, focus, onClose, wide, onWide }: { scop
           <div className="map-peek" role="dialog" aria-label={`Preview of ${peekNode.title}`}>
             <header className="row" style={{ gap: 8, padding: '10px 12px', borderBottom: '1px solid var(--bg2)' }}>
               <span className="map-ico"><Icon name={iconOf(peekNode)} size={16} /></span>
-              <span className="grow" style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}><b className="ellipsis" style={{ fontSize: 14 }}>{peekNode.title}</b>{peekNode.meta && <span className="muted ellipsis" style={{ fontSize: 11 }}>{peekNode.meta}</span>}</span>
+              <span className="grow" style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}><b className="ellipsis" style={{ fontSize: 14 }}>{peekNode.kind === 'ticket' ? `Ticket #${peekNode.ref}` : peekNode.title}</b>{peekNode.meta && peekNode.kind !== 'ticket' && <span className="muted ellipsis" style={{ fontSize: 11 }}>{peekNode.meta}</span>}</span>
               {peekNode.kind === 'graph' && <button type="button" className="btn" style={{ height: 28 }} onClick={() => { setPeek(null); void runGraph(peekNode); }}><Icon name="play" size={13} /> Run</button>}
-              <button type="button" className="btn btn-p" style={{ height: 28 }} onClick={() => { setPeek(null); openNode(peekNode); }}><Icon name="external" size={13} /> Open</button>
+              {!opensInPlace(peekNode) && <button type="button" className="btn btn-p" style={{ height: 28 }} onClick={() => { setPeek(null); openNode(peekNode); }}><Icon name="external" size={13} /> Open</button>}
               <button type="button" className="btn" style={iconBtn} aria-label="Close preview" onClick={() => { setPeek(null); refocus(); }}><Icon name="x" size={15} /></button>
             </header>
-            <div className="map-peek-body">{peekNode.kind === 'artifact'
+            <div className="map-peek-body">{peekNode.kind === 'ticket' ? <TicketPreview project={scope} iid={peekNode.ref!} /> : peekNode.kind === 'memory' ? <MemoryPreview id={peekNode.ref!} /> : peekNode.kind === 'fact' ? <div className="map-memory"><p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{snap.facts.find((f) => f.id === peekNode.ref)?.text}</p></div> : peekNode.kind === 'artifact'
               ? <ArtifactPreview large id={peekNode.ref!} version={String(snap.artifacts.find((a) => a.id === peekNode.ref)?.version ?? 0)} />
               : <GraphPreviewView large id={peekNode.ref!} version={String(snap.graphs.find((g) => g.id === peekNode.ref)?.updatedAt ?? 0)} run={latestRun(peekNode.ref)} />}</div>
           </div>

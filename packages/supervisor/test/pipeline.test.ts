@@ -1,9 +1,9 @@
 // R-15: Open Design pipeline — helpers, the design-system library, and an end-to-end run with a real model.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { mkdtempSync, existsSync, readFileSync } from 'node:fs';
+import { mkdtempSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir, homedir } from 'node:os';
-import { join } from 'node:path';
-import { jsonFrom, compositeScore } from '../src/pipeline.ts';
+import { dirname, join } from 'node:path';
+import { jsonFrom, compositeScore, claudeDesignSystems } from '../src/pipeline.ts';
 
 const home = mkdtempSync(join(tmpdir(), 'harness-pipe-'));
 process.env.HARNESS_HOME = home;
@@ -41,6 +41,70 @@ describe('pipeline helpers', () => {
   it('weights the five critique roles like Open Design', () => {
     expect(compositeScore({ designer: 2, critic: 10, brand: 10, a11y: 10, copy: 10 })).toBe(10);
     expect(compositeScore({ designer: 10, critic: 5, brand: 10, a11y: 10, copy: 10 })).toBe(8);
+  });
+});
+
+describe('importing design systems from Claude', () => {
+  const fake = (body: string) => { const f = join(mkdtempSync(join(tmpdir(), 'fake-claude-')), 'claude'); writeFileSync(f, `#!/bin/sh\n${body}\n`, { mode: 0o755 }); return f; };
+  it('converts every system the CLI copies, and reports one it cannot read', async () => {
+    const cli = fake(`mkdir -p 1/project/components/Button 2/project 3/project
+echo '{"title":"Acme"}' > 1/project/design-system.json
+echo '{"color":{"tokens":[{"name":"ink","value":"#111111"}]}}' > 1/project/tokens.json
+echo '# Button' > 1/project/components/Button/README.md
+echo x > 1/project/components/Button/preview.html
+echo '# Second' > 2/project/README.md
+echo '{oops' > 3/project/tokens.json
+echo copied 3`);
+    const { systems, failed } = await claudeDesignSystems(cli, {});
+    expect(systems.map((s) => s.title).sort()).toEqual(['Acme', 'Second']);
+    const acme = systems.find((s) => s.title === 'Acme')!;
+    expect(acme.markdown).toContain('| ink | #111111 |');
+    expect(acme.notCarried).toEqual(['1 component preview']);
+    expect(failed).toEqual(['Claude design system 3']);
+  });
+  it('the route finds the CLI on PATH and returns the systems', async () => {
+    const f = fake(`mkdir -p 1/project\necho '# Routed' > 1/project/README.md`);
+    const path = process.env.PATH;
+    process.env.PATH = dirname(f) + ':' + path;
+    try {
+      const w = (await ok('POST', '/api/workspaces', { name: 'Route DS', kind: 'personal' })).id;
+      const { systems } = await ok('POST', `/api/ws/${w}/design-systems/claude`, {});
+      expect(systems.map((s: any) => s.title)).toEqual(['Routed']);
+    } finally { process.env.PATH = path; }
+  });
+  it('passes on why it found nothing, and why the CLI failed', async () => {
+    await expect(claudeDesignSystems(fake('echo no artifact tool'), {})).rejects.toThrow('It said: no artifact tool');
+    await expect(claudeDesignSystems(fake('echo not logged in >&2; exit 1'), {})).rejects.toThrow('not logged in');
+  });
+});
+
+describe('workspace design systems', () => {
+  it('a DesignSystem artifact is listed, readable, selectable and followed by the guide', async () => {
+    const w = (await ok('POST', '/api/workspaces', { name: 'Own DS', kind: 'personal' })).id;
+    const project = (await ok('POST', `/api/ws/${w}/projects`, { name: 'Acme', parent: null })).id;
+    await ok('PATCH', `/api/ws/${w}`, { openDesign: { engine: 'builtin' } });
+    const a = await ok('POST', `/api/ws/${w}/artifacts`, { project, type: 'DesignSystem', title: 'Acme', format: 'markdown', content: '# Acme\n\n> Sharp and blue.\n\n| primary | #0055ff |\n| ink | #0055FF |\n| paper | #ffffff |' });
+    const { systems } = await ok('GET', `/api/ws/${w}/design-systems`);
+    expect(systems[0].id).toBe('claude-warm-editorial');
+    expect(systems.find((d: any) => d.id === a.id)).toMatchObject({ title: 'Acme', summary: 'Sharp and blue.', source: 'workspace' });
+    expect(systems.find((d: any) => d.id === a.id).swatches).toContain('#ffffff');
+    expect((await ok('GET', `/api/ws/${w}/design-systems/${a.id}`)).body).toContain('#0055ff');
+    await ok('PATCH', `/api/ws/${w}`, { designSystem: 'Acme' });
+    const chat = await ok('POST', `/api/ws/${w}/chats`, { project, title: 'Deck' });
+    const { guide } = await ok('POST', `/api/ws/${w}/agent/guide`, { chat: chat.id, type: 'deck' });
+    expect(guide).toContain('## Design system: Acme');
+    expect(guide).toContain('#0055ff');
+  });
+
+  it('an agent writes a new system as a DesignSystem artifact, without being told to follow the current one', async () => {
+    const w = (await ok('POST', '/api/workspaces', { name: 'New DS', kind: 'personal' })).id;
+    await ok('PATCH', `/api/ws/${w}`, { openDesign: { engine: 'builtin' } });
+    const chat = await ok('POST', `/api/ws/${w}/chats`, { title: 'Make one' });
+    const { guide } = await ok('POST', `/api/ws/${w}/agent/guide`, { chat: chat.id, type: 'design-system' });
+    expect(guide).not.toContain('## Design system:');
+    expect(guide).not.toContain('is authoritative');
+    const a = await ok('POST', `/api/ws/${w}/agent/artifacts`, { chat: chat.id, type: 'design-system', title: 'Mine', format: 'markdown', content: '# Mine' });
+    expect(a.type).toBe('DesignSystem');
   });
 });
 
