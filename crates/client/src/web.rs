@@ -102,7 +102,9 @@ pub fn local_url_in(text: &str) -> Option<String> {
         while let Some(i) = text[from..].find(scheme) {
             let start = from + i;
             let rest = &text[start + scheme.len()..];
-            let end = rest.find(|c: char| c.is_whitespace() || "'\"`)<>]".contains(c)).unwrap_or(rest.len());
+            // `]` ends a link in prose, but not inside an IPv6 host like [::1].
+            let v6 = rest.starts_with('[');
+            let end = rest.find(|c: char| c.is_whitespace() || "'\"`)<>".contains(c) || (c == ']' && !v6)).unwrap_or(rest.len());
             let addr = &rest[..end];
             if is_local_authority(addr) {
                 let url = format!("{scheme}{}", addr.replacen("0.0.0.0", "localhost", 1));
