@@ -32,6 +32,8 @@ pub struct AppSettings {
     pub reduce_motion: bool,
     #[serde(default)]
     pub follow_system: bool,
+    #[serde(default)]
+    pub onboarded: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]

@@ -86,3 +86,20 @@ pub fn seg(id: &str) -> String {
     }
     pct(id)
 }
+
+impl Api {
+    /// Streams a GET to a new file in `dir` (named by the reply's Content-Disposition, never overwriting) and returns it.
+    pub fn download_to(&self, path: &str, dir: &std::path::Path) -> Result<std::path::PathBuf, ApiError> {
+        let res = match ureq::get(&format!("{}{path}", self.base)).set("x-harness-token", &self.token).call() {
+            Ok(r) => r,
+            Err(ureq::Error::Status(status, r)) => return Err(ApiError { status, message: r.into_string().unwrap_or_default() }),
+            Err(e) => return Err(ApiError { status: 0, message: e.to_string() }),
+        };
+        let name = res.header("content-disposition").and_then(crate::spaces::filename_from_disposition).unwrap_or_else(|| "export".into());
+        let target = crate::spaces::unique_path(dir, &name, |p| p.exists());
+        let io = |e: std::io::Error| ApiError { status: 0, message: format!("Could not save {}: {e}", target.display()) };
+        let mut file = std::fs::File::create(&target).map_err(io)?;
+        std::io::copy(&mut res.into_reader(), &mut file).map_err(io)?;
+        Ok(target)
+    }
+}
