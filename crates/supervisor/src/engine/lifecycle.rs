@@ -22,7 +22,7 @@ const KEEP_ENV: [&str; 13] = [
     "PATH", "HOME", "USER", "LOGNAME", "LANG", "LC_ALL", "TERM", "SHELL", "TMPDIR", "DISPLAY", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS",
 ];
 
-fn base_env() -> BTreeMap<String, String> {
+pub(crate) fn base_env() -> BTreeMap<String, String> {
     KEEP_ENV.iter().filter_map(|k| std::env::var(k).ok().map(|v| (k.to_string(), v))).collect()
 }
 
@@ -115,6 +115,7 @@ impl Runtime {
         let _ = write_json(&self.lock_path(), &json!({ "pid": server.pid(), "url": server.url() }));
         self.status = server.status();
         self.engine = Some(server);
+        self.sync_since = now_ms();
         self.audit("engine.start", &format!("opencode {} on 127.0.0.1:{}", self.status.version, self.status.port), "workspaceai");
         Ok(self.engine.as_ref().expect("just set").client())
     }
@@ -135,6 +136,7 @@ impl Runtime {
             ..Default::default()
         };
         self.remote = Some(client.clone());
+        self.sync_since = now_ms();
         Ok(client)
     }
 

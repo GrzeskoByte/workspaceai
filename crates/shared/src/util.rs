@@ -1,6 +1,6 @@
 //! Port of `packages/shared/src/util.ts`.
 
-use crate::types::{Artifact, Chat, Project};
+use crate::types::{Artifact, Project, Session};
 use std::collections::{hash_map::RandomState, HashSet};
 use std::hash::{BuildHasher, Hasher};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -120,7 +120,7 @@ pub fn rolled_up_artifacts<'a>(projects: &[Project], artifacts: &'a [Artifact], 
     artifacts.iter().filter(|a| is_within(projects, &a.project, pid)).collect()
 }
 
-pub fn chats_within<'a>(projects: &[Project], chats: &'a [Chat], pid: &str) -> Vec<&'a Chat> {
+pub fn chats_within<'a>(projects: &[Project], chats: &'a [Session], pid: &str) -> Vec<&'a Session> {
     chats.iter().filter(|c| !c.archived && is_within(projects, &c.project, pid)).collect()
 }
 

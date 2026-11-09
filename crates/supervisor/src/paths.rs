@@ -57,6 +57,10 @@ pub struct WsPaths {
     pub runs: PathBuf,
     pub browser_profile: PathBuf,
     pub logs: PathBuf,
+    /// Per-session launch files (`<sid>.mcp.json` for claude).
+    pub run: PathBuf,
+    /// Per-agent homes (`CLAUDE_CONFIG_DIR`, `GROK_HOME`, Pi's agent folder).
+    pub agents: PathBuf,
 }
 
 impl WsPaths {
@@ -79,6 +83,8 @@ impl WsPaths {
             runs: data.join("runs"),
             browser_profile: data.join("browser-profile"),
             logs: data.join("logs"),
+            run: root.join("run"),
+            agents: data.join("agents"),
             root,
             config,
             data,
@@ -86,7 +92,7 @@ impl WsPaths {
     }
 
     pub fn ensure(&self) -> std::io::Result<()> {
-        for d in [&self.config, &self.data, &self.xdg_data, &self.xdg_config, &self.xdg_state, &self.xdg_cache, &self.open_design, &self.memory, &self.runs, &self.browser_profile, &self.logs] {
+        for d in [&self.config, &self.data, &self.xdg_data, &self.xdg_config, &self.xdg_state, &self.xdg_cache, &self.open_design, &self.memory, &self.runs, &self.browser_profile, &self.logs, &self.run] {
             std::fs::create_dir_all(d)?;
         }
         Ok(())

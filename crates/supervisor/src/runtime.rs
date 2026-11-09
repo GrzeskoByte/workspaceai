@@ -33,6 +33,9 @@ pub struct Runtime {
     pub keychain: Arc<Keychain>,
     pub(crate) last_used: Arc<AtomicI64>,
     events: Emitter,
+    /// Sessions the TUI creates after this moment are adopted (R-19); set when the engine connects.
+    pub(crate) sync_since: i64,
+    pub(crate) sync_at: i64,
 }
 
 impl Runtime {
@@ -66,9 +69,30 @@ impl Runtime {
             keychain,
             last_used,
             events,
+            sync_since: i64::MAX,
+            sync_at: 0,
         };
         rt.migrate_agents()?;
+        rt.migrate_sessions()?;
         Ok(rt)
+    }
+
+    /// TS `Chat` records become sessions (plan (c)). Writes only when something changed, after keeping the TS
+    /// file once as `state.json.bak-tsport` (risk (g): the app reads the live `~/.harness`).
+    fn migrate_sessions(&mut self) -> Result<(), ApiError> {
+        let mut changed = false;
+        for s in &mut self.state.chats {
+            changed |= s.migrate();
+        }
+        if !changed {
+            return Ok(());
+        }
+        let backup = self.paths.state.with_extension("json.bak-tsport");
+        if self.paths.state.exists() && !backup.exists() {
+            std::fs::copy(&self.paths.state, &backup)?;
+        }
+        write_json(&self.paths.state, &self.state)?;
+        Ok(())
     }
 
     /// Workspaces created before subscriptions existed get the Grok agent and the current ACP commands.
@@ -104,6 +128,10 @@ impl Runtime {
         write_json(&self.paths.harness_json, &self.ws)?;
         write_json(&self.paths.state, &self.state)?;
         Ok(())
+    }
+
+    pub fn events(&self) -> &Emitter {
+        &self.events
     }
 
     pub fn changed(&self) -> Result<(), ApiError> {
@@ -175,7 +203,7 @@ impl Runtime {
         WorkspaceSnapshot {
             workspace: self.ws.clone(),
             projects: self.state.projects.iter().filter(|p| !p.archived).cloned().collect(),
-            chats: self.state.chats.iter().filter(|c| !c.archived).map(|c| workspaceai_shared::types::Chat { transcript: None, ..c.clone() }).collect(),
+            chats: self.state.chats.iter().filter(|c| !c.archived).cloned().collect(),
             artifacts: self.state.artifacts.clone(),
             facts: self.all_facts(),
             routines: self.state.routines.clone(),

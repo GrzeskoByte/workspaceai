@@ -50,7 +50,7 @@ Every TypeScript test gets a Rust counterpart, or is marked N/A with a reason. R
 | `supervisor/test/formats.test.ts` › picks Markdown or HTML / offers the exports | `formats.rs::picks_markdown_or_html_per_kind`, `offers_the_exports_each_format_can_give` | ported |
 | › Markdown tables / deck skeleton / Open Design page | — | deferred to B9: `markdownDeck`/`toHtml` need Open Design |
 | `supervisor/test/permissions.test.ts` (project rules) | — | N/A: no engine permission layer; terminal sessions ask in their TUI |
-| › chats are opencode sessions; a chat is never stranded | — | pending B5 |
+| › chats are opencode sessions; a chat is never stranded | `sessions.rs::sessions_r17_r18_r19` (chat create is an opencode session on the same server; move refuses a missing project) | ported (B5) |
 | › switching workspaces keeps the other running / managed server loopback+password | `engine.rs::two_workspaces_get_their_own_xdg_dirs_and_ports`, `the_server_password_lives_in_the_env_and_never_in_argv` | ported |
 | `supervisor/test/security.test.ts` › provider key lives in the OS keychain, per workspace, nowhere on disk | `keychain.rs::keychain_memory_round_trip_is_per_workspace`, `keychain_os_backend_round_trip_or_skip` | ported (keychain layer; provider route is B3) |
 | › remote opencode must be HTTPS or loopback | `engine.rs::remote_servers_must_be_https_or_loopback`, `providers.rs::connection_tests_reject_plain_http_remote_hosts_and_web_pages` | ported (+ userinfo rejected: deviation) |
@@ -70,5 +70,8 @@ Every TypeScript test gets a Rust counterpart, or is marked N/A with a reason. R
 | `supervisor/test/mcp.test.ts` › add/toggle/delete a connector | `providers.rs::mcp_connectors_add_toggle_and_delete` | ported |
 | `supervisor/test/secrets.test.ts` › normalised names, audited puts | `secrets.rs::names_are_normalised_and_puts_are_audited` | ported |
 | `supervisor/test/*` (Open Design part of `shutdown.test.ts`) | — | N/A: Open Design install/health lands in B10 |
+| `supervisor/test/sessions.test.ts` › test-remote (R-17), import + nested folders (R-18), TUI session adopted (R-19), copy from another server with history (R-18) | `sessions.rs::sessions_r17_r18_r19` (one ordered test, as the TS `beforeAll`; + rename/delete reach the server, opencode launch spec) | ported (B5; skips without `opencode`) |
+| `supervisor/test/acp.test.ts` | — | N/A: ACP is gone; sessions are terminals running the agent CLI |
+| — (new: B5 adapters, no TS counterpart) | `agents.rs::{claude_spec_is_isolated_and_carries_per_session_mcp, grok_and_pi_specs_use_their_workspace_homes, claude_sessions_are_copied_in_never_pointed_at, ts_chats_migrate_on_load_with_one_backup, headless_ask_and_wait_raises_approvals_and_returns_the_reply}`, `shared roundtrip.rs::a_ts_chat_migrates_to_a_session`, lib `sessions::tests`, `agents::tests` | new (B5) |
 | other `supervisor/test/*`, `orchestrator/test/rules.test.ts` | — | pending (later plans) |
 | — (new: terminal sessions, no TS counterpart) | `term` `pty.rs::{colour_cell, resize_reaches_child, exit_status_arrives, title_and_bell, wrapped_line_selection_copies_without_newline, cursor_position_report_is_answered, drop_hangs_up_the_child, drop_kills_a_child_that_ignores_hangup}`, `keys::tests::{encoder_table, paste}` | new (B6) |

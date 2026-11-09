@@ -5,7 +5,7 @@ mod common;
 
 use common::{create, setup};
 use serde_json::{json, Value};
-use workspaceai_shared::types::{Chat, Fact, Project, Workspace};
+use workspaceai_shared::types::{Fact, Project, Session as Chat, Workspace};
 use workspaceai_supervisor::recall::{chat_memory, memory_brief, memory_recall, query_terms, strip_recall};
 
 fn scopes(f: &common::Fixture, ws: &str) -> (Workspace, Vec<Project>, Vec<Fact>) {

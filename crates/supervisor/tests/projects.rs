@@ -6,7 +6,7 @@ mod common;
 use common::{create, setup};
 use serde_json::json;
 use std::path::PathBuf;
-use workspaceai_shared::types::Chat;
+use workspaceai_shared::types::Session as Chat;
 use workspaceai_shared::util::now_ms;
 
 fn id(v: &serde_json::Value) -> String {

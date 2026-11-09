@@ -9,7 +9,7 @@
 
 pub mod client;
 pub mod detect;
-mod lifecycle;
+pub(crate) mod lifecycle;
 pub mod remote;
 pub mod server;
 

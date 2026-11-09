@@ -206,7 +206,7 @@ impl Runtime {
         write_text(&file, text)?;
         self.audit("instructions.save", &file.to_string_lossy(), "you");
         self.changed()?;
-        // ponytail: refreshing live sessions' instruction entries is session code (B5).
+        self.refresh_instructions();
         Ok(())
     }
 

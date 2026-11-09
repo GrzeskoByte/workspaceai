@@ -8,6 +8,7 @@ mod patch;
 mod projects;
 mod providers;
 mod secrets;
+mod sessions;
 mod workspace;
 mod workspaces;
 
@@ -27,7 +28,10 @@ pub(crate) fn dispatch(core: &mut Core, method: &str, path: &str, query: &BTreeM
         ["api", "workspaces", id, "activate"] if method == "POST" => workspaces::activate(core, id),
         ["api", "workspaces", id] if method == "DELETE" => workspaces::delete(core, id),
 
-        ["api", "ws", id, "snapshot"] if method == "GET" => workspace::snapshot(core, id),
+        ["api", "ws", id, "snapshot"] if method == "GET" => {
+            core.rt_mut(id)?.sync_sessions();
+            workspace::snapshot(core, id)
+        }
         ["api", "ws", id] if method == "PATCH" => patch::patch(core, id, &body),
 
         ["api", "ws", id, "facts"] if method == "POST" => workspace::add_fact(core, id, &body),
@@ -74,6 +78,22 @@ pub(crate) fn dispatch(core: &mut Core, method: &str, path: &str, query: &BTreeM
         ["api", "ws", id, "mcp"] if method == "POST" => providers::add_mcp(core, id, &body),
         ["api", "ws", id, "mcp", mid] if method == "PATCH" => providers::patch_mcp(core, id, mid, &body),
         ["api", "ws", id, "mcp", mid] if method == "DELETE" => providers::delete_mcp(core, id, mid),
+
+        // sessions (batch 5)
+        ["api", "ws", id, "chats"] if method == "POST" => sessions::create(core, id, &body),
+        ["api", "ws", id, "chats", cid] if method == "PATCH" => sessions::patch(core, id, cid, &body),
+        ["api", "ws", id, "chats", cid] if method == "DELETE" => sessions::delete(core, id, cid, &body),
+        ["api", "ws", id, "chats", cid, "messages"] if method == "GET" => sessions::messages(core, id, cid),
+        ["api", "ws", id, "chats", cid, "launch"] if method == "GET" => sessions::launch(core, id, cid),
+        ["api", "ws", id, "chats", cid, "fork"] if method == "POST" => sessions::fork(core, id, cid),
+        ["api", "ws", id, "chats", cid, "move"] if method == "POST" => sessions::move_to(core, id, cid, &body),
+        ["api", "ws", id, "chats", cid, "attach"] if method == "GET" => sessions::attach(core, id, Some(cid)),
+        ["api", "ws", id, "attach"] if method == "GET" => sessions::attach(core, id, None),
+        ["api", "ws", id, "scan-sessions"] if method == "GET" => sessions::scan(core, id),
+        ["api", "ws", id, "import-sessions"] if method == "POST" => sessions::import(core, id, &body),
+        ["api", "ws", id, "scan-claude-sessions"] if method == "GET" => sessions::scan_claude(core, id),
+        ["api", "ws", id, "import-claude-sessions"] if method == "POST" => sessions::import_claude(core, id, &body),
+        ["api", "onboarding", "test-remote"] if method == "POST" => sessions::test_remote_route(&body),
 
         _ => Err(ApiError::not_found("Not found")),
     }

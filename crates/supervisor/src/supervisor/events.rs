@@ -57,6 +57,9 @@ impl From<io::Error> for ApiError {
 pub enum UiEvent {
     Snapshot { workspace: String },
     State { workspace: Option<String> },
+    Toast { text: String },
+    /// A permission ask raised by a headless run (routine, pipeline); terminal sessions ask in their TUI.
+    Approval { workspace: String, chat: String, permission: Value },
 }
 
 pub type Listener = Arc<dyn Fn(UiEvent) + Send + Sync>;

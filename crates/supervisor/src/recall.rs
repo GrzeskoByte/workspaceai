@@ -2,7 +2,7 @@
 //! `<harness-memory>` block; graph recall and `chatMemory` are deferred with the Graphify backend (plan non-goal).
 
 use serde_json::Value;
-use workspaceai_shared::types::{Chat, Fact, FactStatus, MemoryBackend, Project, Workspace};
+use workspaceai_shared::types::{Fact, FactStatus, MemoryBackend, Project, Session, Workspace};
 use workspaceai_shared::util::project_path;
 
 const OPEN: &str = "<harness-memory>";
@@ -154,6 +154,6 @@ pub fn memory_brief(ws: &Workspace, projects: &[Project], facts: &[Fact], pid: &
 }
 
 /// The Graphify nodes a chat is about. Graph memory is deferred with the graph backend, so this is always empty.
-pub fn chat_memory(_ws: &Workspace, _projects: &[Project], _chat: &Chat) -> Vec<Value> {
+pub fn chat_memory(_ws: &Workspace, _projects: &[Project], _chat: &Session) -> Vec<Value> {
     Vec::new()
 }

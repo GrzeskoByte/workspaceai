@@ -470,35 +470,75 @@ pub struct ChatMessage {
     pub extra: Extra,
 }
 
-/// Becomes `Session` in batch 5; kept here so existing `state.json` files load.
+fn is_false(b: &bool) -> bool {
+    !*b
+}
+
+/// A terminal session record (was `Chat`; still stored under `chats` in `state.json`). The agent's own CLI owns
+/// the transcript; this is metadata only (plan (c)).
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
-pub struct Chat {
+pub struct Session {
     pub id: String,
     pub project: String,
     pub title: String,
-    /// opencode session id (`ses_…`), one to one (R-16). ACP chats use `acp:<agent>:<id>`.
+    /// The agent's own session id: opencode `ses_…`, a claude/pi UUID, '' while grok has not told us yet.
     pub sid: String,
+    /// Adapter id: 'opencode' | 'claude' | 'grok' | 'pi'.
     pub agent: String,
-    pub model: String,
-    /// Reasoning level ('' or missing = the model's default).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub effort: Option<String>,
-    pub web: Option<bool>,
     pub instructions: String,
     pub imported: bool,
     pub archived: bool,
-    /// Full-permissions ("YOLO") mode for this chat only.
+    /// The launch spec was handed out once, so the agent has (or is creating) its record.
+    #[serde(skip_serializing_if = "is_false")]
+    pub launched: bool,
+    /// Launch with the agent's skip-permissions flag (was the chat's "YOLO" switch).
+    #[serde(skip_serializing_if = "is_false")]
+    pub full_access: bool,
+    /// The first prompt, passed to the agent on its first launch only.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub yolo: Option<bool>,
+    pub prompt: Option<String>,
+    /// Claude fork: the session this one forks on first launch.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fork_of: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub transcript: Option<Vec<ChatMessage>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub graph_notes: Option<Vec<String>>,
     #[serde(flatten)]
     pub extra: Extra,
+}
+
+/// `Chat` fields the session model drops (plan (c)); they land in `extra` when an old `state.json` loads.
+pub const DROPPED_CHAT_FIELDS: [&str; 6] = ["model", "effort", "web", "transcript", "graphNotes", "yolo"];
+
+impl Session {
+    /// One-time load migration from the TS `Chat`: `yolo` → `fullAccess`, `acp:<agent>:<id>` → `<id>`, dropped
+    /// fields removed. Returns whether anything changed (callers write only then).
+    pub fn migrate(&mut self) -> bool {
+        let legacy = DROPPED_CHAT_FIELDS.iter().any(|k| self.extra.contains_key(*k)) || self.sid.starts_with("acp:");
+        if !legacy {
+            return false;
+        }
+        if self.extra.get("yolo").and_then(Value::as_bool) == Some(true) {
+            self.full_access = true;
+        }
+        for k in DROPPED_CHAT_FIELDS {
+            self.extra.remove(k);
+        }
+        if let Some(rest) = self.sid.strip_prefix("acp:") {
+            if let Some((agent, id)) = rest.split_once(':') {
+                if self.agent.is_empty() {
+                    self.agent = agent.to_string();
+                }
+                self.sid = id.to_string();
+            }
+        }
+        if self.agent.is_empty() {
+            self.agent = "opencode".into();
+        }
+        // The TS made the agent's record when the chat was created.
+        self.launched = !self.sid.is_empty();
+        true
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -785,7 +825,7 @@ pub struct EngineStatus {
 pub struct WorkspaceSnapshot {
     pub workspace: Workspace,
     pub projects: Vec<Project>,
-    pub chats: Vec<Chat>,
+    pub chats: Vec<Session>,
     pub artifacts: Vec<Artifact>,
     pub facts: Vec<Fact>,
     pub routines: Vec<Routine>,
@@ -823,7 +863,7 @@ pub struct AppState {
 #[serde(default, rename_all = "camelCase")]
 pub struct PersistedState {
     pub projects: Vec<Project>,
-    pub chats: Vec<Chat>,
+    pub chats: Vec<Session>,
     pub artifacts: Vec<Artifact>,
     pub routines: Vec<Routine>,
     pub graphs: Vec<Value>,

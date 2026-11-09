@@ -31,9 +31,10 @@ fn workspace_json_round_trips() {
 fn state_json_round_trips() {
     let s: PersistedState = round_trip(&fixture("state.json"), "state.json");
     assert_eq!((s.projects.len(), s.chats.len(), s.artifacts.len(), s.routines.len()), (3, 2, 1, 2));
-    assert_eq!(s.chats[0].web, None);
-    assert_eq!(s.chats[1].transcript.as_ref().unwrap()[1].artifact, Some(None)); // explicit null kept
-    assert_eq!(s.chats[1].transcript.as_ref().unwrap()[0].artifact, None); // absent stays absent
+    // `Chat` fields the session model drops are kept as written until the supervisor migrates them.
+    assert_eq!(s.chats[0].extra.get("web"), Some(&Value::Null));
+    assert_eq!(s.chats[1].extra["transcript"][1]["artifact"], Value::Null); // explicit null kept
+    assert!(s.chats[1].extra["transcript"][0].get("artifact").is_none()); // absent stays absent
     assert_eq!(s.artifacts[0].versions[0].od, Some(None));
     assert!(matches!(s.routines[1].trigger, Trigger::Event { .. }));
     assert!(s.extra.contains_key("agentModels") && s.extra.contains_key("agentCommands"));
@@ -65,4 +66,21 @@ fn live_harness_round_trips_when_pointed_at() {
         }
     }
     eprintln!("round-tripped {n} live files");
+}
+
+#[test]
+fn a_ts_chat_migrates_to_a_session() {
+    let s: PersistedState = serde_json::from_str(&fixture("state.json")).unwrap();
+    let mut chats = s.chats.clone();
+    assert!(chats.iter_mut().all(|c| c.migrate()));
+    for c in &chats {
+        for k in DROPPED_CHAT_FIELDS {
+            assert!(!c.extra.contains_key(k), "{k} kept");
+        }
+        assert!(c.launched && !c.sid.starts_with("acp:") && !c.agent.is_empty());
+    }
+    assert!(!chats[0].clone().migrate(), "a migrated session is left alone");
+    let mut acp = Session { sid: "acp:claude:6f1c".into(), agent: String::new(), extra: [("yolo".to_string(), Value::Bool(true))].into_iter().collect(), ..Default::default() };
+    assert!(acp.migrate());
+    assert_eq!((acp.sid.as_str(), acp.agent.as_str(), acp.full_access), ("6f1c", "claude", true));
 }
