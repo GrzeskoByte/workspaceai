@@ -511,15 +511,12 @@ pub struct Session {
 pub const DROPPED_CHAT_FIELDS: [&str; 6] = ["model", "effort", "web", "transcript", "graphNotes", "yolo"];
 
 impl Session {
-    /// One-time load migration from the TS `Chat`: `yolo` → `fullAccess`, `acp:<agent>:<id>` → `<id>`, dropped
-    /// fields removed. Returns whether anything changed (callers write only then).
+    /// One-time load migration from the TS `Chat`: `acp:<agent>:<id>` → `<id>`, dropped fields removed. A legacy
+    /// `yolo: true` is dropped too, not carried into `fullAccess`: the user re-enables full access for terminals. Returns whether anything changed (callers write only then).
     pub fn migrate(&mut self) -> bool {
         let legacy = DROPPED_CHAT_FIELDS.iter().any(|k| self.extra.contains_key(*k)) || self.sid.starts_with("acp:");
         if !legacy {
             return false;
-        }
-        if self.extra.get("yolo").and_then(Value::as_bool) == Some(true) {
-            self.full_access = true;
         }
         for k in DROPPED_CHAT_FIELDS {
             self.extra.remove(k);

@@ -156,6 +156,7 @@ fn ts_chats_migrate_on_load_with_one_backup() {
     let now: Value = serde_json::from_str(&std::fs::read_to_string(&paths.state).unwrap()).unwrap();
     let c = &now["chats"][0];
     assert_eq!((c["sid"].as_str(), c["launched"].as_bool(), c["keepMe"].as_i64()), (Some("6f1c"), Some(true), Some(7)));
+    assert!(c.get("fullAccess").is_none(), "yolo: true loads as full access off");
     for k in ["model", "effort", "web", "transcript", "graphNotes", "yolo"] {
         assert!(c.get(k).is_none(), "{k} dropped");
     }

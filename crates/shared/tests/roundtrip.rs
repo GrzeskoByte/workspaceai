@@ -82,5 +82,7 @@ fn a_ts_chat_migrates_to_a_session() {
     assert!(!chats[0].clone().migrate(), "a migrated session is left alone");
     let mut acp = Session { sid: "acp:claude:6f1c".into(), agent: String::new(), extra: [("yolo".to_string(), Value::Bool(true))].into_iter().collect(), ..Default::default() };
     assert!(acp.migrate());
-    assert_eq!((acp.sid.as_str(), acp.agent.as_str(), acp.full_access), ("6f1c", "claude", true));
+    assert_eq!((acp.sid.as_str(), acp.agent.as_str()), ("6f1c", "claude"));
+    assert!(!acp.full_access, "a legacy yolo: true must not become full access");
+    assert!(!acp.extra.contains_key("yolo"));
 }

@@ -167,6 +167,7 @@ impl Runtime {
                 env.insert("OPENCODE_SERVER_PASSWORD".into(), password);
                 let bin = crate::engine::detect::opencode_binary(&self.home, &self.ws.engine).unwrap_or_else(|_| "opencode".into());
                 let mut a = vec![bin, "--server".into(), client.url().to_string(), "--session".into(), s.sid.clone()];
+                // Same rule as claude's flag: explicit `full_access` only; the UI (B8) warns when it is turned on.
                 if s.full_access {
                     a.push("--auto".into());
                 }
@@ -191,6 +192,8 @@ impl Runtime {
                     (None, None) => a.extend(["--session-id".into(), s.sid.clone()]),
                 }
                 a.extend(["--mcp-config".into(), mcp_file.to_string_lossy().into_owned(), "--strict-mcp-config".into()]);
+                // Only ever behind the explicit per-session `full_access` flag (never migrated from `yolo`).
+                // The UI (B8) must show a warning when the user turns it on.
                 if s.full_access {
                     a.push("--dangerously-skip-permissions".into());
                 }
