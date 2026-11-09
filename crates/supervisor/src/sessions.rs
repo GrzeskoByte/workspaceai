@@ -262,13 +262,13 @@ impl Runtime {
             Some(self.engine_status().url).filter(|u| !u.is_empty()).unwrap_or_else(|| "http://127.0.0.1:<port>".into())
         };
         let pw = match (&self.ws.engine.mode, &self.engine) {
-            (EngineMode::Managed, Some(e)) => format!("OPENCODE_SERVER_PASSWORD='{}' ", e.password),
+            (EngineMode::Managed, Some(e)) => format!("OPENCODE_SERVER_PASSWORD={} ", shell_quote(&e.password)),
             (EngineMode::Managed, None) => "OPENCODE_SERVER_PASSWORD='' ".into(),
             _ => String::new(),
         };
-        let mut out = format!("{pw}opencode --server {url}");
+        let mut out = format!("{pw}opencode --server {}", shell_quote(&url));
         if let Some(s) = s {
-            out.push_str(&format!(" --session {} {}", s.sid, self.project_folder(&s.project)));
+            out.push_str(&format!(" --session {} {}", shell_quote(&s.sid), shell_quote(&self.project_folder(&s.project))));
         }
         Ok(out)
     }
@@ -606,5 +606,27 @@ mod tests {
         assert_eq!(m.len(), 2);
         assert_eq!((m[0]["text"].as_str(), m[0]["createdAt"].as_i64()), (Some("hello"), Some(1000)));
         assert_eq!(m[1]["text"], "hi");
+    }
+}
+
+/// POSIX single-quote escaping for text that ends up in a line the user pastes into a shell. Plain words stay unquoted.
+fn shell_quote(s: &str) -> String {
+    if !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || "_@%+=:,./-".contains(c)) {
+        s.to_string()
+    } else {
+        format!("'{}'", s.replace('\'', "'\\''"))
+    }
+}
+
+#[cfg(test)]
+mod shell_quote_tests {
+    use super::shell_quote;
+    #[test]
+    fn quotes_what_a_shell_would_interpret() {
+        assert_eq!(shell_quote("ses_abc123"), "ses_abc123");
+        assert_eq!(shell_quote("/home/me/web"), "/home/me/web");
+        assert_eq!(shell_quote("ses_x; rm -rf ~"), "'ses_x; rm -rf ~'");
+        assert_eq!(shell_quote("it's $(id)"), "'it'\\''s $(id)'");
+        assert_eq!(shell_quote(""), "''");
     }
 }
