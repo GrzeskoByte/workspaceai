@@ -7618,6 +7618,7 @@ dependencies = [
  "unicode-segmentation",
  "workspaceai-client",
  "workspaceai-shared",
+ "workspaceai-term",
  "wry",
 ]
 

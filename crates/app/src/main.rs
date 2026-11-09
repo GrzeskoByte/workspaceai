@@ -7,6 +7,7 @@ mod md_view;
 mod onboarding;
 mod pages;
 mod panels;
+mod terminal_view;
 mod text_input;
 mod ui;
 mod webview;
@@ -2376,8 +2377,39 @@ fn app_bindings() -> Vec<KeyBinding> {
     ]
 }
 
+/// `--term <cmd> [args…]`, or one quoted string split on whitespace; no command = `$SHELL`.
+fn term_argv(rest: &[String]) -> Vec<String> {
+    match rest {
+        [] => vec![std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into())],
+        [one] => one.split_whitespace().map(String::from).collect(),
+        many => many.to_vec(),
+    }
+}
+
+/// Debug harness: one window, only a terminal.
+fn run_term(argv: Vec<String>) {
+    gpui_platform::application().run(move |cx: &mut App| {
+        terminal_view::bind_keys(cx);
+        let bounds = Bounds::centered(None, size(px(900.), px(600.)), cx);
+        cx.open_window(WindowOptions { window_bounds: Some(WindowBounds::Windowed(bounds)), ..Default::default() }, |window, cx| {
+            cx.new(|cx| terminal_view::TermHarness::new(argv, window, cx))
+        })
+        .unwrap();
+        cx.on_window_closed(|cx, _| cx.quit()).detach();
+        cx.activate(true);
+    });
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn term_argv_forms() {
+        let s = |v: &[&str]| v.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+        assert_eq!(super::term_argv(&s(&["htop -d 5"])), s(&["htop", "-d", "5"]));
+        assert_eq!(super::term_argv(&s(&["bash", "-c", "echo hi"])), s(&["bash", "-c", "echo hi"]));
+        assert_eq!(super::term_argv(&[]).len(), 1);
+    }
+
     #[test]
     fn app_key_bindings_are_valid_keystrokes() {
         // KeyBinding::new panics on a keystroke GPUI cannot parse; that once killed the app at startup.
@@ -2392,6 +2424,10 @@ fn main() {
             std::process::exit(1);
         }
         return;
+    }
+    let args: Vec<String> = std::env::args().collect();
+    if let Some(i) = args.iter().position(|a| a == "--term") {
+        return run_term(term_argv(&args[i + 1..]));
     }
     webview::init();
     gpui_platform::application().run(|cx: &mut App| {
