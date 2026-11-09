@@ -14,3 +14,13 @@ fn several_paths_end_with_a_space() {
     assert_eq!(quote_paths(&["/a".into(), "/b c".into()]), "/a '/b c' ");
     assert_eq!(quote_paths(&[]), "");
 }
+
+#[test]
+fn paths_with_control_characters_are_never_pasted() {
+    use workspaceai_client::files::is_pasteable;
+    assert!(is_pasteable("/a/b c.txt"));
+    assert!(!is_pasteable("/a/x\ny"));
+    assert!(!is_pasteable("/a/\x1b[31m"));
+    assert!(!is_pasteable("/a/\u{7f}"));
+    assert_eq!(quote_paths(&["/ok".into(), "/bad\nrm -rf ~".into(), "/b c".into()]), "/ok '/b c' ");
+}
