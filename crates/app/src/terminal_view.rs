@@ -59,6 +59,9 @@ pub enum TermViewEvent {
     OpenLink(String),
 }
 
+const CLIPBOARD_MAX: usize = 100_000;
+const CLIPBOARD_WINDOW: std::time::Duration = std::time::Duration::from_secs(10);
+
 /// Last laid-out grid geometry, in window coordinates.
 #[derive(Clone, Copy, Default)]
 struct Geom {
@@ -85,6 +88,10 @@ pub struct TerminalView {
     marked: Option<String>,
     title: Option<String>,
     bell: bool,
+    /// When the user last typed or pasted here: OSC 52 clipboard writes are only honoured shortly after.
+    last_input: Option<Instant>,
+    /// Size of the last OSC 52 write that was applied or refused, for the app to show (`take_clipboard_notice`).
+    clipboard_notice: Option<(usize, bool)>,
     last_output: Option<Instant>,
     exit: Option<Option<i32>>,
     status: Status,
@@ -127,6 +134,8 @@ impl TerminalView {
             marked: None,
             title: None,
             bell: false,
+            last_input: None,
+            clipboard_notice: None,
             last_output: None,
             exit: None,
             status: Status::Idle,
@@ -136,6 +145,11 @@ impl TerminalView {
             selecting: false,
             wheel: 0.,
         }
+    }
+
+    /// `(bytes, applied)` for the last OSC 52 clipboard request, once; the app shows "copied" or "refused".
+    pub fn take_clipboard_notice(&mut self) -> Option<(usize, bool)> {
+        self.clipboard_notice.take()
     }
 
     pub fn status(&self) -> Status {
@@ -161,7 +175,16 @@ impl TerminalView {
                     cx.emit(TermViewEvent::Title(t));
                     dirty = true;
                 }
-                TermEvent::ClipboardStore(s) => cx.write_to_clipboard(ClipboardItem::new_string(s)),
+                // OSC 52: whatever is printed in a terminal (a `cat` of a hostile file) must not silently replace the
+                // clipboard. Only shortly after the user's own input, capped in size, and always reported.
+                TermEvent::ClipboardStore(s) => {
+                    let allowed = s.len() <= CLIPBOARD_MAX && self.last_input.is_some_and(|t| t.elapsed() < CLIPBOARD_WINDOW);
+                    self.clipboard_notice = Some((s.len(), allowed));
+                    if allowed {
+                        cx.write_to_clipboard(ClipboardItem::new_string(s));
+                    }
+                    dirty = true;
+                }
                 TermEvent::Exit(code) => {
                     self.exit = Some(code);
                     dirty = true;
@@ -182,6 +205,7 @@ impl TerminalView {
     /// The user acted: clear "needs you" and jump back to the live screen.
     fn user_input(&mut self) {
         self.bell = false;
+        self.last_input = Some(Instant::now());
         if let Some(s) = &self.session {
             s.scroll(Scroll::Bottom);
         }
