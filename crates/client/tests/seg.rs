@@ -1,6 +1,5 @@
 use workspaceai_client::api::{seg, INVALID_ID};
 use workspaceai_client::routines::item_path;
-use workspaceai_client::files::search_path;
 use workspaceai_client::settings::EngineAction;
 
 #[test]
@@ -45,6 +44,5 @@ fn built_paths_never_contain_a_dot_or_empty_segment() {
 
 #[test]
 fn request_paths_built_in_the_client_encode_their_ids() {
-    assert_eq!(search_path("w/1", "..", "q"), "/api/ws/w%2F1/projects/invalid%20id/files?q=q");
     assert_eq!(EngineAction::Start.path("../x"), "/api/ws/..%2Fx/engine/start");
 }

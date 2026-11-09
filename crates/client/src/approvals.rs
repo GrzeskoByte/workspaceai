@@ -43,11 +43,6 @@ pub fn pending(snap: &Snapshot, perms: &HashMap<String, Vec<PermissionRequest>>)
         .collect()
 }
 
-/// Chats whose turn waits for an answer; their requests are fetched when the overview opens.
-pub fn waiting_chats(snap: &Snapshot) -> Vec<String> {
-    snap.chat_activity.iter().filter(|(_, s)| s.as_str() == "waiting").map(|(c, _)| c.clone()).collect()
-}
-
 pub fn reply_path(workspace: &str, chat: &str, request: &str) -> String {
     format!("/api/ws/{}/chats/{}/permission/{}", seg(workspace), seg(chat), seg(request))
 }

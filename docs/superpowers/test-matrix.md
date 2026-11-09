@@ -15,11 +15,11 @@ Every TypeScript test gets a Rust counterpart, or is marked N/A with a reason. R
 | › in 3 hours | `in_3_hours_is_once` | ported |
 | › events | `push_event`, `email_event` | ported |
 | › rejects nonsense | `rejects_nonsense` | ported |
-| `shared/test/commands.test.ts` › @ references (finds) | `commands.rs::mention_at_finds_the_reference_being_typed` | ported |
-| › @ references (inserts) | `insert_mention_says_where_the_caret_goes` | ported |
-| › maps each harness command | `command_action_maps_each_harness_command_to_the_agents_equivalent` | ported |
-| › lists harness commands first | `chat_commands_list_harness_first_then_uncovered_agent_commands` | ported |
-| › parses a command and its arguments | `parse_slash_splits_command_and_arguments` | ported |
+| `shared/test/commands.test.ts` › @ references (finds) | — | N/A (feature removed): the composer and its `@` popup are gone; typing goes to the terminal |
+| › @ references (inserts) | — | N/A (feature removed): see above |
+| › maps each harness command | — | N/A (feature removed): the agent's own `/` commands in its TUI |
+| › lists harness commands first | — | N/A (feature removed): no slash layer |
+| › parses a command and its arguments | — | N/A (feature removed): no slash layer; `shared/commands.rs` deleted in B8 |
 | `shared/test/sheet.test.ts` › reads plan usage into meters and ranked tips | `sheet.rs::reads_plan_usage_into_meters_and_ranked_tips` | ported |
 | › reads the context window and its categories | `reads_the_context_window_and_its_categories` | ported |
 | `shared/test/markdown.test.ts` (lists ×5, links ×3, gitlabMarkdown ×2) | `markdown.rs::lists_*`, `links_*`, `gitlab_markdown_*` | ported |
@@ -76,3 +76,5 @@ Every TypeScript test gets a Rust counterpart, or is marked N/A with a reason. R
 | other `supervisor/test/*`, `orchestrator/test/rules.test.ts` | — | pending (later plans) |
 | — (new: terminal sessions, no TS counterpart) | `term` `pty.rs::{colour_cell, resize_reaches_child, exit_status_arrives, title_and_bell, wrapped_line_selection_copies_without_newline, cursor_position_report_is_answered, drop_hangs_up_the_child, drop_kills_a_child_that_ignores_hangup}`, `keys::tests::{encoder_table, paste}` | new (B6) |
 | — (new: terminal view, no TS counterpart) | `app` `terminal_view::tests::{palette_matches_term, runs_group_by_style_and_isolate_wide_and_non_ascii, inverse_selection_and_backgrounds, key_mapping, key_bindings_parse, selection_geometry, mouse_reports, link_detection, status_order}`, `tests::term_argv_forms`; paint/IME by hand (PORT-STATUS owner checklist) | new (B7) |
+| `client` `command.rs` (slash replies), `models.rs` per-session label/efforts, `events.rs` (SSE parse + stream), `supervisor.rs` (spawn node, ready line) | — | N/A (feature removed, B8): sessions are terminals; the supervisor runs in-process; no SSE, no child process |
+| `client/tests/api.rs` (HTTP token, error body) | `api.rs::get_calls_the_supervisor_in_process`, `unknown_routes_are_404_with_a_message`, `paths_are_decoded_and_unsafe_segments_cannot_resplit`, `supervisor_events_reach_the_channel` | rewritten for the in-process `Api` |

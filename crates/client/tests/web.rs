@@ -1,5 +1,4 @@
 use serde_json::json;
-use workspaceai_client::types::ChatMessage;
 use workspaceai_client::web::*;
 
 #[test]
@@ -56,13 +55,6 @@ fn dev_server_reply_and_chips() {
     assert_eq!(start_body(" npm run dev ").unwrap()["command"], "npm run dev");
     assert_eq!(stop_body()["action"], "stop");
     assert_eq!(dev_path("w 1", "p"), "/api/ws/w%201/projects/p/dev");
-}
-
-#[test]
-fn messages_carry_their_artifact_and_tool_output() {
-    let m: ChatMessage = serde_json::from_value(json!({"id":"m","role":"assistant","artifact":"a1","tools":[{"name":"bash","status":"ok","output":"listening on http://localhost:4000"}]})).unwrap();
-    assert_eq!(m.artifact.as_deref(), Some("a1"));
-    assert_eq!(m.tools[0].output.as_deref(), Some("listening on http://localhost:4000"));
 }
 
 #[test]

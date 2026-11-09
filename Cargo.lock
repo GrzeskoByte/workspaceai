@@ -6344,8 +6344,6 @@ dependencies = [
  "once_cell",
  "rustls",
  "rustls-pki-types",
- "serde",
- "serde_json",
  "url",
  "webpki-roots 0.26.11",
 ]
@@ -7618,6 +7616,7 @@ dependencies = [
  "unicode-segmentation",
  "workspaceai-client",
  "workspaceai-shared",
+ "workspaceai-supervisor",
  "workspaceai-term",
  "wry",
 ]
@@ -7627,12 +7626,11 @@ name = "workspaceai-client"
 version = "0.0.1"
 dependencies = [
  "chrono",
- "libc",
  "pulldown-cmark",
  "serde",
  "serde_json",
- "ureq",
  "workspaceai-shared",
+ "workspaceai-supervisor",
 ]
 
 [[package]]

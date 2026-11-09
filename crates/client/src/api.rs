@@ -1,11 +1,13 @@
-//! HTTP client for the supervisor: every request carries the `x-harness-token` header.
+//! The app's view of the backend: every request is a call into the in-process `Supervisor::handle`.
 
-use crate::supervisor::Info;
 use serde_json::Value;
+use std::collections::BTreeMap;
+use std::sync::Arc;
+use workspaceai_supervisor::Supervisor;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ApiError {
-    /// HTTP status, or 0 when the supervisor could not be reached.
+    /// HTTP-style status (404 unknown route, 400 bad request, ...).
     pub status: u16,
     pub message: String,
 }
@@ -16,35 +18,57 @@ impl std::fmt::Display for ApiError {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Api {
-    pub base: String,
-    pub token: String,
+    pub sup: Arc<Supervisor>,
+}
+
+/// Inverse of `pct`: `%XX` back to bytes (invalid escapes stay as typed), lossy UTF-8.
+pub fn unpct(s: &str) -> String {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        let hex = (b[i] == b'%' && i + 2 < b.len()).then(|| std::str::from_utf8(&b[i + 1..i + 3]).ok().and_then(|h| u8::from_str_radix(h, 16).ok())).flatten();
+        match hex {
+            Some(v) => {
+                out.push(v);
+                i += 3;
+            }
+            None => {
+                out.push(b[i]);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// `/a/b%20c?x=1&y=2` to the decoded path and query map the router takes.
+pub fn split_request(path: &str) -> (String, BTreeMap<String, String>) {
+    let (p, q) = path.split_once('?').unwrap_or((path, ""));
+    // A decoded segment that is not one safe path segment (`%2F`, `..`) must not re-split into other routes.
+    let path = p.split('/').map(|s| { let d = unpct(s); if d.contains('/') || d == ".." || d == "." { INVALID_ID.to_string() } else { d } }).collect::<Vec<_>>().join("/");
+    let query = q.split('&').filter(|kv| !kv.is_empty()).map(|kv| {
+        let (k, v) = kv.split_once('=').unwrap_or((kv, ""));
+        (unpct(&k.replace('+', " ")), unpct(&v.replace('+', " ")))
+    }).collect();
+    (path, query)
 }
 
 impl Api {
-    pub fn new(info: &Info) -> Api {
-        Api { base: format!("http://127.0.0.1:{}", info.port), token: info.token.clone() }
+    pub fn new(sup: Arc<Supervisor>) -> Api {
+        Api { sup }
+    }
+
+    /// Sends every supervisor event to `tx` (as many times as called; one subscription per window).
+    pub fn events(&self, tx: std::sync::mpsc::Sender<crate::types::UiEvent>) {
+        let _ = self.sup.with_core(|c| c.on(Arc::new(move |e| { let _ = tx.send(crate::types::UiEvent::from_supervisor(e)); })));
     }
 
     pub fn request(&self, method: &str, path: &str, body: Option<&Value>) -> Result<Value, ApiError> {
-        let req = ureq::request(method, &format!("{}{path}", self.base)).set("x-harness-token", &self.token);
-        let res = match body {
-            Some(b) => req.send_json(b),
-            None => req.call(),
-        };
-        match res {
-            Ok(r) => {
-                let text = r.into_string().map_err(|e| ApiError { status: 0, message: e.to_string() })?;
-                Ok(if text.is_empty() { Value::Object(Default::default()) } else { serde_json::from_str(&text).unwrap_or(Value::String(text)) })
-            }
-            Err(ureq::Error::Status(status, r)) => {
-                let text = r.into_string().unwrap_or_default();
-                let message = serde_json::from_str::<Value>(&text).ok().and_then(|v| v["err"].as_str().map(str::to_string)).unwrap_or(text);
-                Err(ApiError { status, message })
-            }
-            Err(e) => Err(ApiError { status: 0, message: e.to_string() }),
-        }
+        let (p, query) = split_request(path);
+        self.sup.handle(method, &p, &query, body.cloned()).map_err(|e| ApiError { status: e.status, message: e.message })
     }
 
     pub fn get(&self, path: &str) -> Result<Value, ApiError> {
@@ -88,18 +112,19 @@ pub fn seg(id: &str) -> String {
 }
 
 impl Api {
-    /// Streams a GET to a new file in `dir` (named by the reply's Content-Disposition, never overwriting) and returns it.
+    /// Saves a file route's answer to a new file in `dir` (never overwriting) and returns it. Only the workspace
+    /// export answers bytes; the artifact exports arrive with the artifacts batch.
     pub fn download_to(&self, path: &str, dir: &std::path::Path) -> Result<std::path::PathBuf, ApiError> {
-        let res = match ureq::get(&format!("{}{path}", self.base)).set("x-harness-token", &self.token).call() {
-            Ok(r) => r,
-            Err(ureq::Error::Status(status, r)) => return Err(ApiError { status, message: r.into_string().unwrap_or_default() }),
-            Err(e) => return Err(ApiError { status: 0, message: e.to_string() }),
+        let (p, _) = split_request(path);
+        let segs: Vec<&str> = p.split('/').filter(|s| !s.is_empty()).collect();
+        let ["api", "ws", id, "export"] = segs.as_slice() else {
+            return Err(ApiError { status: 404, message: "That export is not available yet.".into() });
         };
-        let name = res.header("content-disposition").and_then(crate::spaces::filename_from_disposition).unwrap_or_else(|| "export".into());
-        let target = crate::spaces::unique_path(dir, &name, |p| p.exists());
+        let archive = self.sup.export_workspace(id).map_err(|e| ApiError { status: e.status, message: e.message })?;
+        let target = crate::spaces::unique_path(dir, &archive.filename, |p| p.exists());
         let io = |e: std::io::Error| ApiError { status: 0, message: format!("Could not save {}: {e}", target.display()) };
-        let mut file = std::fs::File::create(&target).map_err(io)?;
-        std::io::copy(&mut res.into_reader(), &mut file).map_err(io)?;
+        std::fs::create_dir_all(dir).map_err(io)?;
+        std::fs::write(&target, &archive.bytes).map_err(io)?;
         Ok(target)
     }
 }

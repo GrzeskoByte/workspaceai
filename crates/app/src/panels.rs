@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 use workspaceai_client::artifacts;
 use workspaceai_client::library::{self, Body};
 use workspaceai_client::markdown;
-use workspaceai_client::types::{Artifact, ChatMessage};
+use workspaceai_client::types::Artifact;
 use workspaceai_client::web;
 
 pub struct Side {
@@ -273,49 +273,6 @@ impl AppView {
                 )
                 .child(div().flex_1().min_h_0().child(body)),
         )
-    }
-
-    // ---------- chat additions ----------
-
-    /// Under a reply: a card for the artifact it made, and "Preview localhost:…" for a local address in it.
-    pub fn message_extras(&self, msg: &ChatMessage, cx: &mut Context<Self>) -> Option<Div> {
-        if msg.role == "user" {
-            return None;
-        }
-        let art = msg.artifact.as_ref().and_then(|id| self.model.snapshot.artifacts.iter().find(|a| &a.id == id));
-        let url = web::local_url_in(&msg.text).or_else(|| msg.tools.iter().find_map(|t| t.output.as_deref().and_then(web::local_url_in)));
-        if art.is_none() && url.is_none() {
-            return None;
-        }
-        let mut d = div().flex().flex_col().gap_2().mt_2();
-        if let Some(a) = art {
-            let id = a.id.clone();
-            d = d.child(
-                div()
-                    .id(SharedString::from(format!("card-{}-{}", msg.id, a.id)))
-                    .flex()
-                    .items_center()
-                    .gap_3()
-                    .max_w(px(440.))
-                    .p_3()
-                    .rounded_lg()
-                    .cursor_pointer()
-                    .bg(rgb(PANEL))
-                    .hover(|s| s.bg(rgb(USER_BUBBLE)))
-                    .child(tag(a.kind.to_uppercase()))
-                    .child(div().flex().flex_col().flex_1().child(div().font_weight(FontWeight::BOLD).text_size(px(13.)).child(SharedString::from(a.title.clone()))).child(small(format!("{} · v{}", a.kind, a.version))))
-                    .child(div().text_color(rgb(ACCENT)).text_size(px(12.)).child("Open"))
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.open_artifact_panel(id.clone());
-                        cx.notify();
-                    })),
-            );
-        }
-        if let Some(u) = url {
-            let label = format!("▣ Preview {}", web::short_url(&u));
-            d = d.child(div().flex().child(btn(cx, &format!("preview-{}", msg.id), &label, RAISED_OFF, true, move |this, _| this.open_browser(Some(u.clone())))));
-        }
-        Some(d)
     }
 
     /// The panel beside the chat: an open artifact covers the browser; closing it shows the browser again.

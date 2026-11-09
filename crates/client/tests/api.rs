@@ -1,76 +1,44 @@
-use std::io::{Read, Write};
-use std::net::TcpListener;
-use std::thread::JoinHandle;
-use workspaceai_client::api::Api;
-use workspaceai_client::supervisor::Info;
+use serde_json::json;
+use std::sync::Arc;
+use workspaceai_client::api::{split_request, Api};
+use workspaceai_client::types::UiEvent;
+use workspaceai_supervisor::Supervisor;
 
-/// Serves one request with `response`, returns the raw request text it saw.
-fn serve_once(response: &'static str) -> (u16, JoinHandle<String>) {
-    let l = TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = l.local_addr().unwrap().port();
-    let h = std::thread::spawn(move || {
-        let (mut s, _) = l.accept().unwrap();
-        let mut buf = Vec::new();
-        let mut chunk = [0u8; 1024];
-        loop {
-            let n = s.read(&mut chunk).unwrap();
-            buf.extend_from_slice(&chunk[..n]);
-            let text = String::from_utf8_lossy(&buf).to_string();
-            if let Some(head_end) = text.find("\r\n\r\n") {
-                let len = text.lines().find_map(|l| l.to_ascii_lowercase().strip_prefix("content-length: ").and_then(|v| v.trim().parse::<usize>().ok())).unwrap_or(0);
-                if buf.len() >= head_end + 4 + len {
-                    break;
-                }
-            }
-            if n == 0 {
-                break;
-            }
-        }
-        s.write_all(response.as_bytes()).unwrap();
-        String::from_utf8_lossy(&buf).to_string()
-    });
-    (port, h)
-}
-
-fn api(port: u16) -> Api {
-    Api::new(&Info { port, token: "secret".into() })
+fn api(name: &str) -> Api {
+    let dir = std::env::temp_dir().join(format!("wsai-api-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::env::set_var("HARNESS_KEYCHAIN", "memory");
+    Api::new(Arc::new(Supervisor::new(dir).unwrap()))
 }
 
 #[test]
-fn get_sends_the_token_and_returns_json() {
-    let (port, h) = serve_once("HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 18\r\n\r\n{\"workspaces\":[1]}");
-    let v = api(port).get("/api/state").unwrap();
-    assert_eq!(v["workspaces"][0], 1);
-    let req = h.join().unwrap().to_ascii_lowercase();
-    assert!(req.starts_with("get /api/state "), "{req}");
-    assert!(req.contains("x-harness-token: secret"), "{req}");
+fn get_calls_the_supervisor_in_process() {
+    let v = api("state").get("/api/state").unwrap();
+    assert!(v["workspaces"].is_array(), "{v}");
 }
 
 #[test]
-fn post_sends_a_json_body() {
-    let (port, h) = serve_once("HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\n{}");
-    api(port).post("/api/ws/w/chats/c/send", Some(&serde_json::json!({"text": "héllo"}))).unwrap();
-    let req = h.join().unwrap();
-    assert!(req.starts_with("POST /api/ws/w/chats/c/send "), "{req}");
-    assert!(req.contains(r#"{"text":"héllo"}"#), "{req}");
+fn unknown_routes_are_404_with_a_message() {
+    let e = api("404").get("/nope").unwrap_err();
+    assert_eq!((e.status, e.message.as_str()), (404, "Not found"));
+    let e = api("post").post("/api/ws/invalid%20id/chats", Some(&json!({}))).unwrap_err();
+    assert_eq!(e.status, 404);
 }
 
 #[test]
-fn error_message_comes_from_the_err_field() {
-    let (port, _h) = serve_once("HTTP/1.1 400 Bad Request\r\ncontent-length: 14\r\n\r\n{\"err\":\"nope\"}");
-    let e = api(port).get("/x").unwrap_err();
-    assert_eq!((e.status, e.message.as_str()), (400, "nope"));
+fn paths_are_decoded_and_unsafe_segments_cannot_resplit() {
+    let (p, q) = split_request("/api/ws/a%20b/files?q=x%26y&n=1");
+    assert_eq!(p, "/api/ws/a b/files");
+    assert_eq!((q["q"].as_str(), q["n"].as_str()), ("x&y", "1"));
+    assert_eq!(split_request("/api/ws/..%2Ffacts/x").0, "/api/ws/invalid%20id/x");
+    assert_eq!(split_request("/api/ws/%2E%2E/x").0, "/api/ws/invalid%20id/x");
 }
 
 #[test]
-fn non_json_error_body_becomes_the_message() {
-    let (port, _h) = serve_once("HTTP/1.1 500 Internal Server Error\r\ncontent-length: 4\r\n\r\nboom");
-    let e = api(port).get("/x").unwrap_err();
-    assert_eq!((e.status, e.message.as_str()), (500, "boom"));
-}
-
-#[test]
-fn unreachable_server_is_status_zero() {
-    let e = Api::new(&Info { port: 1, token: "t".into() }).get("/x").unwrap_err();
-    assert_eq!(e.status, 0);
+fn supervisor_events_reach_the_channel() {
+    let api = api("events");
+    let (tx, rx) = std::sync::mpsc::channel();
+    api.events(tx);
+    api.sup.with_core(|c| c.emit(workspaceai_supervisor::UiEvent::Toast { text: "hi".into() })).unwrap();
+    assert_eq!(rx.try_recv().unwrap(), UiEvent::Toast { text: "hi".into() });
 }

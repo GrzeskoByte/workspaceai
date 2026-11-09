@@ -54,7 +54,7 @@ fn unicode_queries_do_not_panic() {
 #[test]
 fn archived_chats_are_not_offered_and_current_chat_is_first_among_chats() {
     use workspaceai_client::types::{Chat, Snapshot, WorkspaceSummary};
-    let chat = |id: &str, title: &str, updated: i64, archived: bool| Chat { id: id.into(), project: "p".into(), title: title.into(), archived, updated_at: updated, agent: String::new(), model: String::new(), effort: None, yolo: None };
+    let chat = |id: &str, title: &str, updated: i64, archived: bool| Chat { id: id.into(), project: "p".into(), title: title.into(), archived, updated_at: updated, agent: String::new(), full_access: false };
     let snap = Snapshot { chats: vec![chat("c1", "old", 1, false), chat("c2", "new", 9, false), chat("c3", "gone", 99, true)], ..Default::default() };
     let ws = vec![WorkspaceSummary { id: "w1".into(), name: "Personal".into(), kind: "personal".into(), initials: "P".into(), accent: String::new(), note: String::new() }];
     let all = build(&ws, &snap, false);

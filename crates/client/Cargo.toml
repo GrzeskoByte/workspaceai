@@ -6,9 +6,8 @@ publish = false
 
 [dependencies]
 workspaceai-shared = { path = "../shared" }
+workspaceai-supervisor = { path = "../supervisor" }
 chrono = "0.4"
-libc = "0.2"
 serde = { version = "1", features = ["derive"] }
 pulldown-cmark = { version = "0.13", default-features = false }
 serde_json = "1"
-ureq = { version = "2", features = ["json"] }

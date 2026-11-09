@@ -2,7 +2,6 @@
 //! does not use are ignored, and missing optional ones default.
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct WorkspaceSummary {
@@ -117,16 +116,12 @@ pub struct Chat {
     pub archived: bool,
     #[serde(default)]
     pub updated_at: i64,
-    /// opencode or an ACP agent id; empty when the supervisor did not say.
+    /// Adapter id: opencode, claude, grok or pi; empty when the supervisor did not say.
     #[serde(default)]
     pub agent: String,
+    /// The agent runs with its skip-permissions flag (relaunched when switched).
     #[serde(default)]
-    pub model: String,
-    #[serde(default)]
-    pub effort: Option<String>,
-    /// Full permissions: tool calls run without asking in this chat.
-    #[serde(default)]
-    pub yolo: Option<bool>,
+    pub full_access: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -543,43 +538,10 @@ pub struct Snapshot {
     pub projects: Vec<Project>,
     #[serde(default)]
     pub chats: Vec<Chat>,
-    /// Chats with a turn in progress ("working" or "waiting"); the others are idle.
-    #[serde(default)]
-    pub chat_activity: HashMap<String, String>,
     #[serde(default)]
     pub audit: Vec<AuditEvent>,
     #[serde(default)]
     pub policy: Option<Policy>,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct ToolStep {
-    pub name: String,
-    #[serde(default)]
-    pub status: String,
-    #[serde(default)]
-    pub detail: Option<String>,
-    /// What the tool printed; a local address in it is offered as a preview.
-    #[serde(default)]
-    pub output: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ChatMessage {
-    pub id: String,
-    pub role: String,
-    #[serde(default)]
-    pub text: String,
-    #[serde(default)]
-    pub tools: Vec<ToolStep>,
-    #[serde(default)]
-    pub error: Option<String>,
-    #[serde(default)]
-    pub created_at: i64,
-    /// The artifact this reply made or changed, shown as a card that opens the artifact panel.
-    #[serde(default)]
-    pub artifact: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -591,43 +553,39 @@ pub struct PermissionRequest {
     pub detail: String,
 }
 
-/// Events pushed by the supervisor over SSE. Types this slice does not use become `Other`.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-#[serde(tag = "type")]
+/// Events the in-process supervisor emits, as the model folds them in.
+#[derive(Debug, Clone, PartialEq)]
 pub enum UiEvent {
-    #[serde(rename = "state")]
     State { workspace: Option<String> },
-    #[serde(rename = "snapshot")]
     Snapshot { workspace: String },
-    #[serde(rename = "chat.delta")]
-    ChatDelta {
-        workspace: String,
-        chat: String,
-        #[serde(rename = "messageId")]
-        message_id: String,
-        delta: String,
-    },
-    #[serde(rename = "chat.tool")]
-    ChatTool {
-        workspace: String,
-        chat: String,
-        #[serde(rename = "messageId")]
-        message_id: String,
-        tool: ToolStep,
-    },
-    #[serde(rename = "chat.done")]
-    ChatDone { workspace: String, chat: String, outcome: String },
-    #[serde(rename = "chat.permission")]
-    ChatPermission { workspace: String, chat: String, request: PermissionRequest },
-    #[serde(rename = "chat.permission.clear")]
-    ChatPermissionClear {
-        workspace: String,
-        chat: String,
-        #[serde(rename = "requestId", default)]
-        request_id: Option<String>,
-    },
-    #[serde(rename = "toast")]
     Toast { text: String },
-    #[serde(other)]
+    /// A permission ask raised by a headless run (routine, pipeline); terminal sessions ask in their TUI.
+    Approval { workspace: String, chat: String, request: PermissionRequest },
+    /// An agent made or revised an artifact: refresh and open it beside the terminal.
+    Artifact { workspace: String, artifact: String },
     Other,
+}
+
+impl UiEvent {
+    /// The in-process supervisor's event in the shape the model folds in.
+    pub fn from_supervisor(e: workspaceai_supervisor::UiEvent) -> UiEvent {
+        use workspaceai_supervisor::UiEvent as S;
+        match e {
+            S::Snapshot { workspace } => UiEvent::Snapshot { workspace },
+            S::State { workspace } => UiEvent::State { workspace },
+            S::Toast { text } => UiEvent::Toast { text },
+            S::Approval { workspace, chat, permission } => match serde_json::from_value(permission) {
+                Ok(request) => UiEvent::Approval { workspace, chat, request },
+                Err(_) => UiEvent::Other,
+            },
+            // Read by shape so a supervisor event this build does not model (artifact opens) still arrives.
+            other => match serde_json::to_value(other) {
+                Ok(v) if v["type"] == "artifact" => match (v["workspace"].as_str(), v["artifact"].as_str()) {
+                    (Some(w), Some(a)) => UiEvent::Artifact { workspace: w.into(), artifact: a.into() },
+                    _ => UiEvent::Other,
+                },
+                _ => UiEvent::Other,
+            },
+        }
+    }
 }

@@ -1,5 +1,4 @@
 pub mod claude_design_system;
-pub mod commands;
 pub mod defaults;
 pub mod facts;
 pub mod markdown;

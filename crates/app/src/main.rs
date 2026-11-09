@@ -7,40 +7,38 @@ mod md_view;
 mod onboarding;
 mod pages;
 mod panels;
+mod sessions;
 mod terminal_view;
 mod text_input;
 mod ui;
 mod webview;
 
 use gpui::{
-    actions, div, prelude::*, px, rgb, rgba, size, App, Bounds, ExternalPaths, PathPromptOptions, KeyBinding, Context, Entity, Focusable, FontWeight, ScrollHandle, SharedString, Window, WindowBounds,
+    actions, div, prelude::*, px, rgb, rgba, size, App, Bounds, KeyBinding, Context, Entity, Focusable, FontWeight, SharedString, Window, WindowBounds,
     WindowOptions,
 };
-use std::path::PathBuf;
+use std::sync::{Arc, OnceLock};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::Duration;
 use text_input::{TextInput, TextInputEvent};
 use workspaceai_client::api::{seg, Api};
-use workspaceai_client::events;
+use workspaceai_client::approvals;
 use workspaceai_client::facts;
-use workspaceai_client::files;
 use workspaceai_client::model::{Connection, Model, RowKind};
 use workspaceai_client::models::ModelList;
+use workspaceai_client::chats::Launch;
 use workspaceai_client::palette::{self, Kind};
 use workspaceai_client::projects;
 use workspaceai_client::providers::{self, KeyState};
 use workspaceai_client::routines;
 use workspaceai_client::settings::{self, engine_actions, EngineAction};
-use workspaceai_client::supervisor::Supervisor;
-use workspaceai_client::chats::{self, Confirm, InFlight};
+use workspaceai_supervisor::Supervisor;
+use workspaceai_client::chats::{self, Confirm};
 use workspaceai_client::computers;
 use workspaceai_client::connectors;
 use workspaceai_client::subscriptions::{self, SignIn, SubAction};
-use workspaceai_client::command::{self, Outcome};
 use workspaceai_client::library;
-use workspaceai_client::markdown;
-use workspaceai_shared::commands::{insert_mention, mention_at, parse_slash, ChatCommand};
-use workspaceai_client::types::{AppState, Chat, ChatMessage, PermissionRequest, Snapshot, Subscription, UiEvent};
+use workspaceai_client::types::{AppState, Chat, Snapshot, Subscription, UiEvent};
 
 const BG: u32 = 0x1b1b1f;
 const PANEL: u32 = 0x232329;
@@ -53,18 +51,14 @@ const RAISED_OFF: u32 = 0x2a2a30;
 
 /// Everything a background thread can tell the window.
 enum Msg {
-    Ready(Api, Supervisor),
+    Ready(Api),
     StartFailed(String),
     Event(UiEvent),
-    StreamLost(String),
     State(AppState),
     Snapshot(String, Snapshot),
-    Messages(String, String, Vec<ChatMessage>),
-    Permissions(String, String, Vec<PermissionRequest>),
-    Commands(String, String, Vec<ChatCommand>),
-    CommandDone(Outcome),
+    /// The launch spec of a session, or why there is none.
+    Launch(String, String, Result<Launch, String>),
     Models(String, ModelList),
-    Files(String, Vec<String>),
     Secrets(String, Vec<String>),
     /// An artifact's content, and the page Open Design stores for it (empty when none).
     ArtifactView(String, Result<library::View, String>, String),
@@ -80,13 +74,8 @@ enum Msg {
     Error(String),
 }
 
-fn repo_root() -> PathBuf {
-    std::env::var_os("HARNESS_ROOT").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."))
-}
-
-fn node_binary() -> PathBuf {
-    std::env::var_os("HARNESS_NODE").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("node"))
-}
+/// The in-process supervisor, so `main` can stop its engines and terminals after the window loop ends.
+static SUPERVISOR: OnceLock<Arc<Supervisor>> = OnceLock::new();
 
 fn spawn<F: FnOnce() + Send + 'static>(f: F) {
     std::thread::spawn(f);
@@ -115,38 +104,6 @@ fn load_snapshot(api: Api, ws: String, tx: Sender<Msg>) {
     });
 }
 
-fn load_messages(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
-    spawn(move || {
-        let r = api.get(&format!("/api/ws/{}/chats/{}/messages", seg(&ws), seg(&chat))).map_err(|e| e.to_string()).and_then(|v| {
-            serde_json::from_value::<Vec<ChatMessage>>(v["messages"].clone()).map_err(|e| format!("unexpected messages reply: {e}"))
-        });
-        let _ = tx.send(match r {
-            Ok(m) => Msg::Messages(ws, chat, m),
-            Err(e) => Msg::Error(e),
-        });
-    });
-}
-
-fn load_permissions(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
-    spawn(move || {
-        let r = api.get(&format!("/api/ws/{}/chats/{}/permissions", seg(&ws), seg(&chat))).map_err(|e| e.to_string()).and_then(|v| {
-            serde_json::from_value::<Vec<PermissionRequest>>(v["permissions"].clone()).map_err(|e| format!("unexpected permissions reply: {e}"))
-        });
-        // A failure here only means no cards until the next event; it is not worth a toast.
-        if let Ok(list) = r {
-            let _ = tx.send(Msg::Permissions(ws, chat, list));
-        }
-    });
-}
-
-fn search_files(api: Api, ws: String, project: String, query: String, tx: Sender<Msg>) {
-    spawn(move || {
-        if let Ok(v) = api.get(&files::search_path(&ws, &project, &query)) {
-            let _ = tx.send(Msg::Files(query, files::parse_files(&v)));
-        }
-    });
-}
-
 fn fork_chat(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
     spawn(move || {
         let r = api.post(&format!("/api/ws/{}/chats/{}/fork", seg(&ws), seg(&chat)), None).map_err(|e| e.to_string()).and_then(|v| serde_json::from_value::<Chat>(v).map_err(|e| e.to_string()));
@@ -158,7 +115,8 @@ fn fork_chat(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
 }
 
 fn delete_chat(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
-    spawn(move || match api.del(&format!("/api/ws/{}/chats/{}", seg(&ws), seg(&chat))) {
+    // `confirm` also removes a claude transcript: the UI's two-step delete is the confirmation.
+    spawn(move || match api.request("DELETE", &format!("/api/ws/{}/chats/{}", seg(&ws), seg(&chat)), Some(&serde_json::json!({ "confirm": true }))) {
         Ok(_) => load_snapshot(api, ws, tx),
         Err(e) => {
             let _ = tx.send(Msg::Error(e.to_string()));
@@ -331,46 +289,9 @@ fn patch_chat(api: Api, ws: String, chat: String, body: serde_json::Value, tx: S
     });
 }
 
-fn load_commands(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
-    spawn(move || {
-        let r = api.get(&format!("/api/ws/{}/chats/{}/commands", seg(&ws), seg(&chat))).map_err(|e| e.to_string()).and_then(|v| {
-            serde_json::from_value::<Vec<ChatCommand>>(v["commands"].clone()).map_err(|e| format!("unexpected commands reply: {e}"))
-        });
-        if let Ok(list) = r {
-            let _ = tx.send(Msg::Commands(ws, chat, list));
-        }
-    });
-}
-
-fn run_command(api: Api, ws: String, chat: String, text: String, tx: Sender<Msg>) {
-    spawn(move || {
-        let _ = tx.send(match api.post(&format!("/api/ws/{}/chats/{}/command", seg(&ws), seg(&chat)), Some(&serde_json::json!({ "text": text }))) {
-            Ok(v) => Msg::CommandDone(command::interpret(&v)),
-            Err(e) => Msg::Error(e.to_string()),
-        });
-    });
-}
-
 fn answer_permission(api: Api, ws: String, chat: String, request: String, decision: &'static str, tx: Sender<Msg>) {
     spawn(move || {
-        if let Err(e) = api.post(&format!("/api/ws/{}/chats/{}/permission/{}", seg(&ws), seg(&chat), seg(&request)), Some(&serde_json::json!({ "decision": decision }))) {
-            let _ = tx.send(Msg::Error(e.to_string()));
-            load_permissions(api, ws, chat, tx);
-        }
-    });
-}
-
-fn stop_chat(api: Api, ws: String, chat: String, tx: Sender<Msg>) {
-    spawn(move || {
-        if let Err(e) = api.post(&format!("/api/ws/{}/chats/{}/stop", seg(&ws), seg(&chat)), None) {
-            let _ = tx.send(Msg::Error(e.to_string()));
-        }
-    });
-}
-
-fn send_text(api: Api, ws: String, chat: String, text: String, tx: Sender<Msg>) {
-    spawn(move || {
-        if let Err(e) = api.post(&format!("/api/ws/{}/chats/{}/send", seg(&ws), seg(&chat)), Some(&serde_json::json!({ "text": text }))) {
+        if let Err(e) = api.post(&approvals::reply_path(&ws, &chat, &request), Some(&approvals::reply_body(decision))) {
             let _ = tx.send(Msg::Error(e.to_string()));
         }
     });
@@ -399,15 +320,16 @@ fn activate(api: Api, ws: String, tx: Sender<Msg>) {
     });
 }
 
-/// Streams events forever, reconnecting after a drop.
-fn run_events(api: Api, tx: Sender<Msg>) {
-    spawn(move || loop {
-        let sent = tx.clone();
-        let r = events::stream(&api, move |e| {
-            let _ = sent.send(Msg::Event(e));
-        });
-        let _ = tx.send(Msg::StreamLost(r.err().unwrap_or_else(|| "the event stream closed".into())));
-        std::thread::sleep(Duration::from_millis(1500));
+/// Forwards the supervisor's events into the window's message pump.
+fn run_events(api: &Api, tx: Sender<Msg>) {
+    let (etx, erx) = channel();
+    api.events(etx);
+    spawn(move || {
+        while let Ok(e) = erx.recv() {
+            if tx.send(Msg::Event(e)).is_err() {
+                break;
+            }
+        }
     });
 }
 
@@ -460,22 +382,11 @@ struct AppView {
     rx: Receiver<Msg>,
     tx: Sender<Msg>,
     api: Option<Api>,
-    _supervisor: Option<Supervisor>,
-    input: Entity<TextInput>,
+    terms: sessions::Terms,
     rename_input: Entity<TextInput>,
     renaming: bool,
     confirm: Confirm,
-    in_flight: InFlight,
-    scroll: ScrollHandle,
-    local_id: u64,
-    commands: Vec<ChatCommand>,
     models: ModelList,
-    picker_open: bool,
-    /// Files matching the `@` reference being typed, and the query they answer.
-    files: Vec<String>,
-    last_query: Option<String>,
-    /// Information from a command (status, usage, help), shown above the composer until dismissed.
-    panel: Option<(String, String)>,
 }
 
 impl AppView {
@@ -483,13 +394,16 @@ impl AppView {
         let (tx, rx) = channel();
         let start_tx = tx.clone();
         spawn(move || {
-            let _ = start_tx.send(match Supervisor::start(&repo_root(), &node_binary()) {
-                Ok((info, sup)) => Msg::Ready(Api::new(&info), sup),
-                Err(e) => Msg::StartFailed(e),
+            let _ = start_tx.send(match Supervisor::with_default_home() {
+                Ok(sup) => {
+                    let sup = Arc::new(sup);
+                    let _ = SUPERVISOR.set(sup.clone());
+                    Msg::Ready(Api::new(sup))
+                }
+                Err(e) => Msg::StartFailed(e.message),
             });
         });
-        let input = cx.new(|cx| TextInput::new(cx, "Message…"));
-        let rename_input = cx.new(|cx| TextInput::new(cx, "Chat title"));
+        let rename_input = cx.new(|cx| TextInput::new(cx, "Session title"));
         let palette_input = cx.new(|cx| TextInput::new(cx, "Jump to a chat, workspace or setting…"));
         cx.subscribe_in(&palette_input, window, |this, _, event: &TextInputEvent, window, cx| {
             if *event == TextInputEvent::Submit {
@@ -549,28 +463,16 @@ impl AppView {
             }
         })
         .detach();
-        cx.subscribe_in(&rename_input, window, |this, input, event: &TextInputEvent, window, cx| {
+        cx.subscribe_in(&rename_input, window, |this, input, event: &TextInputEvent, _window, cx| {
             if *event == TextInputEvent::Submit {
                 let title = input.read(cx).content().to_string();
                 this.rename_to(&title);
                 this.renaming = false;
-                window.focus(&this.input.focus_handle(cx), cx);
+                this.ask_focus();
                 cx.notify();
             }
         })
         .detach();
-        cx.subscribe_in(&input, window, |this, input, event: &TextInputEvent, window, cx| {
-            if *event == TextInputEvent::Submit {
-                this.submit(input, window, cx);
-            }
-        })
-        .detach();
-        cx.observe(&input, |this, _, cx| {
-            this.on_input_changed(cx);
-            cx.notify();
-        })
-        .detach();
-        window.focus(&input.focus_handle(cx), cx);
         cx.spawn(async move |this, cx| loop {
             cx.background_executor().timer(Duration::from_millis(50)).await;
             if this.update(cx, |this, cx| this.pump(cx)).is_err() {
@@ -605,7 +507,7 @@ impl AppView {
             }
         })
         .detach();
-        AppView { extra, flow, onb, palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, library_search, library_sel: None, library_view: None, library_page: String::new(), side, secret_input, secret_names: Vec::new(), subs: Vec::new(), signin: None, signin_code, mcp_name, mcp_target, pairing: None, provider_form: None, provider_check: String::new(), project_input, show_archived: false, move_open: false, show_archived_chats: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, _supervisor: None, input, rename_input, renaming: false, confirm: Confirm::default(), in_flight: InFlight::default(), scroll: ScrollHandle::new(), local_id: 0, commands: Vec::new(), models: ModelList::default(), picker_open: false, files: Vec::new(), last_query: None, panel: None }
+        AppView { extra, flow, onb, palette_open: false, palette_sel: 0, palette_input, view: View::Chat, settings_page: "general", name_input, fact_input, library_search, library_sel: None, library_view: None, library_page: String::new(), side, secret_input, secret_names: Vec::new(), subs: Vec::new(), signin: None, signin_code, mcp_name, mcp_target, pairing: None, provider_form: None, provider_check: String::new(), project_input, show_archived: false, move_open: false, show_archived_chats: false, routine_phrase, routine_prompt, model: Model::default(), rx, tx, api: None, terms: sessions::Terms::default(), rename_input, renaming: false, confirm: Confirm::default(), models: ModelList::default() }
     }
 
     /// Drains background messages into the model and refetches whatever events made stale.
@@ -614,7 +516,7 @@ impl AppView {
         let mut changed = false;
         while let Ok(msg) = self.rx.try_recv() {
             changed = true;
-            self.handle(msg);
+            self.handle(msg, cx);
         }
         if let Some(api) = self.api.clone() {
             if std::mem::take(&mut self.model.needs.state) {
@@ -625,11 +527,6 @@ impl AppView {
                     load_snapshot(api.clone(), ws, self.tx.clone());
                 }
             }
-            if std::mem::take(&mut self.model.needs.messages) {
-                if let (Some(ws), Some(chat)) = (self.model.active_ws.clone(), self.model.open_chat_id.clone()) {
-                    load_messages(api, ws, chat, self.tx.clone());
-                }
-            }
         }
         if self.onb.loaded && !self.extra.app.onboarded {
             self.onb_start(cx);
@@ -638,33 +535,33 @@ impl AppView {
         }
         self.flow_pump(cx);
         self.side_pump(cx);
+        self.term_pump(cx);
+        if let Some(id) = self.model.open_artifact.take() {
+            self.open_artifact_panel(id);
+        }
         if changed {
-            self.scroll.scroll_to_bottom();
             cx.notify();
         }
     }
 
-    fn handle(&mut self, msg: Msg) {
+    fn handle(&mut self, msg: Msg, cx: &mut Context<Self>) {
         match msg {
-            Msg::Ready(api, sup) => {
+            Msg::Ready(api) => {
                 self.model.status = Connection::Connected;
-                run_events(api.clone(), self.tx.clone());
+                run_events(&api, self.tx.clone());
                 load_state(api.clone(), self.tx.clone());
                 self.api = Some(api);
-                self._supervisor = Some(sup);
             }
-            Msg::StartFailed(e) => self.model.status = Connection::Disconnected(e),
+            Msg::StartFailed(e) => {
+                self.model.toast = Some(format!("Could not start the supervisor: {e}"));
+                self.model.status = Connection::Disconnected(e);
+            }
             Msg::Event(e) => {
                 if matches!(self.model.status, Connection::Disconnected(_)) {
                     self.model.status = Connection::Connected;
                     self.model.needs.state = true;
                 }
                 self.model.apply(e);
-            }
-            Msg::StreamLost(e) => {
-                if self.api.is_some() {
-                    self.model.status = Connection::Disconnected(e);
-                }
             }
             Msg::State(s) => {
                 self.extra.app = s.settings.clone();
@@ -677,7 +574,9 @@ impl AppView {
                 if changed {
                     self.model.snapshot = Snapshot::default();
                     self.model.open_chat_id = None;
-                    self.model.messages.clear();
+                    if let Some(ws) = active.as_deref() {
+                        self.restore_open(ws);
+                    }
                 }
                 if let (Some(api), Some(ws)) = (self.api.clone(), active) {
                     if changed {
@@ -688,29 +587,14 @@ impl AppView {
                 }
             }
             Msg::Snapshot(ws, snap) => {
-                self.in_flight.finish_all();
                 if self.model.active_ws.as_deref() == Some(&ws) {
                     self.model.snapshot = snap;
                     if self.view == View::Settings && matches!(self.settings_page, "web" | "opendesign" | "data") {
                         self.refresh_page(self.settings_page);
                     }
-                    if self.model.open_chat_id.is_none() {
-                        if let Some(row) = self.model.sidebar().into_iter().find(|r| r.kind == RowKind::Chat) {
-                            self.open_chat(row.id);
-                        }
-                    }
                 }
             }
-            Msg::Messages(ws, chat, messages) => {
-                if self.model.active_ws.as_deref() == Some(&ws) && self.model.open_chat_id.as_deref() == Some(&chat) {
-                    self.model.messages = messages;
-                }
-            }
-            Msg::Permissions(ws, chat, list) => {
-                if self.model.active_ws.as_deref() == Some(&ws) {
-                    self.model.set_permissions(&chat, list);
-                }
-            }
+            Msg::Launch(ws, chat, r) => self.launched(ws, chat, r, cx),
             Msg::ArtifactView(artifact, result, page) => {
                 if self.library_sel.as_deref() == Some(&artifact) {
                     self.library_view = Some(result);
@@ -736,32 +620,11 @@ impl AppView {
                     self.secret_names = names;
                 }
             }
-            Msg::Files(query, list) => {
-                if self.last_query.as_deref() == Some(&query) {
-                    self.files = list;
-                }
-            }
             Msg::Models(ws, list) => {
                 if self.model.active_ws.as_deref() == Some(&ws) {
                     self.models = list;
                 }
             }
-            Msg::Commands(ws, chat, list) => {
-                if self.model.active_ws.as_deref() == Some(&ws) && self.model.open_chat_id.as_deref() == Some(&chat) {
-                    self.commands = list;
-                }
-            }
-            Msg::CommandDone(outcome) => match outcome {
-                Outcome::Ran(_) => {}
-                Outcome::NewChat => self.new_chat(),
-                Outcome::Help => {
-                    let body = self.commands.iter().map(|c| format!("/{}  {}", c.name, c.description)).collect::<Vec<_>>().join("\n");
-                    self.panel = Some(("Commands".into(), body));
-                }
-                Outcome::Text { title, body } => self.panel = Some((title, body)),
-                Outcome::Unsupported(name) if name == "model" || name == "effort" => self.picker_open = true,
-                Outcome::Unsupported(name) => self.model.toast = Some(format!("/{name} opens a dialog the native app does not have yet.")),
-            },
             Msg::ChatCreated(ws, chat) => {
                 if self.model.active_ws.as_deref() == Some(&ws) {
                     let id = chat.id.clone();
@@ -772,7 +635,6 @@ impl AppView {
                 }
             }
             Msg::Error(e) => {
-                self.in_flight.finish_all();
                 self.model.toast = Some(e);
             }
         }
@@ -807,98 +669,9 @@ impl AppView {
         Some(providers::CustomForm { id: v[0].clone(), name: v[1].clone(), url: v[2].clone(), model: v[3].clone(), env: v[4].clone(), key: v[5].clone() })
     }
 
-    /// Native file dialog; the chosen files go into the draft as `@` references.
-    fn pick_files(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let picked = cx.prompt_for_paths(PathPromptOptions { files: true, directories: false, multiple: true, prompt: Some("Attach".into()) });
-        cx.spawn_in(window, async move |this, cx| {
-            let result = picked.await;
-            this.update_in(cx, |this, window, cx| match result {
-                Ok(Ok(Some(paths))) => this.attach_paths(paths.iter().map(|p| p.to_string_lossy().into_owned()).collect(), window, cx),
-                Ok(Ok(None)) | Err(_) => {}
-                Ok(Err(e)) => {
-                    this.model.toast = Some(format!("Could not open the file dialog: {e}"));
-                    cx.notify();
-                }
-            })
-            .ok();
-        })
-        .detach();
-    }
-
-    /// Appends `@` references for the files to the draft and focuses the composer.
-    fn attach_paths(&mut self, paths: Vec<String>, window: &mut Window, cx: &mut Context<Self>) {
-        if paths.is_empty() || self.view != View::Chat {
-            return;
-        }
-        let refs = files::references(&paths);
-        let draft = self.input.read(cx).content().to_string();
-        let sep = if draft.is_empty() || draft.ends_with(char::is_whitespace) { "" } else { " " };
-        self.input.update(cx, |i, cx| i.set_content(&format!("{draft}{sep}{refs}"), cx));
-        window.focus(&self.input.focus_handle(cx), cx);
-        cx.notify();
-    }
-
-    fn open_chat(&mut self, id: String) {
-        self.model.open_chat(id.clone(), Vec::new());
-        self.commands.clear();
-        self.panel = None;
-        self.move_open = false;
-        if let (Some(api), Some(ws)) = (self.api.clone(), self.model.active_ws.clone()) {
-            load_messages(api.clone(), ws.clone(), id.clone(), self.tx.clone());
-            load_permissions(api.clone(), ws.clone(), id.clone(), self.tx.clone());
-            load_commands(api, ws, id, self.tx.clone());
-        }
-    }
-
-    fn answer(&mut self, request: &str, decision: &'static str) {
-        let (Some(api), Some(ws), Some(chat)) = (self.api.clone(), self.model.active_ws.clone(), self.model.open_chat_id.clone()) else { return };
-        self.model.drop_permission(&chat, request);
-        answer_permission(api, ws, chat, request.to_string(), decision, self.tx.clone());
-    }
-
-    /// Starts a file search when the text under the caret is a new `@` reference.
-    fn on_input_changed(&mut self, cx: &mut Context<Self>) {
-        let (text, caret) = {
-            let i = self.input.read(cx);
-            (i.content().to_string(), i.caret())
-        };
-        let query = mention_at(&text, caret).map(|m| m.query);
-        if query.is_none() {
-            self.files.clear();
-            self.last_query = None;
-            return;
-        }
-        if !files::needs_search(self.last_query.as_deref(), query.as_deref()) {
-            return;
-        }
-        self.last_query = query.clone();
-        if let (Some(api), Some(ws), Some(project)) = (self.api.clone(), self.model.active_ws.clone(), self.open_chat_info().map(|c| c.project.clone())) {
-            search_files(api, ws, project, query.unwrap_or_default(), self.tx.clone());
-        }
-    }
-
     fn open_chat_info(&self) -> Option<&Chat> {
         let id = self.model.open_chat_id.as_ref()?;
         self.model.snapshot.chats.iter().find(|c| &c.id == id)
-    }
-
-    /// Sets the open chat's model (clearing its effort, which may not exist on the new model) or its effort.
-    fn choose(&mut self, model: Option<String>, effort: Option<String>) {
-        let (Some(api), Some(ws), Some(id)) = (self.api.clone(), self.model.active_ws.clone(), self.model.open_chat_id.clone()) else { return };
-        let mut body = serde_json::Map::new();
-        if let Some(chat) = self.model.snapshot.chats.iter_mut().find(|c| c.id == id) {
-            if let Some(m) = &model {
-                chat.model = m.clone();
-                chat.effort = None;
-                body.insert("model".into(), m.clone().into());
-                body.insert("effort".into(), "".into());
-            }
-            if let Some(e) = &effort {
-                chat.effort = Some(e.clone());
-                body.insert("effort".into(), e.clone().into());
-            }
-        }
-        patch_chat(api, ws, id, body.into(), self.tx.clone());
     }
 
     fn patch_ws(&mut self, body: serde_json::Value) {
@@ -947,7 +720,7 @@ impl AppView {
         cx.notify();
     }
 
-    fn close_palette(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    fn close_palette(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
         if self.side.full && !self.palette_open {
             self.side.full = false;
             cx.notify();
@@ -958,7 +731,7 @@ impl AppView {
         }
         if self.palette_open {
             self.palette_open = false;
-            window.focus(&self.input.focus_handle(cx), cx);
+            self.ask_focus();
             cx.notify();
         }
     }
@@ -1006,14 +779,8 @@ impl AppView {
         if let (Some(chat), Some(t)) = (self.model.snapshot.chats.iter_mut().find(|c| c.id == id), body["title"].as_str()) {
             chat.title = t.to_string();
         }
+        self.terms.remember_user_title(&id);
         patch_chat(api, ws, id, body, self.tx.clone());
-    }
-
-    fn close_chat(&mut self) {
-        self.model.open_chat_id = None;
-        self.model.messages.clear();
-        self.commands.clear();
-        self.confirm.cancel();
     }
 
     fn archive(&mut self) {
@@ -1050,23 +817,6 @@ impl AppView {
         }
     }
 
-    fn toggle_full_access(&mut self) {
-        let (Some(api), Some(ws), Some(id)) = (self.api.clone(), self.model.active_ws.clone(), self.model.open_chat_id.clone()) else { return };
-        // The chip shows the server's value only; it changes when the fresh snapshot arrives.
-        let Some(chat) = self.model.snapshot.chats.iter().find(|c| c.id == id) else { return };
-        let on = chat.yolo != Some(true);
-        if !self.in_flight.begin(&id) {
-            return;
-        }
-        patch_chat(api, ws, id, chats::full_access_body(on), self.tx.clone());
-    }
-
-    fn stop(&mut self) {
-        if let (Some(api), Some(ws), Some(chat)) = (self.api.clone(), self.model.active_ws.clone(), self.model.open_chat_id.clone()) {
-            stop_chat(api, ws, chat, self.tx.clone());
-        }
-    }
-
     fn general_project(&self) -> Option<String> {
         let ps = &self.model.snapshot.projects;
         ps.iter().find(|p| p.is_general == Some(true) && !p.archived).or_else(|| ps.iter().find(|p| !p.archived)).map(|p| p.id.clone())
@@ -1077,43 +827,6 @@ impl AppView {
             create_chat(api, ws, project, None, self.tx.clone());
         }
     }
-
-    fn submit(&mut self, input: &Entity<TextInput>, window: &mut Window, cx: &mut Context<Self>) {
-        let text = input.read(cx).content().trim().to_string();
-        let (Some(api), Some(ws)) = (self.api.clone(), self.model.active_ws.clone()) else { return };
-        if text.is_empty() {
-            return;
-        }
-        input.update(cx, |i, cx| i.clear(window, cx));
-        if parse_slash(&text).is_some() {
-            // The supervisor decides what a slash command means (and refuses ones this agent lacks, with a reason).
-            match self.model.open_chat_id.clone() {
-                Some(chat) => run_command(api, ws, chat, text, self.tx.clone()),
-                None => self.model.toast = Some("Open a chat first to run a command.".into()),
-            }
-            cx.notify();
-            return;
-        }
-        self.local_id += 1;
-        self.model.messages.push(ChatMessage { id: format!("local-{}", self.local_id), role: "user".into(), text: text.clone(), tools: vec![], error: None, created_at: 0, artifact: None });
-        match self.model.open_chat_id.clone() {
-            Some(chat) => send_text(api, ws, chat, text, self.tx.clone()),
-            None => match self.general_project() {
-                Some(project) => create_chat(api, ws, project, Some(text), self.tx.clone()),
-                None => self.model.toast = Some("This workspace has no project to start a chat in.".into()),
-            },
-        }
-        self.scroll.scroll_to_bottom();
-        cx.notify();
-    }
-}
-
-fn status_line(model: &Model) -> SharedString {
-    match &model.status {
-        Connection::Starting => "Starting the supervisor…".into(),
-        Connection::Connected => "Connected".into(),
-        Connection::Disconnected(e) => format!("Disconnected: {e}").into(),
-    }
 }
 
 impl Render for AppView {
@@ -1122,7 +835,10 @@ impl Render for AppView {
         if self.onb.loaded && !self.extra.app.onboarded {
             return self.onboarding_view(cx).relative().text_color(rgb(TEXT)).children(self.new_workspace_dialog(cx));
         }
+        self.term_focus(window, cx);
+        let main = self.session_view(cx);
         let m = &self.model;
+        let ws_now = self.ws_id();
         let rail = div().flex().flex_col().gap_2().p_2().w(px(56.)).h_full().bg(rgb(RAIL)).children(m.workspaces.iter().map(|w| {
             let active = m.active_ws.as_deref() == Some(&w.id);
             // Org workspaces are purple, team ones cyan, personal ones the accent; the active one has a ring.
@@ -1145,7 +861,9 @@ impl Render for AppView {
                 .border_color(rgb(if active { tint } else { PANEL }))
                 .text_color(rgb(tint))
                 .font_weight(FontWeight::BOLD)
+                .relative()
                 .child(SharedString::from(w.initials.clone()))
+                .when(self.terms.needs_you(&w.id), |d| d.child(div().absolute().top(px(2.)).right(px(2.)).size(px(10.)).rounded_full().bg(rgb(ACCENT))))
                 .on_click(cx.listener(move |this, _, _, cx| {
                     if let Some(api) = this.api.clone() {
                         activate(api, id.clone(), this.tx.clone());
@@ -1170,7 +888,7 @@ impl Render for AppView {
                     .cursor_pointer()
                     .bg(rgb(ACCENT))
                     .text_color(rgb(0xffffff))
-                    .child("＋ New chat")
+                    .child("＋ New session")
                     .on_click(cx.listener(|this, _, _, cx| {
                         this.new_chat();
                         cx.notify();
@@ -1191,8 +909,8 @@ impl Render for AppView {
                         .bg(rgb(if open { USER_BUBBLE } else { PANEL }))
                         .text_color(rgb(TEXT))
                         .hover(|s| s.bg(rgb(USER_BUBBLE)))
-                        .child(SharedString::from(if row.title.is_empty() { "New chat".to_string() } else { row.title }))
-                        .when(row.working, |d| d.child(div().text_color(rgb(ACCENT)).child("●")))
+                        .child(div().flex_1().min_w_0().overflow_hidden().child(SharedString::from(if row.title.is_empty() { "New session".to_string() } else { row.title })))
+                        .children(self.terms.status_of(&ws_now, &row.id).map(|s| sessions::dot_el(s).flex_none()))
                         .on_click(cx.listener(move |this, _, _, cx| {
                             this.open_chat(id.clone());
                             cx.notify();
@@ -1214,7 +932,7 @@ impl Render for AppView {
                                 .cursor_pointer()
                                 .text_sm()
                                 .text_color(rgb(MUTED))
-                                .child(SharedString::from(format!("{} archived chats ({})", if self.show_archived_chats { "Hide" } else { "Show" }, archived.len())))
+                                .child(SharedString::from(format!("{} archived sessions ({})", if self.show_archived_chats { "Hide" } else { "Show" }, archived.len())))
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.show_archived_chats = !this.show_archived_chats;
                                     cx.notify();
@@ -1231,7 +949,7 @@ impl Render for AppView {
                                 .py_1()
                                 .text_sm()
                                 .text_color(rgb(MUTED))
-                                .child(SharedString::from(if title.is_empty() { "New chat".to_string() } else { title }))
+                                .child(SharedString::from(if title.is_empty() { "New session".to_string() } else { title }))
                                 .child(div().id(SharedString::from(format!("restore-{id}"))).cursor_pointer().text_color(rgb(ACCENT)).child("Restore").on_click(cx.listener(move |this, _, _, cx| {
                                     this.restore_chat(id.clone());
                                     cx.notify();
@@ -1239,311 +957,6 @@ impl Render for AppView {
                         }))
                     })
             });
-
-        let chat_title = m
-            .open_chat_id
-            .as_ref()
-            .and_then(|id| m.snapshot.chats.iter().find(|c| &c.id == id))
-            .map(|c| if c.title.is_empty() { "New chat".to_string() } else { c.title.clone() })
-            .unwrap_or_else(|| "WorkspaceAI".to_string());
-
-        let header = div()
-            .flex()
-            .items_center()
-            .justify_between()
-            .px_4()
-            .py_2()
-            .border_b_1()
-            .border_color(rgb(PANEL))
-            .child(div().font_weight(FontWeight::BOLD).child(SharedString::from(chat_title)))
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_3()
-                    .when(m.open_chat_working(), |d| {
-                        d.child(
-                            div()
-                                .id("stop")
-                                .px_3()
-                                .py_1()
-                                .rounded_md()
-                                .cursor_pointer()
-                                .bg(rgb(0x4a2b2b))
-                                .text_sm()
-                                .child("■ Stop")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.stop();
-                                    cx.notify();
-                                })),
-                        )
-                    })
-                    .children(self.open_chat_info().map(|c| {
-                        let label = self.models.label(&c.agent, &c.model, c.effort.as_deref());
-                        div()
-                            .id("model-chip")
-                            .px_3()
-                            .py_1()
-                            .rounded_md()
-                            .cursor_pointer()
-                            .bg(rgb(PANEL))
-                            .text_sm()
-                            .child(SharedString::from(format!("{label} ▾")))
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.picker_open = !this.picker_open;
-                                cx.notify();
-                            }))
-                    }))
-                    .child(div().text_sm().text_color(rgb(MUTED)).child(status_line(m))),
-            );
-
-        let actions = self.open_chat_info().cloned().map(|c| {
-            let id = c.id.clone();
-            let armed = self.confirm.is_armed(&id);
-            let full = c.yolo == Some(true);
-            let button = |key: &'static str, label: String, bg: u32| div().id(key).px_2().py_1().rounded_md().cursor_pointer().bg(rgb(bg)).text_sm().child(SharedString::from(label));
-            div()
-                .flex()
-                .items_center()
-                .gap_2()
-                .px_4()
-                .py_1()
-                .child(button("act-rename", "Rename".into(), PANEL).on_click(cx.listener(|this, _, window, cx| {
-                    this.start_rename(window, cx);
-                    cx.notify();
-                })))
-                .child(button("act-fork", "Fork".into(), PANEL).on_click(cx.listener(|this, _, _, cx| {
-                    this.fork();
-                    cx.notify();
-                })))
-                .child(button("act-archive", "Archive".into(), PANEL).on_click(cx.listener(|this, _, _, cx| {
-                    this.archive();
-                    cx.notify();
-                })))
-                .child(button("act-move", "Move…".into(), if self.move_open { USER_BUBBLE } else { PANEL }).on_click(cx.listener(|this, _, _, cx| {
-                    this.move_open = !this.move_open;
-                    cx.notify();
-                })))
-                .child(button("act-delete", if armed { "Click again to delete".into() } else { "Delete".into() }, if armed { 0x7a2b2b } else { PANEL }).on_click(cx.listener(|this, _, _, cx| {
-                    this.delete();
-                    cx.notify();
-                })))
-                .child(button("act-browser", "Browser".into(), if self.side.browser.is_some() && !self.side.art_open { USER_BUBBLE } else { PANEL }).on_click(cx.listener(|this, _, _, cx| {
-                    this.toggle_browser();
-                    cx.notify();
-                })))
-                .child(button("act-full", if self.in_flight.is_pending(&c.id) { "Full access: saving…".into() } else if full { "Full access: on".into() } else { "Full access: off".into() }, if full { 0x7a4a1b } else { PANEL }).on_click(cx.listener(|this, _, _, cx| {
-                    this.toggle_full_access();
-                    cx.notify();
-                })))
-        });
-        let move_panel = self.move_open.then(|| self.open_chat_info().cloned()).flatten().map(|c| {
-            div().id("move-list").mx_4().mt_2().p_2().max_h(px(220.)).overflow_y_scroll().rounded_md().bg(rgb(PANEL)).flex().flex_col().child(div().text_sm().text_color(rgb(MUTED)).child("Move to project")).children(
-                projects::tree(&self.model.snapshot.projects, false).into_iter().filter(|n| n.id != c.project).map(|n| {
-                    let pid = n.id.clone();
-                    div().id(SharedString::from(format!("move-{}", n.id))).pl(px(8. + 14. * n.depth as f32)).py_1().rounded_md().cursor_pointer().hover(|s| s.bg(rgb(USER_BUBBLE))).text_sm().child(SharedString::from(format!("▤ {}", n.name))).on_click(cx.listener(move |this, _, _, cx| {
-                        this.move_to(&pid);
-                        cx.notify();
-                    }))
-                }),
-            )
-        });
-        let rename_row = self.renaming.then(|| div().mx_4().mt_2().px_3().py_2().rounded_md().bg(rgb(PANEL)).child(self.rename_input.clone()));
-
-        let picker = self.picker_open.then(|| self.open_chat_info().cloned()).flatten().map(|c| {
-            let options = self.models.options_for(&c.agent);
-            let efforts = self.models.efforts_for(&c.agent, &c.model);
-            let row = |id: String, label: String, on: bool| div().id(SharedString::from(id)).px_2().py_1().rounded_md().cursor_pointer().bg(rgb(if on { USER_BUBBLE } else { PANEL })).hover(|s| s.bg(rgb(USER_BUBBLE))).text_sm().child(SharedString::from(label));
-            div()
-                .mx_4()
-                .mt_2()
-                .p_2()
-                .rounded_md()
-                .bg(rgb(PANEL))
-                .flex()
-                .flex_col()
-                .gap_2()
-                .child(div().text_sm().text_color(rgb(MUTED)).child(if options.is_empty() { "Models load once the engine is running…" } else { "Model" }))
-                .child(div().id("model-list").max_h(px(220.)).overflow_y_scroll().flex().flex_col().children(options.into_iter().map(|o| {
-                    let on = o.id == c.model;
-                    let oid = o.id.clone();
-                    row(format!("model-{}", o.id), if o.name.is_empty() { o.id.clone() } else { o.name.clone() }, on).on_click(cx.listener(move |this, _, _, cx| {
-                        this.choose(Some(oid.clone()), None);
-                        this.picker_open = false;
-                        cx.notify();
-                    }))
-                })))
-                .when(!efforts.is_empty(), |d| {
-                    d.child(div().text_sm().text_color(rgb(MUTED)).child("Effort")).child(div().flex().gap_2().children(efforts.into_iter().map(|e| {
-                        let on = c.effort.as_deref() == Some(e.as_str());
-                        let ev = e.clone();
-                        row(format!("effort-{e}"), e, on).on_click(cx.listener(move |this, _, _, cx| {
-                            this.choose(None, Some(ev.clone()));
-                            this.picker_open = false;
-                            cx.notify();
-                        }))
-                    })))
-                })
-        });
-
-        let messages = div().id("messages").flex_1().min_h_0().overflow_y_scroll().track_scroll(&self.scroll).p_4().flex().flex_col().gap_3().children(
-            m.messages.iter().map(|msg| {
-                let user = msg.role == "user";
-                let shown = if msg.text.is_empty() && msg.tools.is_empty() && msg.error.is_none() { "…".to_string() } else { msg.text.clone() };
-                let mut bubble = div().max_w(px(760.)).px_3().py_2().rounded_lg().bg(rgb(if user { USER_BUBBLE } else { BG }));
-                bubble = if user { bubble.child(SharedString::from(shown)) } else { bubble.child(md_view::blocks(&markdown::parse(&shown))) };
-                for t in &msg.tools {
-                    bubble = bubble.child(div().text_sm().text_color(rgb(MUTED)).child(SharedString::from(format!("⚙ {} · {}{}", t.name, t.status, t.detail.as_deref().map(|d| format!(" · {d}")).unwrap_or_default()))));
-                }
-                if let Some(e) = &msg.error {
-                    bubble = bubble.child(div().text_sm().text_color(rgb(0xff6b6b)).child(SharedString::from(e.clone())));
-                }
-                let text = msg.text.clone();
-                let copy = div().id(SharedString::from(format!("copy-{}", msg.id))).px_2().rounded_md().cursor_pointer().bg(rgb(PANEL)).text_size(px(11.)).text_color(rgb(MUTED)).child("Copy").on_click(cx.listener(move |this, _, _, cx| {
-                    cx.write_to_clipboard(gpui::ClipboardItem::new_string(text.clone()));
-                    this.model.toast = Some("Copied to clipboard".into());
-                    cx.notify();
-                }));
-                let bubble = bubble.child(copy).children(self.message_extras(msg, cx));
-                if user {
-                    div().flex().justify_end().child(bubble)
-                } else {
-                    div().flex().child(bubble)
-                }
-            }),
-        )
-        .children(m.pending_permissions().iter().map(|p| {
-            let (a, b, c) = (p.id.clone(), p.id.clone(), p.id.clone());
-            let button = |id: String, label: &'static str, bg: u32| div().id(SharedString::from(format!("perm-{id}-{label}"))).px_3().py_1().rounded_md().cursor_pointer().bg(rgb(bg)).text_sm().child(label);
-            div()
-                .flex()
-                .flex_col()
-                .gap_2()
-                .max_w(px(760.))
-                .px_3()
-                .py_2()
-                .rounded_lg()
-                .border_1()
-                .border_color(rgb(ACCENT))
-                .child(div().font_weight(FontWeight::BOLD).child(SharedString::from(format!("Permission needed: {}", p.title))))
-                .when(!p.detail.is_empty(), |d| d.child(div().font_family("monospace").text_size(px(13.)).text_color(rgb(MUTED)).child(SharedString::from(p.detail.clone()))))
-                .child(
-                    div()
-                        .flex()
-                        .gap_2()
-                        .child(button(a.clone(), "Allow once", ACCENT).on_click(cx.listener(move |this, _, _, cx| {
-                            this.answer(&a, "once");
-                            cx.notify();
-                        })))
-                        .child(button(b.clone(), "Always allow", USER_BUBBLE).on_click(cx.listener(move |this, _, _, cx| {
-                            this.answer(&b, "always");
-                            cx.notify();
-                        })))
-                        .child(button(c.clone(), "Reject", 0x4a2b2b).on_click(cx.listener(move |this, _, _, cx| {
-                            this.answer(&c, "reject");
-                            cx.notify();
-                        }))),
-                )
-        }));
-
-        let toast = m.toast.clone().map(|t| {
-            div()
-                .id("toast")
-                .mx_4()
-                .px_3()
-                .py_2()
-                .rounded_md()
-                .cursor_pointer()
-                .bg(rgb(0x4a2b2b))
-                .text_sm()
-                .child(SharedString::from(format!("{t}  (click to dismiss)")))
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.model.toast = None;
-                    cx.notify();
-                }))
-        });
-
-        let typed = self.input.read(cx).content().to_string();
-        let suggested: Vec<ChatCommand> = command::suggestions(&typed, &self.commands).into_iter().cloned().collect();
-        let suggest_box = (!suggested.is_empty()).then(|| {
-            div().mx_3().mt_2().p_1().rounded_md().bg(rgb(PANEL)).flex().flex_col().children(suggested.into_iter().map(|c| {
-                let name = c.name.clone();
-                div()
-                    .id(SharedString::from(format!("sg-{}", c.name)))
-                    .flex()
-                    .gap_3()
-                    .px_2()
-                    .py_1()
-                    .rounded_md()
-                    .cursor_pointer()
-                    .hover(|s| s.bg(rgb(USER_BUBBLE)))
-                    .child(div().font_weight(FontWeight::BOLD).child(SharedString::from(format!("/{}", c.name))))
-                    .child(div().text_color(rgb(MUTED)).text_sm().child(SharedString::from(c.hint.clone().unwrap_or_default())))
-                    .child(div().text_color(rgb(MUTED)).text_sm().child(SharedString::from(c.description.clone())))
-                    .on_click(cx.listener(move |this, _, window, cx| {
-                        let text = format!("/{name} ");
-                        this.input.update(cx, |i, cx| i.set_content(&text, cx));
-                        window.focus(&this.input.focus_handle(cx), cx);
-                    }))
-            }))
-        });
-        let caret = self.input.read(cx).caret();
-        let mention = mention_at(&typed, caret);
-        let file_box = mention.clone().filter(|_| !self.files.is_empty()).map(|men| {
-            div().mx_3().mt_2().p_1().rounded_md().bg(rgb(PANEL)).max_h(px(220.)).id("file-list").overflow_y_scroll().flex().flex_col().children(self.files.iter().map(|path| {
-                let path = path.clone();
-                let (typed, start) = (typed.clone(), men.start);
-                div()
-                    .id(SharedString::from(format!("file-{path}")))
-                    .px_2()
-                    .py_1()
-                    .rounded_md()
-                    .cursor_pointer()
-                    .text_sm()
-                    .font_family("monospace")
-                    .hover(|s| s.bg(rgb(USER_BUBBLE)))
-                    .child(SharedString::from(path.clone()))
-                    .on_click(cx.listener(move |this, _, window, cx| {
-                        let (text, new_caret) = insert_mention(&typed, start, caret, &path, false);
-                        this.input.update(cx, |i, cx| i.set_content_at(&text, new_caret, cx));
-                        this.files.clear();
-                        this.last_query = None;
-                        window.focus(&this.input.focus_handle(cx), cx);
-                    }))
-            }))
-        });
-        let panel = self.panel.clone().map(|(title, body)| {
-            div()
-                .id("panel")
-                .mx_3()
-                .mt_2()
-                .p_3()
-                .rounded_md()
-                .bg(rgb(PANEL))
-                .cursor_pointer()
-                .child(div().font_weight(FontWeight::BOLD).child(SharedString::from(format!("{title}  (click to close)"))))
-                .child(div().font_family("monospace").text_size(px(13.)).child(SharedString::from(body)))
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.panel = None;
-                    cx.notify();
-                }))
-        });
-
-        let attach = ui::button("attach", "Attach", USER_BUBBLE).on_click(cx.listener(|this, _, window, cx| this.pick_files(window, cx)));
-        let composer = div()
-            .id("composer")
-            .p_3()
-            .flex()
-            .items_start()
-            .gap_2()
-            .drag_over::<ExternalPaths>(|s, _, _, _| s.bg(rgba(0xd9775722)))
-            .on_drop(cx.listener(|this, paths: &ExternalPaths, window, cx| {
-                this.attach_paths(paths.paths().iter().map(|p| p.to_string_lossy().into_owned()).collect(), window, cx);
-            }))
-            .child(div().flex_1().min_w_0().px_3().py_2().rounded_lg().bg(rgb(PANEL)).text_size(px(15.)).line_height(px(22.)).child(self.input.clone()))
-            .child(attach);
-
-        let main = div().flex().flex_col().flex_1().min_w_0().h_full().child(header).children(actions).children(move_panel).children(rename_row).children(picker).child(messages).children(toast).children(panel).children(suggest_box).children(file_box).child(composer);
 
         // ---- settings ----
         let is_org = m.snapshot.workspace.kind == "org";
@@ -2321,10 +1734,10 @@ impl Render for AppView {
     }
 }
 
-/// `--smoke`: starts the supervisor, reads `/api/state`, stops it. Proves the backend wiring without a window.
+/// `--smoke`: starts the in-process supervisor, reads `/api/state`, stops it. Proves the backend wiring without a window.
 fn smoke() -> Result<(), String> {
-    let (info, _sup) = Supervisor::start(&repo_root(), &node_binary())?;
-    let api = Api::new(&info);
+    let sup = Arc::new(Supervisor::with_default_home().map_err(|e| e.message)?);
+    let api = Api::new(sup.clone());
     let state: AppState = fetch(&api, "/api/state")?;
     println!("SMOKE ok: {} workspaces, active {:?}, {} computers", state.workspaces.len(), state.settings.active_workspace, state.computers.len());
     if let Some(ws) = state.settings.active_workspace.or_else(|| state.workspaces.first().map(|w| w.id.clone())) {
@@ -2352,17 +1765,12 @@ fn smoke() -> Result<(), String> {
         println!("SMOKE ok: {} routines ({} paused)", snap.routines.len(), snap.routines.iter().filter(|r| r.paused).count());
         println!("SMOKE ok: {} memory facts ({} suggested)", snap.facts.len(), snap.facts.iter().filter(|f| f.status == "suggested").count());
         println!("SMOKE ok: workspace {:?} ({}), memory {:?}, engine {:?}", snap.workspace.name, snap.workspace.kind, snap.workspace.use_memory, snap.engine.state);
-        if let Some(p) = snap.projects.iter().find(|p| !p.archived) {
-            match api.get(&files::search_path(&ws, &p.id, "")) {
-                Ok(v) => println!("SMOKE ok: {} files for an empty @ query in {:?}", files::parse_files(&v).len(), p.name),
-                Err(e) => println!("SMOKE files: {e}"),
-            }
-        }
         match fetch::<ModelList>(&api, &format!("/api/ws/{}/models", seg(&ws))) {
             Ok(m) => println!("SMOKE ok: {} opencode models, {} other agents", m.options_for("opencode").len(), m.agents.len()),
             Err(e) => println!("SMOKE models: {e}"),
         }
     }
+    sup.shutdown().map_err(|e| e.message)?;
     Ok(())
 }
 
@@ -2398,6 +1806,9 @@ fn run_term(argv: Vec<String>) {
         cx.on_window_closed(|cx, _| cx.quit()).detach();
         cx.activate(true);
     });
+    if let Some(sup) = SUPERVISOR.get() {
+        let _ = sup.shutdown();
+    }
 }
 
 #[cfg(test)]
@@ -2443,4 +1854,7 @@ fn main() {
         .detach();
         cx.activate(true);
     });
+    if let Some(sup) = SUPERVISOR.get() {
+        let _ = sup.shutdown();
+    }
 }

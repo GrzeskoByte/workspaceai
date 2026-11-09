@@ -830,21 +830,6 @@ impl TextInput {
         cx.notify();
     }
 
-    /// Byte offset of the caret (the end of the selection).
-    pub fn caret(&self) -> usize {
-        self.cursor_offset()
-    }
-
-    /// Replaces the text and puts the caret at `caret` (a char boundary).
-    pub fn set_content_at(&mut self, text: &str, caret: usize, cx: &mut Context<Self>) {
-        let caret = caret.min(text.len());
-        self.content = text.to_string().into();
-        self.selected_range = caret..caret;
-        self.selection_reversed = false;
-        self.marked_range = None;
-        cx.notify();
-    }
-
     pub fn clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.reset(window, cx);
     }

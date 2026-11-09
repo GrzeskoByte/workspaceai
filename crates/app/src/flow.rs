@@ -5,7 +5,7 @@
 use crate::onboarding::{btn, labeled, opt, panel, small};
 use crate::text_input::TextInput;
 use crate::ui;
-use crate::{answer_permission, load_artifact, load_permissions, AppView, Msg, View, ACCENT, BG, MUTED, PANEL, RAISED_OFF, USER_BUBBLE};
+use crate::{answer_permission, load_artifact, AppView, Msg, View, ACCENT, BG, MUTED, PANEL, RAISED_OFF, USER_BUBBLE};
 use gpui::{div, prelude::*, px, rgb, ClipboardItem, Context, Div, Entity, FontWeight, SharedString};
 use serde_json::Value;
 use workspaceai_client::api::seg;
@@ -193,11 +193,6 @@ impl AppView {
 
     pub fn open_approvals(&mut self) {
         self.flow_open(View::Approvals);
-        if let (Some(api), Some(ws)) = (self.api.clone(), self.model.active_ws.clone()) {
-            for c in approvals::waiting_chats(&self.model.snapshot) {
-                load_permissions(api.clone(), ws.clone(), c, self.tx.clone());
-            }
-        }
     }
 
     pub fn open_project(&mut self, id: String) {
@@ -344,18 +339,34 @@ impl AppView {
         home::target_project(&self.model.snapshot, self.flow.home_proj.as_deref(), open.as_deref())
     }
 
+    /// Enter on Home: a new session in the picked project with the text as the agent's first prompt. Doc, Deck and
+    /// Prototype open New artifact with the text as the brief instead.
     pub(crate) fn send_home(&mut self, cx: &mut Context<Self>) {
         let text = self.flow.home_input.read(cx).content().to_string();
         if self.flow.mode == "loop" {
             self.model.toast = Some("Loops are graphs, and the graph editor is not in the native app yet.".into());
             return;
         }
-        let (Some(project), Some(api), ws) = (self.home_project(), self.api.clone(), self.ws_id()) else { return };
-        let Some(body) = home::chat_body(&project, self.flow.mode, &text) else {
+        if text.trim().is_empty() {
             self.model.toast = Some("Type a message first".into());
             return;
+        }
+        let artifact = match self.flow.mode {
+            "doc" => Some("Doc"),
+            "deck" => Some("Deck"),
+            "proto" => Some("Prototype"),
+            _ => None,
         };
         self.flow.home_input.update(cx, |i, cx| i.set_content("", cx));
+        if let Some(ty) = artifact {
+            self.flow.mode = "chat";
+            self.open_create(cx);
+            self.flow.ty = ty;
+            self.flow.brief.update(cx, |i, cx| i.set_content(text.trim(), cx));
+            return;
+        }
+        let (Some(project), Some(api), ws) = (self.home_project(), self.api.clone(), self.ws_id()) else { return };
+        let Some(body) = home::chat_body(&project, self.flow.mode, &text) else { return };
         self.flow.mode = "chat";
         let tx = self.tx.clone();
         crate::spawn(move || {
@@ -477,7 +488,7 @@ impl AppView {
         for c in &recent {
             let id = c.id.clone();
             let p = snap.projects.iter().find(|p| p.id == c.project).map_or("", |p| p.name.as_str());
-            let working = if snap.chat_activity.contains_key(&c.id) { " ●" } else { "" };
+            let working = if self.terms.status_of(&snap.workspace.id, &c.id) == Some(crate::terminal_view::Status::Working) { " ●" } else { "" };
             c2 = c2.child(tile(format!("home-chat-{}", c.id), &format!("{}{working}", if c.title.is_empty() { "New chat" } else { &c.title }), p).on_click(cx.listener(move |this, _, _, cx| {
                 this.view = View::Chat;
                 this.open_chat(id.clone());

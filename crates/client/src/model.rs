@@ -1,7 +1,7 @@
 //! What the native UI shows, as plain data. `apply` folds supervisor events in; the UI only renders this and
 //! reacts to the `needs` flags by refetching.
 
-use crate::types::{Chat, ChatMessage, Computer, PermissionRequest, Project, Snapshot, ToolStep, UiEvent, WorkspaceSummary};
+use crate::types::{Chat, Computer, PermissionRequest, Project, Snapshot, UiEvent, WorkspaceSummary};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -17,7 +17,6 @@ pub enum Connection {
 pub struct Needs {
     pub state: bool,
     pub snapshot: bool,
-    pub messages: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,8 +31,6 @@ pub struct SidebarRow {
     pub id: String,
     pub title: String,
     pub depth: usize,
-    /// A chat with a turn in progress.
-    pub working: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -43,62 +40,22 @@ pub struct Model {
     pub active_ws: Option<String>,
     pub snapshot: Snapshot,
     pub open_chat_id: Option<String>,
-    pub messages: Vec<ChatMessage>,
-    /// Permission requests an agent is waiting on, per chat.
+    /// Permission requests headless runs are waiting on, per session.
     pub permissions: HashMap<String, Vec<PermissionRequest>>,
     pub status: Connection,
     pub needs: Needs,
     pub toast: Option<String>,
+    /// An artifact an agent just made; the window opens it once.
+    pub open_artifact: Option<String>,
 }
 
 impl Model {
-    pub fn open_chat(&mut self, id: String, messages: Vec<ChatMessage>) {
+    pub fn open_chat(&mut self, id: String) {
         self.open_chat_id = Some(id);
-        self.messages = messages;
-        self.needs.messages = false;
-    }
-
-    fn is_open(&self, workspace: &str, chat: &str) -> bool {
-        self.active_ws.as_deref() == Some(workspace) && self.open_chat_id.as_deref() == Some(chat)
-    }
-
-    fn assistant_message(&mut self, id: &str) -> &mut ChatMessage {
-        if let Some(i) = self.messages.iter().position(|m| m.id == id) {
-            return &mut self.messages[i];
-        }
-        self.messages.push(ChatMessage { id: id.into(), role: "assistant".into(), text: String::new(), tools: vec![], error: None, created_at: 0, artifact: None });
-        self.messages.last_mut().unwrap()
     }
 
     pub fn apply(&mut self, event: UiEvent) {
         match event {
-            UiEvent::ChatDelta { workspace, chat, message_id, delta } => {
-                if self.active_ws.as_deref() == Some(&workspace) {
-                    self.snapshot.chat_activity.insert(chat.clone(), "working".into());
-                }
-                if self.is_open(&workspace, &chat) {
-                    self.assistant_message(&message_id).text.push_str(&delta);
-                }
-            }
-            UiEvent::ChatTool { workspace, chat, message_id, tool } => {
-                if self.is_open(&workspace, &chat) {
-                    let tools: &mut Vec<ToolStep> = &mut self.assistant_message(&message_id).tools;
-                    match tools.iter_mut().find(|t| t.name == tool.name) {
-                        Some(existing) => *existing = tool,
-                        None => tools.push(tool),
-                    }
-                }
-            }
-            UiEvent::ChatDone { workspace, chat, .. } => {
-                if self.active_ws.as_deref() == Some(&workspace) {
-                    self.snapshot.chat_activity.remove(&chat);
-                    self.permissions.remove(&chat);
-                    self.needs.snapshot = true;
-                    if self.is_open(&workspace, &chat) {
-                        self.needs.messages = true;
-                    }
-                }
-            }
             UiEvent::Snapshot { workspace } => {
                 if self.active_ws.as_deref() == Some(&workspace) {
                     self.needs.snapshot = true;
@@ -106,21 +63,17 @@ impl Model {
             }
             UiEvent::State { .. } => self.needs.state = true,
             UiEvent::Toast { text } => self.toast = Some(text),
-            UiEvent::ChatPermission { workspace, chat, request } => {
+            UiEvent::Approval { workspace, chat, request } => {
                 if self.active_ws.as_deref() == Some(&workspace) {
                     let list = self.permissions.entry(chat).or_default();
                     list.retain(|p| p.id != request.id);
                     list.push(request);
                 }
             }
-            UiEvent::ChatPermissionClear { workspace, chat, request_id } => {
+            UiEvent::Artifact { workspace, artifact } => {
                 if self.active_ws.as_deref() == Some(&workspace) {
-                    match request_id {
-                        Some(id) => self.drop_permission(&chat, &id),
-                        None => {
-                            self.permissions.remove(&chat);
-                        }
-                    }
+                    self.needs.snapshot = true;
+                    self.open_artifact = Some(artifact);
                 }
             }
             UiEvent::Other => {}
@@ -136,15 +89,6 @@ impl Model {
         if let Some(list) = self.permissions.get_mut(chat) {
             list.retain(|p| p.id != id);
         }
-    }
-
-    /// Replaces what the engine reports as pending (it survives restarts and missed events).
-    pub fn set_permissions(&mut self, chat: &str, list: Vec<PermissionRequest>) {
-        self.permissions.insert(chat.to_string(), list);
-    }
-
-    pub fn open_chat_working(&self) -> bool {
-        self.open_chat_id.as_ref().is_some_and(|c| self.snapshot.chat_activity.contains_key(c))
     }
 
     /// Projects as a tree (General first), each followed by its chats newest first, then its subprojects.
@@ -174,12 +118,11 @@ impl Model {
     }
 
     fn push_project(&self, p: &Project, depth: usize, out: &mut Vec<SidebarRow>) {
-        out.push(SidebarRow { kind: RowKind::Project, id: p.id.clone(), title: p.name.clone(), depth, working: false });
+        out.push(SidebarRow { kind: RowKind::Project, id: p.id.clone(), title: p.name.clone(), depth });
         let mut chats: Vec<&Chat> = self.snapshot.chats.iter().filter(|c| c.project == p.id && !c.archived).collect();
         chats.sort_by_key(|c| std::cmp::Reverse(c.updated_at));
         for c in chats {
-            let working = self.snapshot.chat_activity.contains_key(&c.id);
-            out.push(SidebarRow { kind: RowKind::Chat, id: c.id.clone(), title: c.title.clone(), depth: depth + 1, working });
+            out.push(SidebarRow { kind: RowKind::Chat, id: c.id.clone(), title: c.title.clone(), depth: depth + 1 });
         }
         for sub in self.snapshot.projects.iter().filter(|s| !s.archived && s.parent.as_deref() == Some(&p.id)) {
             self.push_project(sub, depth + 1, out);

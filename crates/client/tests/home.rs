@@ -57,6 +57,5 @@ fn approvals_name_the_agent_and_hide_empty_details() {
     perms.insert("c2".to_string(), vec![PermissionRequest { id: "p2".into(), title: "edit".into(), detail: "a.txt".into() }]);
     let a = approvals::pending(&s, &perms);
     assert_eq!(a.iter().map(|x| (x.agent.as_str(), x.detail.as_str())).collect::<Vec<_>>(), vec![("opencode", "a.txt"), ("Claude Code", "")]);
-    assert_eq!(approvals::waiting_chats(&s), vec!["c1"]);
     assert_eq!(approvals::reply_path("w", "c", "r"), "/api/ws/w/chats/c/permission/r");
 }

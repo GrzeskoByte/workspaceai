@@ -23,10 +23,13 @@ pub fn move_body(project: &str) -> Value {
     json!({ "project": project })
 }
 
-/// Full permissions ("YOLO"): tool calls run without asking in this chat only.
+/// Full access: the session's agent is relaunched with its skip-permissions flag.
 pub fn full_access_body(on: bool) -> Value {
-    json!({ "yolo": on })
+    json!({ "fullAccess": on })
 }
+
+/// Shown, and confirmed, before full access is switched on.
+pub const FULL_ACCESS_WARNING: &str = "Full access lets the agent run commands and change files without asking you first. Only use it in a project you trust. The session restarts to apply it.";
 
 /// A destructive button that needs a second press on the same chat.
 #[derive(Debug, Default)]
@@ -55,32 +58,24 @@ impl Confirm {
     }
 }
 
-/// Chats with a change waiting on the server, so a quick second click cannot reorder or double-send it.
-#[derive(Debug, Default)]
-pub struct InFlight {
-    chats: Vec<String>,
+pub fn launch_path(workspace: &str, chat: &str) -> String {
+    format!("/api/ws/{}/chats/{}/launch", crate::api::seg(workspace), crate::api::seg(chat))
 }
 
-impl InFlight {
-    /// `true` when the change may start; `false` when one is already waiting for this chat.
-    pub fn begin(&mut self, chat: &str) -> bool {
-        if self.chats.iter().any(|c| c == chat) {
-            return false;
-        }
-        self.chats.push(chat.to_string());
-        true
-    }
+/// What the supervisor says to run for a session (`GET …/chats/:cid/launch`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Launch {
+    pub argv: Vec<String>,
+    pub env: Vec<(String, String)>,
+    pub cwd: Option<String>,
+}
 
-    pub fn is_pending(&self, chat: &str) -> bool {
-        self.chats.iter().any(|c| c == chat)
+/// `None` when the reply has no command to run.
+pub fn parse_launch(v: &Value) -> Option<Launch> {
+    let argv: Vec<String> = v["argv"].as_array()?.iter().filter_map(|a| a.as_str().map(String::from)).collect();
+    if argv.is_empty() {
+        return None;
     }
-
-    pub fn finish(&mut self, chat: &str) {
-        self.chats.retain(|c| c != chat);
-    }
-
-    /// Any server answer (fresh snapshot or error) means what we show is the server's again.
-    pub fn finish_all(&mut self) {
-        self.chats.clear();
-    }
+    let env = v["env"].as_object().map(|o| o.iter().filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string()))).collect()).unwrap_or_default();
+    Some(Launch { argv, env, cwd: v["cwd"].as_str().filter(|c| !c.is_empty()).map(String::from) })
 }
