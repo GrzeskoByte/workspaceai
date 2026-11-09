@@ -1,0 +1,10 @@
+[package]
+name = "workspaceai-term"
+version = "0.0.1"
+edition = "2021"
+publish = false
+
+[dependencies]
+# No serde feature: nothing here is persisted.
+alacritty_terminal = { version = "0.26", default-features = false }
+libc = "0.2"

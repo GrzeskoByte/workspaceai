@@ -71,3 +71,4 @@ Every TypeScript test gets a Rust counterpart, or is marked N/A with a reason. R
 | `supervisor/test/secrets.test.ts` › normalised names, audited puts | `secrets.rs::names_are_normalised_and_puts_are_audited` | ported |
 | `supervisor/test/*` (Open Design part of `shutdown.test.ts`) | — | N/A: Open Design install/health lands in B10 |
 | other `supervisor/test/*`, `orchestrator/test/rules.test.ts` | — | pending (later plans) |
+| — (new: terminal sessions, no TS counterpart) | `term` `pty.rs::{colour_cell, resize_reaches_child, exit_status_arrives, title_and_bell, wrapped_line_selection_copies_without_newline, cursor_position_report_is_answered, drop_hangs_up_the_child, drop_kills_a_child_that_ignores_hangup}`, `keys::tests::{encoder_table, paste}` | new (B6) |

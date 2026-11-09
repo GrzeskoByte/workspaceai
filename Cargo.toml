@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
 members = ["crates/*"]
-default-members = ["crates/shared", "crates/client"]
+default-members = ["crates/shared", "crates/client", "crates/term"]
 # The Tauri shell stays until phase 3; the spike pulls git deps and ships nothing.
 exclude = ["apps/desktop/src-tauri", "crates/spike"]
