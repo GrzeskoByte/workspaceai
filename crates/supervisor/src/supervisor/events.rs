@@ -60,6 +60,8 @@ pub enum UiEvent {
     Toast { text: String },
     /// A permission ask raised by a headless run (routine, pipeline); terminal sessions ask in their TUI.
     Approval { workspace: String, chat: String, permission: Value },
+    /// An agent created or revised an artifact from a session (opens it beside the terminal).
+    Artifact { workspace: String, chat: String, artifact: String, version: i64 },
 }
 
 pub type Listener = Arc<dyn Fn(UiEvent) + Send + Sync>;

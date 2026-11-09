@@ -3,6 +3,7 @@
 //! Paths match the TS router segment for segment; anything unknown is a 404.
 
 mod app;
+mod artifacts;
 mod engine;
 mod patch;
 mod projects;
@@ -94,6 +95,19 @@ pub(crate) fn dispatch(core: &mut Core, method: &str, path: &str, query: &BTreeM
         ["api", "ws", id, "scan-claude-sessions"] if method == "GET" => sessions::scan_claude(core, id),
         ["api", "ws", id, "import-claude-sessions"] if method == "POST" => sessions::import_claude(core, id, &body),
         ["api", "onboarding", "test-remote"] if method == "POST" => sessions::test_remote_route(&body),
+
+        // artifacts and agent tools (batch 9); `GET …/export` and `GET /api/shared/…` answer bytes, see `Supervisor`.
+        ["api", "ws", id, "agent", "guide"] if method == "POST" => artifacts::agent_guide(core, id, &body),
+        ["api", "ws", id, "agent", "artifacts"] if method == "POST" => artifacts::agent_create(core, id, &body),
+        ["api", "ws", id, "agent", "artifacts", aid] if method == "POST" => artifacts::agent_revise(core, id, aid, &body),
+        ["api", "ws", id, "artifacts"] if method == "POST" => artifacts::create(core, id, &body),
+        ["api", "ws", id, "artifacts", aid] if method == "DELETE" => artifacts::remove(core, id, aid),
+        ["api", "ws", id, "artifacts", aid, "content"] if method == "GET" => core.rt(id)?.view_artifact(aid, artifacts::version(query)),
+        ["api", "ws", id, "artifacts", aid, "versions"] if method == "POST" => artifacts::revise(core, id, aid, &body),
+        ["api", "ws", id, "artifacts", aid, "restore"] if method == "POST" => artifacts::restore(core, id, aid, &body),
+        ["api", "ws", id, "artifacts", aid, "move"] if method == "POST" => artifacts::move_to(core, id, aid, &body),
+        ["api", "ws", id, "artifacts", aid, "exports"] if method == "GET" => artifacts::exports(core, id, aid),
+        ["api", "ws", id, "artifacts", aid, "share"] if method == "POST" => artifacts::share(core, id, aid),
 
         _ => Err(ApiError::not_found("Not found")),
     }

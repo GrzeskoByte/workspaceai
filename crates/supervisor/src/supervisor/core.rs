@@ -53,6 +53,8 @@ pub struct Core {
     pub keychain: Arc<Keychain>,
     pub runtimes: BTreeMap<String, Runtime>,
     pub events: Emitter,
+    /// The loopback listener's URL and token while it runs (`server::serve`).
+    pub loopback: crate::server::LoopbackSlot,
 }
 
 fn default_settings() -> AppSettings {
@@ -83,6 +85,7 @@ impl Core {
         let computers: Vec<Computer> = read_json(&computers_json_path(&home)).unwrap_or_default();
         let events = Emitter::default();
         let keychain = Arc::new(Keychain::from_env());
+        let loopback = crate::server::LoopbackSlot::default();
         let mut runtimes = BTreeMap::new();
         if let Ok(entries) = std::fs::read_dir(home.join("ws")) {
             for entry in entries.flatten() {
@@ -92,11 +95,11 @@ impl Core {
                     continue;
                 }
                 if let Some(ws) = load_workspace(&home, &id) {
-                    runtimes.insert(id.clone(), Runtime::new(ws, &home, events.clone(), keychain.clone())?);
+                    runtimes.insert(id.clone(), Runtime::new(ws, &home, events.clone(), keychain.clone(), loopback.clone())?);
                 }
             }
         }
-        Ok(Core { home, settings, computers, keychain, runtimes, events })
+        Ok(Core { home, settings, computers, keychain, runtimes, events, loopback })
     }
 
     /// Stops every managed engine. Idempotent; `Supervisor::shutdown` and `Drop` both call it.

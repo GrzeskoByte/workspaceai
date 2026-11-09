@@ -16,10 +16,16 @@ libc = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 tar = "0.4"
+tiny_http = "0.12"
 ureq = "2"
+url = "2"
+
+[[bin]]
+# The MCP servers on their own (the app binary serves the same code as `workspaceai mcp <kind>`); tests drive it.
+name = "workspaceai-mcp"
+path = "src/bin/mcp.rs"
 
 [dev-dependencies]
 flate2 = "1"
 tar = "0.4"
 tempfile = "3"
-tiny_http = "0.12"

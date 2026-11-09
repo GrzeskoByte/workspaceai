@@ -50,3 +50,45 @@ pub fn create(f: &Fixture, name: &str, kind: &str) -> String {
         .expect("workspace id")
         .to_string()
 }
+
+/// A shared supervisor with the loopback listener running (`server::serve`), as the app runs it.
+pub struct Served {
+    // Field order is drop order: stop the listener, then the supervisor, then remove the home.
+    pub server: workspaceai_supervisor::server::LoopbackServer,
+    pub sup: std::sync::Arc<Supervisor>,
+    pub home: tempfile::TempDir,
+}
+
+impl Served {
+    pub fn ok(&self, method: &str, path: &str, body: Option<Value>) -> Value {
+        match self.sup.handle(method, path, &BTreeMap::new(), body) {
+            Ok(v) => v,
+            Err(e) => panic!("{method} {path} → {} {}", e.status, e.message),
+        }
+    }
+
+    /// One raw HTTP request to the listener: `(status, body)`. `token: None` sends no token header.
+    pub fn http(&self, method: &str, path: &str, token: Option<&str>, body: Option<&str>) -> (u16, String) {
+        let mut req = ureq::request(method, &format!("{}{path}", self.server.url()));
+        if let Some(t) = token {
+            req = req.set("x-harness-token", t);
+        }
+        let res = match body {
+            Some(b) => req.set("content-type", "application/json").send_string(b),
+            None => req.call(),
+        };
+        match res {
+            Ok(r) => (r.status(), r.into_string().unwrap_or_default()),
+            Err(ureq::Error::Status(code, r)) => (code, r.into_string().unwrap_or_default()),
+            Err(e) => panic!("{method} {path}: {e}"),
+        }
+    }
+}
+
+pub fn serve() -> Served {
+    KEYCHAIN_ENV.call_once(|| std::env::set_var("HARNESS_KEYCHAIN", "memory"));
+    let home = tempfile::tempdir().expect("temp home");
+    let sup = std::sync::Arc::new(Supervisor::new(home.path().to_path_buf()).expect("supervisor"));
+    let server = workspaceai_supervisor::server::serve(&sup).expect("loopback");
+    Served { server, sup, home }
+}

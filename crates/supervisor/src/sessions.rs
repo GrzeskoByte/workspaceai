@@ -234,12 +234,13 @@ impl Runtime {
         let s = self.session_mut(cid)?;
         let from = std::mem::replace(&mut s.project, project.to_string());
         let s = s.clone();
-        let mut n = 0;
-        // ponytail: artifact files are relocated by the artifact store (B9); rows move here.
+        let mut moved = Vec::new();
         for a in self.state.artifacts.iter_mut().filter(|a| a.chat.as_deref() == Some(cid) && a.project == from) {
             a.project = project.to_string();
-            n += 1;
+            moved.push(a.id.clone());
         }
+        self.relocate_artifacts(&moved, &from)?;
+        let n = moved.len();
         self.audit("chat.move", &format!("{} → {} ({n} artifacts)", s.title, project_path_name(&self.state.projects, Some(project))), "you");
         self.changed()?;
         if s.agent == "opencode" && (self.engine_running() || self.remote.is_some()) {

@@ -98,13 +98,14 @@ impl Runtime {
     /// `{env:X}` references become claude's `${X}`, with X in the process env, so no secret is written to disk.
     fn claude_mcp(&self, s: &Session, env: &mut BTreeMap<String, String>) -> Value {
         let mut servers = Map::new();
-        let built = build_opencode_json(&self.ws, self.policy.as_ref(), &self.supervisor_mcp(&s.id));
+        let built = build_opencode_json(&self.ws, self.policy.as_ref(), &self.supervisor_mcp(Some(&s.id)));
         for name in referenced_env(&built.json) {
             if let Some(v) = self.keychain.get(&self.id, &name) {
                 env.insert(name, v);
             }
         }
         env.extend(built.env);
+        env.extend(self.supervisor_env());
         let refs = |v: &Value| -> Value {
             let s = v.to_string();
             serde_json::from_str(&regex_lite_env(&s)).unwrap_or(Value::Null)
@@ -123,18 +124,26 @@ impl Runtime {
         json!({ "mcpServers": servers })
     }
 
-    /// The supervisor's own MCP servers (B9 serves them as `workspaceai mcp <kind>` from the app binary).
-    pub fn supervisor_mcp(&self, session: &str) -> Map<String, Value> {
+    /// The supervisor's own MCP servers, served as `workspaceai mcp <kind>` by the app binary (`crate::mcp`).
+    /// The loopback URL and token are `{env:…}` references resolved from the agent's process env, so no
+    /// secret lands in argv or a config file. `session` is set where the agent takes per-session config (R-13).
+    pub fn supervisor_mcp(&self, session: Option<&str>) -> Map<String, Value> {
         let exe = std::env::current_exe().map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "workspaceai".into());
-        let env = json!({
-            "HARNESS_MEMORY_DIR": self.paths.memory, "HARNESS_MEMORY_BACKEND": self.ws.memory.as_str(),
-            "HARNESS_WS": self.id, "HARNESS_CHAT": session,
+        let mut env = json!({
+            "HARNESS_MEMORY_DIR": self.paths.memory, "HARNESS_MEMORY_BACKEND": self.ws.memory.as_str(), "HARNESS_WS": self.id,
+            "HARNESS_SUPERVISOR": "{env:HARNESS_SUPERVISOR}", "HARNESS_SUPERVISOR_TOKEN": "{env:HARNESS_SUPERVISOR_TOKEN}",
         });
-        let mut out = Map::new();
-        if self.ws.use_memory != Some(false) {
-            out.insert("harness-memory".into(), json!({ "type": "local", "command": [exe, "mcp", "memory"], "enabled": true, "environment": env }));
+        if let Some(s) = session {
+            env["HARNESS_CHAT"] = json!(s);
         }
-        out.insert("harness-artifacts".into(), json!({ "type": "local", "command": [exe, "mcp", "artifacts"], "enabled": true, "environment": env }));
+        let mut out = Map::new();
+        let entry = |kind: &str| json!({ "type": "local", "command": [exe, "mcp", kind], "enabled": true, "environment": env });
+        if self.ws.use_memory != Some(false) {
+            out.insert("harness-memory".into(), entry("memory"));
+        }
+        out.insert("harness-artifacts".into(), entry("artifacts"));
+        // Always registered; scope is read on each call, so attaching a vault never restarts running sessions.
+        out.insert("harness-vault".into(), entry("vault"));
         out
     }
 
@@ -221,6 +230,9 @@ impl Runtime {
         if let Some(path) = env.get_mut("PATH") {
             let shared = [expand_home("~/.claude"), expand_home("~/.grok")];
             *path = path.split(':').filter(|p| !shared.iter().any(|h| p == h || p.starts_with(&format!("{h}/")))).collect::<Vec<_>>().join(":");
+        }
+        if s.agent == "opencode" {
+            self.last_opencode_launch = Some(s.id.clone());
         }
         let s = self.session_mut(cid)?;
         s.launched = true;

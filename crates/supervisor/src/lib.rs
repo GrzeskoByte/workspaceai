@@ -2,6 +2,7 @@
 //! `Supervisor::handle(method, path, query, body)` serves the same paths and JSON as the TS `routes.ts`.
 
 pub mod agents;
+pub mod artifacts;
 pub mod engine;
 pub mod export;
 pub mod files;
@@ -9,6 +10,7 @@ pub mod formats;
 pub mod headless;
 pub mod jsonfile;
 pub mod keychain;
+pub mod mcp;
 pub mod paths;
 pub mod policy;
 pub mod projects;
@@ -17,6 +19,7 @@ pub mod recall;
 mod router;
 pub mod runtime;
 pub mod secrets;
+pub mod server;
 pub mod sessions;
 pub mod supervisor;
 

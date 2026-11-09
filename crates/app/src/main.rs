@@ -398,6 +398,11 @@ impl AppView {
                 Ok(sup) => {
                     let sup = Arc::new(sup);
                     let _ = SUPERVISOR.set(sup.clone());
+                    // Loopback for agents' MCP servers (B9), before any engine starts; lives as long as the process.
+                    match workspaceai_supervisor::server::serve(&sup) {
+                        Ok(server) => std::mem::forget(server),
+                        Err(e) => eprintln!("loopback listener: {e}"),
+                    }
                     Msg::Ready(Api::new(sup))
                 }
                 Err(e) => Msg::StartFailed(e.message),
@@ -1829,6 +1834,10 @@ mod tests {
 }
 
 fn main() {
+    // `workspaceai mcp <memory|artifacts|vault>`: the stdio MCP servers agents start (B9).
+    if std::env::args().nth(1).as_deref() == Some("mcp") {
+        std::process::exit(workspaceai_supervisor::mcp::run(&std::env::args().nth(2).unwrap_or_default()));
+    }
     if std::env::args().any(|a| a == "--smoke") {
         if let Err(e) = smoke() {
             eprintln!("SMOKE failed: {e}");

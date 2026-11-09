@@ -34,6 +34,21 @@ impl Supervisor {
         crate::export::build(rt, &secrets)
     }
 
+    /// `GET /api/ws/:id/artifacts/:aid/export?format=&v=`: a file, so bytes rather than JSON.
+    pub fn export_artifact(&self, id: &str, aid: &str, format: &str, v: Option<i64>) -> Result<crate::artifacts::FileBody, ApiError> {
+        let core = self.inner.lock().map_err(|_| ApiError::new(500, "Supervisor lock poisoned"))?;
+        let rt = core.rt(id)?;
+        let out = rt.export_artifact(aid, format, v)?;
+        rt.audit("artifact.export", &format!("{} via harness", out.filename), "you");
+        Ok(out)
+    }
+
+    /// `GET /api/shared/:wsid/:key`: a shared artifact page, `None` when the link (or workspace) is gone.
+    pub fn shared_page(&self, ws: &str, key: &str) -> Option<Vec<u8>> {
+        let core = self.inner.lock().ok()?;
+        core.rt(ws).ok()?.shared_page(key)
+    }
+
     /// For tests and the app: read something from the core without a route.
     pub fn with_core<T>(&self, f: impl FnOnce(&Core) -> T) -> Result<T, ApiError> {        let core = self.inner.lock().map_err(|_| ApiError::new(500, "Supervisor lock poisoned"))?;
         Ok(f(&core))

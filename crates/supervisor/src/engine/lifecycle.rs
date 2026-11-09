@@ -53,7 +53,7 @@ impl Runtime {
 
     /// Environment for this workspace's process group: base env, XDG isolation, keychain secrets.
     pub fn engine_env(&self) -> BTreeMap<String, String> {
-        let built = build_opencode_json(&self.ws, self.policy.as_ref(), &serde_json::Map::new());
+        let built = build_opencode_json(&self.ws, self.policy.as_ref(), &self.supervisor_mcp(None));
         let mut out = base_env();
         for (k, v) in [
             ("XDG_DATA_HOME", &self.paths.xdg_data),
@@ -75,6 +75,8 @@ impl Runtime {
                 out.insert("NO_PROXY".into(), format!("{},127.0.0.1,localhost", policy.allowed_endpoints.join(",")));
             }
         }
+        // Last, so no keychain entry can shadow the loopback URL or token.
+        out.extend(self.supervisor_env());
         out
     }
 

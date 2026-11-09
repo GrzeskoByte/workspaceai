@@ -5,7 +5,7 @@ use crate::jsonfile::{append_line, read_json, read_text, write_json, write_text}
 use crate::keychain::Keychain;
 use crate::paths::{expand_home, WsPaths};
 use crate::supervisor::{ApiError, Emitter, UiEvent};
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicI64;
 use std::sync::Arc;
@@ -36,10 +36,16 @@ pub struct Runtime {
     /// Sessions the TUI creates after this moment are adopted (R-19); set when the engine connects.
     pub(crate) sync_since: i64,
     pub(crate) sync_at: i64,
+    /// The loopback listener (shared with the core); its URL/token go into engine and session envs.
+    pub loopback: crate::server::LoopbackSlot,
+    /// `session:type` pairs that read `artifact_guide` this run (in memory, as in the TS).
+    pub(crate) guided: std::collections::HashSet<String>,
+    /// The opencode session whose terminal opened last: artifact attribution for opencode (plan (c)).
+    pub(crate) last_opencode_launch: Option<String>,
 }
 
 impl Runtime {
-    pub(crate) fn new(mut ws: Workspace, home: &Path, events: Emitter, keychain: Arc<Keychain>) -> Result<Self, ApiError> {
+    pub(crate) fn new(mut ws: Workspace, home: &Path, events: Emitter, keychain: Arc<Keychain>, loopback: crate::server::LoopbackSlot) -> Result<Self, ApiError> {
         let paths = WsPaths::new(home, &ws.id);
         paths.ensure()?;
         let mut state: PersistedState = read_json(&paths.state).unwrap_or_default();
@@ -71,6 +77,9 @@ impl Runtime {
             events,
             sync_since: i64::MAX,
             sync_at: 0,
+            loopback,
+            guided: Default::default(),
+            last_opencode_launch: None,
         };
         rt.migrate_agents()?;
         rt.migrate_sessions()?;
@@ -216,10 +225,17 @@ impl Runtime {
     }
 
     // ---------- engine config ----------
-    /// opencode.json for this workspace. ponytail: no supervisor MCP servers (memory, artifacts) and no
-    /// Playwright profile rewrite yet; batch 3 (engine) and batch 9 (MCP) add them.
+    /// `HARNESS_SUPERVISOR` + `HARNESS_SUPERVISOR_TOKEN` while the loopback listener runs; empty otherwise.
+    pub fn supervisor_env(&self) -> std::collections::BTreeMap<String, String> {
+        crate::server::loopback_info(&self.loopback)
+            .map(|l| [("HARNESS_SUPERVISOR".to_string(), l.url), ("HARNESS_SUPERVISOR_TOKEN".to_string(), l.token)].into())
+            .unwrap_or_default()
+    }
+
+    /// opencode.json for this workspace, with the supervisor's MCP servers (no session: opencode shares one config).
+    /// ponytail: no Playwright profile rewrite yet.
     pub fn write_config(&self) -> Result<(), ApiError> {
-        let built = build_opencode_json(&self.ws, self.policy.as_ref(), &Map::new());
+        let built = build_opencode_json(&self.ws, self.policy.as_ref(), &self.supervisor_mcp(None));
         if contains_literal_secret(&built.json) {
             return Err(ApiError::new(500, "Refusing to write a literal secret into opencode.json"));
         }
