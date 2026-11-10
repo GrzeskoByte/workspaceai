@@ -22,7 +22,7 @@ When a user provides a prompt, parse the requirements and trigger the matching s
 
 4. **Verification & Post-Code Review**
    - **Trigger:** Reviewing pull requests, running test suites, or checking edge cases after a modification.
-   - **Action:** Spawn `reviewer` (Runs on `opus` with default effort).
+   - **Action:** Spawn `reviewer` (Runs on `haiku` with default effort).
 
 ## Code Style & Workspace Guidelines
 - **Language & Runtime:** Follow the established patterns found in the repository.
